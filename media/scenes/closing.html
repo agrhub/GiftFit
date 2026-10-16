@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en" data-duration="8">
+<head>
+<meta charset="utf-8" />
+<title>GiftFit video · B16 Closing</title>
+<link rel="stylesheet" href="base.css" />
+<style>
+  .col { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 30px; }
+  .mark { font: 500 168px/0.9 var(--display); letter-spacing: 0.01em; animation-delay: 0.1s; }
+  .mark b { font-weight: 500; color: var(--gold-deep); }
+  .rule { width: 260px; animation-delay: 0.6s; }
+  .tag { font: italic 400 56px/1.2 var(--display); color: var(--ink-soft); margin: 0; animation-delay: 0.9s; }
+  .cta { margin-top: 26px; padding: 28px 44px; animation-delay: 3.2s; display: grid; gap: 12px; }
+  .cta .eyebrow { font-size: 18px; }
+  .cta p { margin: 0; font: 400 30px/1.35 var(--sans); }
+  .cta strong { font-weight: 600; }
+  .urls { font: 500 24px/1.6 var(--sans); color: var(--muted); animation-delay: 4.0s; }
+  .built { position: absolute; left: 0; right: 0; bottom: 70px; text-align: center; font: 400 21px/1.5 var(--sans); color: var(--muted); animation-delay: 4.6s; }
+  .built b { color: var(--ink-soft); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="col">
+    <div class="mark in-scale">Gift<b>Fit</b></div>
+    <div class="rule in-fade"></div>
+    <p class="tag in-up">Try it on for someone else. The surprise stays a surprise.</p>
+    <div class="cta card in-up">
+      <span class="eyebrow">For judges</span>
+      <p>Open the demo link on Devpost and tap <strong>Try the judge demo</strong>.<br />No selfie needed: an AI-generated model with real YouCam renders.</p>
+    </div>
+    <div class="urls in-fade"><span data-param="demo">demo: https://&lt;giftfit-app&gt;</span> · <span data-param="repo">code: https://github.com/&lt;org&gt;/&lt;repo&gt;</span></div>
+  </div>
+  <div class="built in-fade"><b>Built with YouCam API</b> · AI Facial Color Tones · AI Face Attributes &amp; Ratio · Earrings, Necklace, Ring, Bracelet and Watch 2D VTO</div>
+</div>
+<div class="preview-hint">B16 · 8 s · ?demo=…&amp;repo=… fill the URLs</div>
+<script src="scene.js"></script>
+</body>
+</html>

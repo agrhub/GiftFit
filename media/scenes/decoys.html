@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en" data-duration="9">
+<head>
+<meta charset="utf-8" />
+<title>GiftFit video · B11 Decoys</title>
+<link rel="stylesheet" href="base.css" />
+<style>
+  /* Product photos: team-made, photo-real Aurum SKUs (ADR-018). No faces, so no AI badge needed. */
+  .head { position: absolute; left: 120px; top: 96px; }
+  .head h1 { font: 500 76px/1 var(--display); margin: 14px 0 0; }
+  .grid { position: absolute; left: 120px; top: 270px; width: 1000px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
+  .tile { position: relative; aspect-ratio: 1; padding: 0; overflow: hidden; }
+  .tile img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; padding: 22px; }
+  .name { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 14px; font: 500 19px/1.2 var(--sans); color: var(--ink-soft); background: rgb(255 255 255 / 0.9); border-top: 1px solid var(--line); }
+  /* shuffle in: each tile flies from a different place */
+  .tile { animation: shuffle 1300ms var(--ease-soft) both; }
+  @keyframes shuffle { from { transform: translate(var(--dx), var(--dy)) rotate(var(--r)); opacity: 0; } 30% { opacity: 1; } to { transform: none; opacity: 1; } }
+  .t1 { --dx: 520px; --dy: -60px; --r: 6deg; animation-delay: 0.0s; }
+  .t2 { --dx: -260px; --dy: 380px; --r: -5deg; animation-delay: 0.1s; }
+  .t3 { --dx: 300px; --dy: 300px; --r: 4deg; animation-delay: 0.2s; }
+  .t4 { --dx: 140px; --dy: -320px; --r: -7deg; animation-delay: 0.15s; }
+  .t5 { --dx: -400px; --dy: -120px; --r: 5deg; animation-delay: 0.25s; }
+  .t6 { --dx: 600px; --dy: 120px; --r: -3deg; animation-delay: 0.05s; }
+  .tick { position: absolute; top: 12px; right: 12px; padding: 7px 12px; border-radius: 999px; font: 600 16px/1 var(--sans); letter-spacing: 0.04em; animation: in-scale 500ms var(--ease-soft) both; }
+  .pick { background: var(--gold-deep); color: #fff; }
+  .decoy { background: var(--cream); color: var(--muted); border: 1px solid var(--line-strong); }
+  .k1 { animation-delay: 2.2s; } .k2 { animation-delay: 2.4s; } .k3 { animation-delay: 2.6s; } .k4 { animation-delay: 2.8s; } .k5 { animation-delay: 3.0s; } .k6 { animation-delay: 3.2s; }
+  .viewer { position: absolute; left: 120px; top: 980px; font: italic 400 26px/1 var(--display); color: var(--muted); animation-delay: 2.4s; }
+  .side { position: absolute; left: 1220px; right: 120px; top: 270px; display: flex; flex-direction: column; gap: 26px; }
+  .rules { list-style: none; padding: 0; margin: 0; display: grid; gap: 18px; }
+  .rules li { font: 400 30px/1.3 var(--sans); padding-left: 34px; position: relative; color: var(--ink-soft); }
+  .rules li::before { content: ""; position: absolute; left: 0; top: 13px; width: 14px; height: 14px; border-radius: 50%; background: var(--gold); }
+  .r1 { animation-delay: 4.6s; } .r2 { animation-delay: 4.9s; } .r3 { animation-delay: 5.2s; } .r4 { animation-delay: 5.5s; }
+  .odds { margin-top: 30px; animation-delay: 6.2s; }
+  .odds .big { font: 500 150px/0.9 var(--display); }
+  .odds .sub { font: 400 28px/1.35 var(--sans); color: var(--ink-soft); max-width: 520px; }
+  .odds .src { margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="head in-fade">
+    <div class="eyebrow">Decoy mixing</div>
+    <h1>Which one did they pick?</h1>
+  </div>
+  <div class="grid">
+    <!-- Order = the recipient's carousel order is shuffled per request; this order is illustrative. -->
+    <div class="tile card t1"><img src="../../public/catalog/aurum/photo/aur-ear-042.jpg" alt="" /><span class="name">Cove Fringe Earrings</span><span class="tick decoy k1">decoy</span></div>
+    <div class="tile card t2"><img src="../../public/catalog/aurum/photo/aur-ear-028.jpg" alt="" /><span class="name">Halo Drop Earrings</span><span class="tick pick k2">giver's pick</span></div>
+    <div class="tile card t3"><img src="../../public/catalog/aurum/photo/aur-nec-021.jpg" alt="" /><span class="name">Starlit Bib Collar</span><span class="tick decoy k3">decoy</span></div>
+    <div class="tile card t4"><img src="../../public/catalog/aurum/photo/aur-nec-037.jpg" alt="" /><span class="name">Reverie Pear Pendant</span><span class="tick pick k4">giver's pick</span></div>
+    <div class="tile card t5"><img src="../../public/catalog/aurum/photo/aur-ear-038.jpg" alt="" /><span class="name">Jubilee Pearl Chandeliers</span><span class="tick decoy k5">decoy</span></div>
+    <div class="tile card t6"><img src="../../public/catalog/aurum/photo/aur-ear-034.jpg" alt="" /><span class="name">Chime Bell Drop Earrings</span><span class="tick pick k6">giver's pick</span></div>
+  </div>
+  <div class="viewer in-fade">Shown here for you. The recipient never sees these labels.</div>
+  <div class="side">
+    <ul class="rules">
+      <li class="in-left r1">Same categories as the picks</li>
+      <li class="in-left r2">Price within ±20%</li>
+      <li class="in-left r3">Same number of metal swatches</li>
+      <li class="in-left r4">Gender-matched to the picks</li>
+    </ul>
+    <div class="odds in-up">
+      <div class="big display">≈ 1 in 6</div>
+      <div class="sub">chance of guessing the real gift from the carousel (simulated over random shortlists)</div>
+      <span class="src">GiftFit decoy tests · ADR-036 / ADR-038</span>
+    </div>
+  </div>
+</div>
+<div class="preview-hint">B11 · 9 s</div>
+<script src="scene.js"></script>
+</body>
+</html>

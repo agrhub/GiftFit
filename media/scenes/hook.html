@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" data-duration="8">
+<head>
+<meta charset="utf-8" />
+<title>GiftFit video · B1 Hook</title>
+<link rel="stylesheet" href="base.css" />
+<style>
+  .col { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .l1, .l2 { font-size: 92px; line-height: 1.08; margin: 0; }
+  .l2 { font-style: italic; color: var(--ink-soft); margin-top: 18px; }
+  .l1 { animation-delay: 0.2s; }
+  .l2 { animation-delay: 2.3s; }
+  /* Lines lift away as the number arrives */
+  .lines { animation: lift 700ms var(--ease-soft) 4.5s both; }
+  @keyframes lift { from { transform: none; } to { transform: translateY(-190px) scale(0.72); } }
+  .num-wrap { position: absolute; left: 0; right: 0; top: 520px; display: flex; flex-direction: column; align-items: center; gap: 22px; animation-delay: 4.8s; }
+  .num { font-size: 240px; line-height: 0.9; color: var(--ink); }
+  .num-sub { font: 400 36px/1.3 var(--sans); color: var(--ink-soft); }
+  .rule { width: 0; margin-top: 26px; animation: grow 900ms var(--ease-soft) 5.2s both; }
+  @keyframes grow { from { width: 0; } to { width: 220px; } }
+  .src { animation-delay: 6s; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="col">
+    <div class="lines">
+      <p class="l1 display in-up">You can try it on yourself.</p>
+      <p class="l2 display in-up">Not on the one you're buying for.</p>
+    </div>
+  </div>
+  <div class="num-wrap in-up">
+    <div class="num display"><span data-count data-from="0" data-to="17" data-start="4.8" data-dur="1.3" data-suffix="%">17%</span></div>
+    <div class="rule"></div>
+    <div class="num-sub">of holiday sales are expected to come back as returns</div>
+    <span class="src in-fade">NRF, Oct 2025 · retailers' forecast for the 2025 holidays</span>
+  </div>
+</div>
+<div class="preview-hint">B1 · 8 s · ?t=seconds to freeze</div>
+<script src="scene.js"></script>
+</body>
+</html>

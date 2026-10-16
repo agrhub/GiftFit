@@ -1,0 +1,94 @@
+/*
+ * GiftFit video scenes: shared styles (owner: A9). Hand-written, no dependencies.
+ * Tokens copied from app/globals.css so the scenes match the app (Aurum / GiftFit boutique palette).
+ * The stage is a fixed 1920x1080 canvas; scene.js scales it to the window for preview and leaves it
+ * at 1:1 when rendering at 1920x1080.
+ */
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600&display=swap");
+
+:root {
+  --ivory: #fbf8f3;
+  --cream: #f4eee4;
+  --sand: #ebe3d6;
+  --ink: #1f1a17;
+  --ink-soft: #4a433d;
+  --muted: #655d55;
+  --line: #e3dacd;
+  --line-strong: #c9bdab;
+  --gold: #b08d4c; /* decorative only */
+  --gold-deep: #75581f;
+  --blush: #f6ebe6;
+  --rose: #9b3d50;
+  --sage: #2f5d4a;
+  --display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --sans: "Inter", "Segoe UI", system-ui, sans-serif;
+  --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--ivory); overflow: hidden; }
+body { font-family: var(--sans); color: var(--ink); -webkit-font-smoothing: antialiased; }
+/* Cormorant defaults to old-style figures ("1" reads as "I", "0" as "O"); numbers on screen must read at a glance. */
+.stage { font-variant-numeric: lining-nums; font-feature-settings: "lnum" 1; }
+
+.stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: var(--ivory);
+  transform-origin: 0 0;
+}
+
+/* Shared type */
+.eyebrow { font: 500 22px/1 var(--sans); letter-spacing: 0.32em; text-transform: uppercase; color: var(--gold-deep); }
+.display { font-family: var(--display); font-weight: 500; letter-spacing: -0.01em; }
+.wordmark { font: 500 44px/1 var(--display); letter-spacing: 0.02em; }
+.wordmark b { font-weight: 500; color: var(--gold-deep); }
+.rule { height: 1px; background: var(--gold); }
+
+/* Source chip (every number carries one) */
+.src {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 8px 16px; border: 1px solid var(--line-strong); border-radius: 999px;
+  font: 400 20px/1 var(--sans); color: var(--muted); background: #fff;
+}
+.src::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); }
+
+/* "AI-generated model" badge: required on every face or hand image in judged material (ADR-027/029) */
+.ai-badge {
+  position: absolute; left: 16px; top: 16px; z-index: 5;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 12px; border-radius: 999px;
+  background: rgb(31 26 23 / 0.86); color: #fff;
+  font: 500 16px/1 var(--sans); letter-spacing: 0.02em;
+}
+.ai-badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
+
+/* Card */
+.card { background: #fff; border: 1px solid var(--line); border-radius: 20px; }
+
+/* Entrance animations: every one is paused and seeked by scene.js, so the delay is the cue time. */
+.in-fade { animation: in-fade 600ms var(--ease-soft) both; }
+.in-up { animation: in-up 700ms var(--ease-soft) both; }
+.in-scale { animation: in-scale 700ms var(--ease-soft) both; }
+.in-left { animation: in-left 700ms var(--ease-soft) both; }
+@keyframes in-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes in-up { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+@keyframes in-scale { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
+@keyframes in-left { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
+
+/* Try-on crops, same numbers as components/gift/recipient/cropConfig.ts (806x1080 renders) */
+.crop { position: relative; overflow: hidden; background: var(--cream); }
+.crop img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.crop.earring img { transform: scale(1.818); transform-origin: 50% 17.8%; }
+.crop.necklace img { transform: scale(2.381); transform-origin: 50% 72.4%; }
+.crop.ring img { transform: scale(1.667); transform-origin: 50% 50%; }
+.crop.watch img, .crop.bracelet img { transform: scale(1.667); transform-origin: 50% 62.5%; }
+
+/* Preview-only hint (hidden when rendering) */
+.preview-hint { position: fixed; right: 12px; bottom: 10px; font: 12px/1.4 var(--sans); color: var(--muted); }
+html.rendering .preview-hint { display: none; }

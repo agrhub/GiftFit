@@ -1,0 +1,6 @@
+# Renders, raw takes, fake-camera files and local fonts: large or derived, never committed.
+out/
+*.mjpeg
+*.webm
+*.mp4
+*.wav

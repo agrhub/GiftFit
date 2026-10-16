@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en" data-duration="12">
+<head>
+<meta charset="utf-8" />
+<title>GiftFit video · B15 YouCam API explainer</title>
+<link rel="stylesheet" href="base.css" />
+<style>
+  .head { position: absolute; left: 100px; right: 100px; top: 70px; display: flex; align-items: flex-end; justify-content: space-between; }
+  .head h1 { font: 500 66px/1 var(--display); margin: 12px 0 0; }
+  .group-l { font: 500 20px/1 var(--sans); letter-spacing: 0.26em; text-transform: uppercase; color: var(--gold-deep); }
+  .ga { position: absolute; left: 100px; top: 210px; }
+  .gb { position: absolute; left: 100px; top: 492px; }
+  .row1 { position: absolute; left: 100px; right: 100px; top: 246px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .row2 { position: absolute; left: 100px; right: 100px; top: 528px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 24px; }
+  .a-tile { display: grid; grid-template-columns: 210px 1fr; gap: 28px; align-items: center; padding: 26px 30px; height: 220px; }
+  .vis { height: 160px; border-radius: 14px; background: var(--cream); display: grid; place-items: center; }
+  .dots { display: flex; gap: 10px; }
+  .dots i { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--line); }
+  .api { font: 500 36px/1.05 var(--display); margin: 0 0 10px; }
+  .use { font: 400 22px/1.4 var(--sans); color: var(--ink-soft); margin: 0; }
+  .cost { display: inline-block; margin-top: 12px; font: 500 18px/1 var(--sans); color: var(--gold-deep); letter-spacing: 0.04em; }
+  .v-tile { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+  .v-tile .crop { height: 300px; }
+  .v-tile .txt { padding: 18px 20px 20px; }
+  .v-tile .api { font-size: 30px; margin-bottom: 6px; }
+  .v-tile .use { font-size: 19px; }
+  /* Scene tiles are wider than the app's cards, so hand tiles get their own framing (the app keeps cropConfig). */
+  .v-tile .crop.ring img { transform: scale(1.5); transform-origin: 59% 30%; }
+  .v-tile .crop.watch img { transform: scale(1.4); transform-origin: 50% 62%; }
+  .prod img { object-fit: contain; mix-blend-mode: multiply; padding: 26px; background: #fff; }
+  .prod-note { position: absolute; left: 14px; top: 14px; padding: 6px 10px; border-radius: 999px; font: 500 14px/1 var(--sans); color: var(--muted); background: var(--cream); border: 1px solid var(--line-strong); }
+  .foot { position: absolute; left: 100px; right: 100px; top: 968px; display: flex; align-items: center; gap: 22px; font: 400 26px/1.3 var(--sans); color: var(--ink-soft); animation-delay: 9.5s; }
+  .foot b { font: 500 40px/1 var(--display); color: var(--ink); }
+  .d1 { animation-delay: 0.6s; } .d2 { animation-delay: 1.4s; } .d3 { animation-delay: 4.0s; } .d4 { animation-delay: 4.8s; }
+  .d5 { animation-delay: 5.6s; } .d6 { animation-delay: 6.4s; } .d7 { animation-delay: 7.2s; } .lb { animation-delay: 3.6s; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="head in-fade">
+    <div>
+      <div class="eyebrow">Under the hood</div>
+      <h1>Seven YouCam APIs, each with a job</h1>
+    </div>
+    <div class="wordmark">Gift<b>Fit</b></div>
+  </div>
+
+  <div class="group-l ga in-fade">Read the face · on the recipient's selfie</div>
+  <div class="row1">
+    <div class="a-tile card in-up d1">
+      <div class="vis"><div class="dots"><i style="background:#c1a28c"></i><i style="background:#b39075"></i><i style="background:#ae886d"></i><i style="background:#6e4d38"></i><i style="background:#624838"></i></div></div>
+      <div>
+        <p class="api">AI Facial Color Tones</p>
+        <p class="use">Skin color → a low-weight undertone estimate that the recipient can correct.</p>
+        <span class="cost">20 units</span>
+      </div>
+    </div>
+    <div class="a-tile card in-up d2">
+      <div class="vis">
+        <!-- neutral face-shape outline, drawn here (no photo) -->
+        <svg width="120" height="140" viewBox="0 0 120 140" aria-hidden="true"><path d="M60 8 C 98 8 112 38 110 66 C 108 98 84 130 60 132 C 36 130 12 98 10 66 C 8 38 22 8 60 8 Z" fill="none" stroke="#75581f" stroke-width="3" stroke-dasharray="6 6"/><line x1="10" y1="66" x2="110" y2="66" stroke="#c9bdab" stroke-width="2"/><line x1="60" y1="8" x2="60" y2="132" stroke="#c9bdab" stroke-width="2"/></svg>
+      </div>
+      <div>
+        <p class="api">AI Face Attributes &amp; Ratio</p>
+        <p class="use">Face shape and proportions (5 features) → style rules for earrings and necklaces.</p>
+        <span class="cost">10 units</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="group-l gb in-fade lb">Try it on · 2D virtual try-on, 1 unit per render</div>
+  <div class="row2">
+    <div class="v-tile card in-up d3">
+      <div class="crop earring"><img src="../../fixtures/youcam/ai-demo/showcase/showcase-latina-medium-warm/tryons/AUR-EAR-028-yellow_gold.jpg" alt="" /><span class="ai-badge">AI-generated model</span></div>
+      <div class="txt"><p class="api">Earrings VTO</p><p class="use">On the selfie, ears visible</p></div>
+    </div>
+    <div class="v-tile card in-up d4">
+      <div class="crop necklace"><img src="../../fixtures/youcam/ai-demo/showcase/showcase-latina-medium-warm/tryons/AUR-NEC-037-white_gold.jpg" alt="" /><span class="ai-badge">AI-generated model</span></div>
+      <div class="txt"><p class="api">Necklace VTO</p><p class="use">On the selfie, neck in view</p></div>
+    </div>
+    <div class="v-tile card in-up d5">
+      <div class="crop ring"><img src="../../fixtures/youcam/ai-demo/showcase/showcase-man-lightmed-neutral/tryons/AUR-RNG-016-mixed_two_tone.jpg" alt="" /><span class="ai-badge">AI-generated model</span></div>
+      <div class="txt"><p class="api">Ring VTO</p><p class="use">On a back-of-hand photo</p></div>
+    </div>
+    <div class="v-tile card in-up d6">
+      <!-- Default: product photo. The only bracelet render is in the git-ignored fairness set (ADR-029); user decision. -->
+      <div class="crop prod"><img src="../../public/catalog/aurum/photo/aur-brc-003.jpg" alt="" /><span class="prod-note">product photo</span></div>
+      <div class="txt"><p class="api">Bracelet VTO</p><p class="use">On the same hand photo, wrist centred</p></div>
+    </div>
+    <div class="v-tile card in-up d7">
+      <div class="crop watch"><img src="../../fixtures/youcam/ai-demo/showcase/showcase-man-lightmed-neutral/tryons/AUR-WCH-002-mixed_two_tone.jpg" alt="" /><span class="ai-badge">AI-generated model</span></div>
+      <div class="txt"><p class="api">Watch VTO</p><p class="use">On the same hand photo, dial upright</p></div>
+    </div>
+  </div>
+
+  <div class="foot in-up">
+    <b>≈ 36 units</b>
+    <span>per Fit Request: Color Tones 20 + Face Attributes 10 + six try-ons × 1 (a few more with a hand photo or extra metals)</span>
+  </div>
+</div>
+<div class="preview-hint">B15 · 12 s</div>
+<script src="scene.js"></script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en" data-duration="6">
+<head>
+<meta charset="utf-8" />
+<title>GiftFit video · B2 How it works</title>
+<link rel="stylesheet" href="base.css" />
+<style>
+  .top { position: absolute; left: 140px; right: 140px; top: 110px; display: flex; align-items: baseline; justify-content: space-between; }
+  .tag { font: italic 400 40px/1 var(--display); color: var(--ink-soft); }
+  .row { position: absolute; left: 140px; right: 140px; top: 300px; display: grid; grid-template-columns: 1fr 90px 1fr 90px 1fr; align-items: stretch; }
+  .step { padding: 48px 44px; display: flex; flex-direction: column; gap: 22px; min-height: 470px; }
+  .n { font: 500 22px/1 var(--sans); letter-spacing: 0.3em; color: var(--gold-deep); }
+  .h { font: 500 54px/1.05 var(--display); margin: 0; }
+  .p { font: 400 26px/1.45 var(--sans); color: var(--ink-soft); margin: 0; }
+  .icon { width: 96px; height: 96px; border-radius: 50%; background: var(--cream); border: 1px solid var(--line-strong); position: relative; }
+  .arrow { align-self: center; justify-self: center; width: 46px; height: 2px; background: var(--gold); position: relative; }
+  .arrow::after { content: ""; position: absolute; right: -2px; top: -6px; border: 7px solid transparent; border-left: 12px solid var(--gold); border-right: 0; }
+  .s1 { animation-delay: 0.2s; } .a1 { animation-delay: 0.9s; }
+  .s2 { animation-delay: 1.1s; } .a2 { animation-delay: 1.8s; }
+  .s3 { animation-delay: 2.0s; }
+  .zero { font: 500 120px/0.9 var(--display); color: var(--sage); }
+  .zero small { font: 500 26px/1 var(--sans); color: var(--sage); letter-spacing: 0.04em; margin-left: 10px; }
+  .zero-wrap { animation-delay: 3.0s; }
+  /* simple CSS pictograms */
+  .i-list::before { content: ""; position: absolute; left: 28px; right: 28px; height: 3px; border-radius: 2px; background: var(--ink-soft); }
+  .i-list::before { top: 36px; box-shadow: 0 12px 0 var(--ink-soft), 0 24px 0 var(--gold); }
+  .i-heart::before { content: "\2665"; position: absolute; inset: 0; display: grid; place-items: center; font: 48px/1 Georgia, serif; color: var(--rose); }
+  .i-report::before { content: ""; position: absolute; inset: 22px; border-radius: 50%; border: 5px solid var(--sand); border-top-color: var(--gold-deep); border-right-color: var(--gold-deep); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="top in-fade">
+    <div class="wordmark">Gift<b>Fit</b></div>
+    <div class="tag">Try it on for someone else.</div>
+  </div>
+  <div class="row">
+    <div class="step card in-up s1">
+      <div class="icon i-list"></div>
+      <div class="n">01 · GIVER</div>
+      <h2 class="h">Shortlists designs</h2>
+      <p class="p">Occasion, a budget cap and, if they like, a metal. Then one private link.</p>
+    </div>
+    <div class="arrow in-fade a1"></div>
+    <div class="step card in-up s2">
+      <div class="icon i-heart"></div>
+      <div class="n">02 · RECIPIENT</div>
+      <h2 class="h">Tries on six pieces</h2>
+      <p class="p">On their own phone. Three are decoys, so the gift stays a surprise.</p>
+    </div>
+    <div class="arrow in-fade a2"></div>
+    <div class="step card in-up s3">
+      <div class="icon i-report"></div>
+      <div class="n">03 · GIVER</div>
+      <h2 class="h">Gets a Fit Report</h2>
+      <p class="p">Scores, reasons and hearts. Never a face.</p>
+      <div class="zero-wrap in-scale"><span class="zero">0<small>photos shared</small></span></div>
+    </div>
+  </div>
+</div>
+<div class="preview-hint">B2 · 6 s</div>
+<script src="scene.js"></script>
+</body>
+</html>
