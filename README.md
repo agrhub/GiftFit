@@ -3,7 +3,7 @@
 > **"Try it on for someone else. The surprise stays a surprise."**  
 > *The giver never sees their face. The recipient never knows which one was picked.*
 
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-15.5-black)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19.1-blue)](https://react.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8)](https://tailwindcss.com/)
@@ -209,4 +209,4 @@ All product and model imagery in GiftFit is strictly synthetic and rights-cleare
 
 ## 📄 License
 
-GiftFit is licensed under the **GNU Affero General Public License v3.0 only** ([AGPL-3.0-only](LICENSE)).
+GiftFit is free and open-source software, licensed under the [MIT License](LICENSE).
