@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Static test store · Halo Drop Earrings</title>
+    <!-- A plain, framework-free product page on a different origin from the GiftFit app.
+         Fictional test store; the product is from the Aurum demo catalog. -->
+    <meta property="og:type" content="product" />
+    <meta property="og:title" content="Halo Drop Earrings" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          { "@type": "BreadcrumbList", "itemListElement": [] },
+          {
+            "@type": "Product",
+            "sku": "{{SKU}}",
+            "name": "{{NAME}}",
+            "offers": { "@type": "Offer", "price": "245.00", "priceCurrency": "USD" }
+          }
+        ]
+      }
+    </script>
+    <style>
+      /* Deliberately aggressive host CSS: the injected button lives in a shadow root and must not change. */
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 16px/1.5 Georgia, serif; color: #222; background: #f2f4f7; }
+      button { background: #2b4c7e !important; color: #fff !important; font: 700 18px/1 Georgia, serif !important; text-transform: uppercase !important; border-radius: 0 !important; padding: 14px 28px !important; }
+      header { padding: 16px 24px; background: #fff; border-bottom: 1px solid #ddd; font-weight: bold; letter-spacing: .08em; }
+      main { max-width: 960px; margin: 32px auto; padding: 0 16px; display: grid; gap: 32px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+      .photo { aspect-ratio: 1; background: #fff url("{{ORIGIN}}/catalog/aurum/photo/aur-ear-028.jpg") center / 70% no-repeat; border: 1px solid #ddd; }
+      .note { grid-column: 1 / -1; padding: 12px 16px; border: 1px dashed #999; background: #fff; font: 14px/1.5 system-ui, sans-serif; }
+      #events { font: 13px/1.5 ui-monospace, monospace; color: #555; }
+    </style>
+  </head>
+  <body>
+    <header>STATIC TEST STORE <small>(fictional, served from a different origin)</small></header>
+    <main>
+      <div class="photo" role="img" aria-label="Product photo"></div>
+      <div>
+        <h1>{{NAME}}</h1>
+        <p>$245.00</p>
+        <form action="/cart/add" method="post" onsubmit="return false">
+          <button type="submit" name="add">Add to cart</button>
+        </form>
+        <p id="events" data-testid="host-events" aria-live="polite"></p>
+      </div>
+      <p class="note">
+        This page knows nothing about GiftFit except one line:
+        <code>&lt;script src="{{ORIGIN}}/giftfit.js" data-store="aurum" async&gt;&lt;/script&gt;</code>.
+        This page styles every button as a blue uppercase block; the injected one keeps its own look because it lives in a shadow root.
+      </p>
+    </main>
+    <script>
+      ["giftfit:sent", "giftfit:close"].forEach(function (type) {
+        window.addEventListener(type, function () {
+          document.getElementById("events").textContent += type + " ";
+        });
+      });
+    </script>
+    <script src="{{ORIGIN}}/giftfit.js" data-store="aurum" async></script>
+  </body>
+</html>
