@@ -1,0 +1,1 @@
+ALTER TABLE "fit_requests" ADD COLUMN "photo_deleted_at" timestamp with time zone;

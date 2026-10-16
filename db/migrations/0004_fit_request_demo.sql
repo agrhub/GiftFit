@@ -1,0 +1,1 @@
+ALTER TABLE "fit_requests" ADD COLUMN "demo" boolean DEFAULT false NOT NULL;
