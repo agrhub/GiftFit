@@ -1,0 +1,294 @@
+/**
+ * Fit Report explanations (MASTER_PLAN v2 G6, rule 2 "grounded").
+ *
+ * Claude (claude-sonnet-5-5) rewrites the deterministic reasons into 2 reasons + 1 caution per SKU,
+ * each ≤ 20 words, under a strict JSON schema whose `skuId` is an enum of the scored ids. The model
+ * receives ONLY scored SKU ids, scores, category words and giver-safe signal labels such as
+ * "hearted" or "warm undertone estimate → yellow gold: recommended": never titles, images, URLs,
+ * hex values, CIELAB numbers, confidence numbers or face measurements.
+ *
+ * Every model output passes `validateExplanation`; anything ungrounded, leaky or too long is
+ * replaced by the deterministic template text for that slot. Without ANTHROPIC_API_KEY (or on any
+ * API error) the template is used for everything, so the app works with no key.
+ */
+import Anthropic from "@anthropic-ai/sdk";
+import type { FitResult, JewelryCategory } from "@/lib/contracts/giftfit";
+import { GENERIC_CAUTION, type ScoredSku, toFitResult } from "./score";
+
+export const EXPLAIN_MODEL = "claude-sonnet-5-5";
+export const MAX_WORDS = 20;
+
+/** What the model sees for one SKU. Built only by `buildExplainInput`. */
+export interface ExplainItem {
+  skuId: string;
+  score: number;
+  category: JewelryCategory;
+  breakdown: FitResult["breakdown"];
+  signals: string[];
+}
+
+export interface ExplainRequest {
+  items: ExplainItem[];
+}
+
+export interface ExplainOutputItem {
+  skuId: string;
+  reason1: string;
+  reason2: string;
+  caution: string;
+}
+
+/** Narrow interface so tests can inject a mock and the app can run without a key. */
+export interface ExplainClient {
+  readonly model: string;
+  explain(request: ExplainRequest, schema: Record<string, unknown>): Promise<unknown>;
+}
+
+export type ExplanationSource = "llm" | "llm_repaired" | "template";
+
+export interface ExplainIssue {
+  skuId?: string;
+  field?: "reason1" | "reason2" | "caution" | "items";
+  code:
+    | "no_client"
+    | "client_error"
+    | "bad_shape"
+    | "unknown_sku"
+    | "duplicate_sku"
+    | "missing_sku"
+    | "too_long"
+    | "empty"
+    | "leak_hex"
+    | "leak_biometric"
+    | "leak_photo"
+    | "leak_url"
+    | "foreign_reference";
+  detail?: string;
+}
+
+export interface ExplainResult {
+  results: FitResult[];
+  source: ExplanationSource;
+  model?: string;
+  issues: ExplainIssue[];
+}
+
+// ---------------------------------------------------------------- input side
+
+const UNSAFE_INPUT = [/#[0-9a-f]{3,8}\b/i, /https?:\/\//i, /\bwww\./i, /\b[Lab]\*/, /\bdata:image/i, /\.(png|jpe?g|webp|gif)\b/i];
+
+/** Builds the model input from scored SKUs. Throws if any label could carry recipient data. */
+export function buildExplainInput(scored: readonly (ScoredSku & { category: JewelryCategory })[]): ExplainRequest {
+  const items = scored.map((s) => ({
+    skuId: s.skuId,
+    score: s.score,
+    category: s.category,
+    breakdown: { ...s.breakdown },
+    signals: s.signals.map((g) => g.label),
+  }));
+  for (const it of items) {
+    for (const label of it.signals) {
+      if (UNSAFE_INPUT.some((re) => re.test(label))) throw new Error(`explain input label is not giver-safe: ${label}`);
+    }
+  }
+  return { items };
+}
+
+/** Strict JSON schema for structured output; skuId is restricted to the scored ids. */
+export function explainSchema(skuIds: readonly string[]): Record<string, unknown> {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["items"],
+    properties: {
+      items: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["skuId", "reason1", "reason2", "caution"],
+          properties: {
+            skuId: { type: "string", enum: [...skuIds] },
+            reason1: { type: "string", description: "Why this piece fits, at most 20 words, from the signals only." },
+            reason2: { type: "string", description: "A second, different reason, at most 20 words, from the signals only." },
+            caution: { type: "string", description: "One caution or caveat, at most 20 words, from the signals only." },
+          },
+        },
+      },
+    },
+  };
+}
+
+export const EXPLAIN_SYSTEM = [
+  "You write short Fit Report notes for someone choosing a jewelry gift for another person.",
+  "For every item in the input, write two reasons and one caution, each at most 20 words, in plain English.",
+  "Use only the facts in that item's `signals` and `score`. Refer to the item as 'this piece'; never name products, brands or ids.",
+  "Never mention or speculate about photos, selfies, images, skin colour values, hex codes, colour numbers, measurements, ratios or confidence numbers.",
+  "Undertone and face shape are estimates: say 'estimate' when you use them. Refer to the recipient as 'they' (gender-neutral); recipients can be anyone.",
+  "If a signal says 'not hearted' or 'low-confidence', use it as the caution. Otherwise caution that the try-on is an AI preview.",
+].join(" ");
+
+// ---------------------------------------------------------------- Anthropic client
+
+/** Real client: claude-sonnet-5-5 with structured outputs (forced tool_choice is not available on Sonnet 5.5). */
+export class AnthropicExplainClient implements ExplainClient {
+  readonly model = EXPLAIN_MODEL;
+  private readonly client: Anthropic;
+
+  constructor(client?: Anthropic) {
+    this.client = client ?? new Anthropic();
+  }
+
+  async explain(request: ExplainRequest, schema: Record<string, unknown>): Promise<unknown> {
+    const response = await this.client.beta.messages.create({
+      model: this.model,
+      max_tokens: 4000,
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      output_config: { effort: "low", format: { type: "json_schema", schema } },
+      system: EXPLAIN_SYSTEM,
+      messages: [{ role: "user", content: JSON.stringify(request) }],
+    });
+    if (response.stop_reason === "refusal") throw new Error("model declined");
+    if (response.stop_reason === "max_tokens") throw new Error("model output truncated");
+    const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
+    return JSON.parse(text);
+  }
+}
+
+/** Returns the real client when ANTHROPIC_API_KEY is set, else null (template mode). */
+export function createExplainClient(env: Record<string, string | undefined> = process.env): ExplainClient | null {
+  return env.ANTHROPIC_API_KEY ? new AnthropicExplainClient(new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })) : null;
+}
+
+// ---------------------------------------------------------------- output validation
+
+const LEAKS: { code: ExplainIssue["code"]; re: RegExp }[] = [
+  { code: "leak_hex", re: /#[0-9a-f]{3,8}\b/i },
+  { code: "leak_hex", re: /\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{6}\b/i },
+  { code: "leak_hex", re: /\b(hex|rgb|hsl)\b/i },
+  { code: "leak_biometric", re: /\bcie ?lab\b|\blab (values?|numbers?|colou?rs?)\b|\b[Lab]\s*\*|\b[Lab]\s*[=:]\s*-?\d/i },
+  { code: "leak_biometric", re: /\bhue( angle)?\b|\bchroma\b|\bdegrees?\b|°/i },
+  { code: "leak_biometric", re: /\b(ratio|cheekbones?|eye distance|nose width|jaw ?width|face width|landmarks?|biometric\w*)\b/i },
+  { code: "leak_biometric", re: /\d+(\.\d+)?\s*%|\bconfidence (of|is|=|:)?\s*\d|\b0\.\d+\b/i },
+  { code: "leak_biometric", re: /\bfitzpatrick\b|\bskin (colou?r|tone) (value|code|number)s?\b/i },
+  { code: "leak_photo", re: /\b(photos?|photograph\w*|selfies?|images?|pictures?|pics?|camera|video|snapshot)\b/i },
+  { code: "leak_url", re: /https?:\/\/|\bwww\.|\.(com|net|io|png|jpe?g|webp)\b/i },
+];
+
+export const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
+
+export interface ValidationContext {
+  /** Ids that were scored and sent to the model. */
+  allowedIds: readonly string[];
+  /** Every catalog id and title known to the server, to catch references to other products. */
+  catalog?: readonly { id: string; title: string }[];
+}
+
+/** Returns the issues for one text; empty when the text is safe, grounded and short enough. */
+export function checkText(text: unknown, skuId: string, ctx: ValidationContext): ExplainIssue["code"][] {
+  if (typeof text !== "string" || text.trim() === "") return ["empty"];
+  const codes = new Set<ExplainIssue["code"]>();
+  if (wordCount(text) > MAX_WORDS) codes.add("too_long");
+  for (const { code, re } of LEAKS) if (re.test(text)) codes.add(code);
+  const lower = text.toLowerCase();
+  for (const id of ctx.allowedIds) if (id !== skuId && id.length >= 3 && lower.includes(id.toLowerCase())) codes.add("foreign_reference");
+  for (const c of ctx.catalog ?? []) {
+    if (c.id === skuId) continue;
+    if (c.id.length >= 3 && lower.includes(c.id.toLowerCase())) codes.add("foreign_reference");
+    if (c.title.length >= 4 && lower.includes(c.title.toLowerCase())) codes.add("foreign_reference");
+  }
+  // Generic id shapes (uuid, sku-123) that are not this SKU's own id.
+  const idLike = text.match(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b|\b[a-z]{2,}[-_]\d{2,}\b/gi) ?? [];
+  if (idLike.some((m) => m.toLowerCase() !== skuId.toLowerCase())) codes.add("foreign_reference");
+  return [...codes];
+}
+
+/**
+ * Validates raw model output against the scored SKUs and repairs it: every slot that fails any
+ * check is replaced by the deterministic template text. Ids the model invented are dropped;
+ * missing SKUs fall back to the template entirely.
+ */
+export function validateExplanation(
+  raw: unknown,
+  scored: readonly ScoredSku[],
+  ctx: Omit<ValidationContext, "allowedIds"> = {},
+): { results: FitResult[]; issues: ExplainIssue[]; repaired: boolean } {
+  const issues: ExplainIssue[] = [];
+  const allowedIds = scored.map((s) => s.skuId);
+  const vctx: ValidationContext = { allowedIds, catalog: ctx.catalog };
+  const items = (raw as { items?: unknown })?.items;
+  const byId = new Map<string, Record<string, unknown>>();
+  if (!Array.isArray(items)) {
+    issues.push({ field: "items", code: "bad_shape" });
+  } else {
+    for (const it of items) {
+      const rec = it as Record<string, unknown>;
+      const id = typeof rec?.skuId === "string" ? rec.skuId : "";
+      if (!allowedIds.includes(id)) {
+        issues.push({ code: "unknown_sku", detail: id.slice(0, 64) });
+        continue;
+      }
+      if (byId.has(id)) {
+        issues.push({ skuId: id, code: "duplicate_sku" });
+        continue;
+      }
+      byId.set(id, rec);
+    }
+  }
+
+  const results = scored.map((s) => {
+    const base = toFitResult(s);
+    const rec = byId.get(s.skuId);
+    if (!rec) {
+      if (Array.isArray(items)) issues.push({ skuId: s.skuId, code: "missing_sku" });
+      return base;
+    }
+    const fallback = { reason1: base.reasons[0], reason2: base.reasons[1], caution: base.caution ?? GENERIC_CAUTION };
+    const out: Record<"reason1" | "reason2" | "caution", string> = { ...fallback };
+    for (const field of ["reason1", "reason2", "caution"] as const) {
+      const codes = checkText(rec[field], s.skuId, vctx);
+      if (codes.length === 0) out[field] = (rec[field] as string).trim();
+      else for (const code of codes) issues.push({ skuId: s.skuId, field, code });
+    }
+    return { ...base, reasons: [out.reason1, out.reason2], caution: out.caution };
+  });
+  return { results, issues, repaired: issues.length > 0 };
+}
+
+/** Template-only explanation (no model). */
+export function templateExplanation(scored: readonly ScoredSku[]): FitResult[] {
+  return scored.map(toFitResult);
+}
+
+/**
+ * Explains scored SKUs. Uses the client when given, validates and repairs its output, and falls
+ * back to templates on any error. Never throws for model failures.
+ */
+export async function explainFit(
+  scored: readonly (ScoredSku & { category: JewelryCategory })[],
+  { client, catalog }: { client: ExplainClient | null; catalog?: readonly { id: string; title: string }[] },
+): Promise<ExplainResult> {
+  if (!client) return { results: templateExplanation(scored), source: "template", issues: [{ code: "no_client" }] };
+  if (scored.length === 0) return { results: [], source: "template", issues: [] };
+  const input = buildExplainInput(scored);
+  let raw: unknown;
+  try {
+    raw = await client.explain(input, explainSchema(input.items.map((i) => i.skuId)));
+  } catch (err) {
+    return {
+      results: templateExplanation(scored),
+      source: "template",
+      model: client.model,
+      issues: [{ code: "client_error", detail: (err as Error).message.slice(0, 200) }],
+    };
+  }
+  const v = validateExplanation(raw, scored, { catalog });
+  const usable = !v.issues.some((i) => i.code === "bad_shape");
+  return {
+    results: v.results,
+    source: !usable ? "template" : v.repaired ? "llm_repaired" : "llm",
+    model: client.model,
+    issues: v.issues,
+  };
+}
