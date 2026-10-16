@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "skills": {
+    "beauty-advisor": {
+      "source": "YouCam-API/skills",
+      "sourceType": "github",
+      "skillPath": "skills/beauty-advisor/SKILL.md",
+      "computedHash": "133cdb4445d1b8ba84d4f53c832611783c66da36d3d94c638c6350bfb63646f5"
+    },
+    "clothes-tryon-studio": {
+      "source": "YouCam-API/skills",
+      "sourceType": "github",
+      "skillPath": "skills/clothes-tryon-studio/SKILL.md",
+      "computedHash": "671f5f2d44120e7d0e299169e96e0eed40acaa406c33d712c2cc81242652696b"
+    },
+    "facial-consultant": {
+      "source": "YouCam-API/skills",
+      "sourceType": "github",
+      "skillPath": "skills/facial-consultant/SKILL.md",
+      "computedHash": "06c935f10efedd4bd2a1238867c5202f0b8884ee678e9dd46ddccb1ed8e69928"
+    },
+    "hair-color-style-advisor": {
+      "source": "YouCam-API/skills",
+      "sourceType": "github",
+      "skillPath": "skills/hair-color-style-advisor/SKILL.md",
+      "computedHash": "461c1825fa0bda698f829a6d8d63ba2005b4b0af34ade074a084deaed3c9da69"
+    },
+    "hair-diagnostics": {
+      "source": "YouCam-API/skills",
+      "sourceType": "github",
+      "skillPath": "skills/hair-diagnostics/SKILL.md",
+      "computedHash": "8e1a71fad9192554e6dff81cc35e95ed8b28eefaa038801ce4076840eb5ef8ff"
+    },
+    "skin-analysis-expert": {
+      "source": "YouCam-API/skills",
+      "sourceType": "github",
+      "skillPath": "skills/skin-analysis-expert/SKILL.md",
+      "computedHash": "efb3a3f2fe1841baff7cb0e035c7ae03b5056db9f9dd34abf83d34ef5f4dcf50"
+    }
+  }
+}

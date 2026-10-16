@@ -1,0 +1,36 @@
+# Files `gcloud run deploy --source .` / `gcloud builds submit` must NOT upload (owner: A8).
+# Mirrors .dockerignore; gcloud does not read .dockerignore for the upload itself.
+.gcloudignore
+.dockerignore
+
+# Secrets: never uploaded. Production secrets come from Secret Manager.
+.env
+.env.*
+!.env.example
+
+node_modules/
+.next/
+tsconfig.tsbuildinfo
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.lighthouseci/
+*.log
+
+.git/
+.github/
+.agents/
+.claude/
+agent/
+.venv/
+.giftfit/
+
+fixtures/youcam/real/
+data/aurum/photo-inbox/
+
+docs/
+/*.html
+
+tests/
+**/__tests__/

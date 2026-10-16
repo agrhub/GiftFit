@@ -72,3 +72,8 @@ __pycache__/
 # Flow originals (wired copies live in public/catalog/aurum/photo/)
 /data/aurum/photo-inbox/*.jpg
 /data/aurum/photo-inbox/variants/*.jpg
+# Internal agent notes and research
+MASTER_PLAN.md
+STATUS.md
+docs/
+
