@@ -1,0 +1,74 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+!.env.example
+
+# python (YouCam skill CLI)
+.venv/
+__pycache__/
+*.pyc
+.agents/skills/*/credentials.json
+.agents/skills/*/scripts/.venv/
+
+# playwright / lighthouse
+/test-results/
+/playwright-report/
+/.lighthouseci/
+
+# skills CLI per-agent mirrors (re-create with `npx skills experimental_install` / `npx skills add YouCam-API/skills --all`)
+/agent/
+/.claude/skills/
+
+# third-party site survey snapshots (do not publish brand HTML; see docs/ingest-policy.md)
+/*.html
+
+# vendored YouCam skills ship without a license: restore locally with `npx skills experimental_install` (skills-lock.json)
+/.agents/
+
+# real YouCam outputs (faces, hex values): never committed
+/fixtures/youcam/real/
+
+# local YouCam audit log fallback (no DATABASE_URL)
+/.giftfit/
+
+# Flow originals (wired copies live in public/catalog/aurum/photo/)
+/data/aurum/photo-inbox/*.jpg
+/data/aurum/photo-inbox/variants/*.jpg
