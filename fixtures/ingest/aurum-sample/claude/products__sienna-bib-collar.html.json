@@ -1,0 +1,35 @@
+{
+  "id": "msg_synthetic_sienna_bib_collar",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_synthetic_sienna_bib_collar",
+      "name": "record_product",
+      "input": {
+        "title": "Sienna Bib Collar Necklace",
+        "price": 680.0,
+        "currency": "USD",
+        "images": [
+          "https://aurum-fixture.test/images/products/sienna-bib-collar-1.jpg",
+          "https://aurum-fixture.test/images/products/sienna-bib-collar-2.jpg"
+        ],
+        "metal": "18k Yellow Gold",
+        "stone": "None",
+        "category": "Necklaces",
+        "length": "17 in",
+        "sku": "AU-N-014",
+        "brand": null,
+        "description": "Hand-linked panels form a flat bib that sits just below the collarbone."
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "_synthetic": false,
+  "_ai_generated_subject": true,
+  "_subject_set": "first smoke (ADR-026/027)",
+  "_source": "real YouCam API, 2026-10-15 (ADR-028/030); task deleted after recording",
+  "feature": "face-attr-analysis",
+  "response": {
+    "status": 200,
+    "data": {
+      "task_status": "success",
+      "results": {
+        "nose": {
+          "width": "Narrow"
+        },
+        "agegender": {},
+        "eyelid": {
+          "setting": "Average"
+        },
+        "eyebrow": {},
+        "color": {},
+        "face_quality": {
+          "has_face": true,
+          "area": "good",
+          "frontal": "good",
+          "lighting": "good",
+          "faceangle": "good"
+        },
+        "cheekbone": {
+          "left": "Flat Cheekbone",
+          "right": "High Cheekbone",
+          "overrall": "Flat Cheekbone"
+        },
+        "faceshape": "Round",
+        "facialratio": {
+          "face_aspect_ratio": [
+            1,
+            1.387
+          ]
+        }
+      }
+    }
+  }
+}

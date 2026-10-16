@@ -1,0 +1,9 @@
+# Self-authored fixture (not a real store).
+User-agent: *
+Disallow: /checkout
+Disallow: /search
+
+User-agent: GiftFitIngest
+Disallow: /private/
+
+Sitemap: https://jsonld-fixture.test/sitemap_index.xml

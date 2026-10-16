@@ -1,0 +1,35 @@
+{
+  "id": "msg_synthetic_arden_long_chain",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_synthetic_arden_long_chain",
+      "name": "record_product",
+      "input": {
+        "title": "Arden Opera Chain",
+        "price": 890.0,
+        "currency": "USD",
+        "images": [
+          "https://aurum-fixture.test/images/products/arden-long-chain-1-1600.jpg",
+          "https://aurum-fixture.test/images/products/arden-long-chain-2-1600.jpg"
+        ],
+        "metal": "platinum",
+        "stone": null,
+        "category": null,
+        "length": "32 in",
+        "sku": null,
+        "brand": null,
+        "description": "An 81 cm opera-length chain in solid platinum, long enough to wear doubled."
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

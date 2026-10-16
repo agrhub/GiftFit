@@ -1,0 +1,36 @@
+{
+  "id": "msg_synthetic_orbit_watch",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_synthetic_orbit_watch",
+      "name": "record_product",
+      "input": {
+        "title": "Orbit Automatic Watch",
+        "price": 310.0,
+        "currency": "EUR",
+        "images": [
+          "https://aurum-fixture.test/images/products/orbit-watch-1.jpg",
+          "https://aurum-fixture.test/images/products/orbit-watch-2.jpg",
+          "https://aurum-fixture.test/images/products/orbit-watch-strap.jpg"
+        ],
+        "metal": "Stainless steel",
+        "stone": "None",
+        "category": "Watches",
+        "length": null,
+        "sku": "AU-W-020",
+        "brand": null,
+        "description": "A 38 mm automatic watch with a sapphire crystal and a leather strap."
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

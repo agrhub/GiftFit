@@ -1,0 +1,9 @@
+# Self-authored fixture in Shopify's robots.txt style (not a real store).
+User-agent: *
+Disallow: /admin
+Disallow: /cart
+Disallow: /orders
+Disallow: /checkout
+Disallow: /account
+Disallow: /search
+Sitemap: https://shopify-fixture.test/sitemap.xml

@@ -1,0 +1,16 @@
+{
+  "_synthetic": true,
+  "_source": "https://docs.perfectcorp.com/reference/ai_hair_color (GET /s2s/v2.0/task/hair-color/{task_id})",
+  "_note": "Hand-made from the documented sample response; values are illustrative, not from a real face. Replace with the real smoke-run output (fixtures/youcam/real/).",
+  "feature": "hair-color",
+  "response": {
+    "status": 200,
+    "data": {
+      "task_status": "success",
+      "error": null,
+      "results": {
+        "url": "/api/youcam/mock-asset/mock-hair-color.png"
+      }
+    }
+  }
+}

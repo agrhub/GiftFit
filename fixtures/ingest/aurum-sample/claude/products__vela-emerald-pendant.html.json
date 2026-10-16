@@ -1,0 +1,35 @@
+{
+  "id": "msg_synthetic_vela_emerald_pendant",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_synthetic_vela_emerald_pendant",
+      "name": "record_product",
+      "input": {
+        "title": "Vela Emerald Statement Pendant",
+        "price": 520.0,
+        "currency": "USD",
+        "images": [
+          "https://aurum-fixture.test/images/products/vela-emerald-pendant-1.jpg",
+          "https://aurum-fixture.test/images/products/vela-emerald-pendant-2.jpg"
+        ],
+        "metal": "14k Yellow Gold",
+        "stone": "Emerald",
+        "category": "Necklaces",
+        "length": "18 in",
+        "sku": "AU-N-017",
+        "brand": null,
+        "description": "A deep green emerald cut as a cushion, held in a simple bezel."
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

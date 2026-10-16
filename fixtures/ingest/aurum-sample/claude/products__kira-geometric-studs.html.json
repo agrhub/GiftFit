@@ -1,0 +1,35 @@
+{
+  "id": "msg_synthetic_kira_geometric_studs",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_synthetic_kira_geometric_studs",
+      "name": "record_product",
+      "input": {
+        "title": "Kira Geometric Studs",
+        "price": 510.0,
+        "currency": "USD",
+        "images": [
+          "https://aurum-fixture.test/images/products/kira-geometric-studs-1.jpg",
+          "https://aurum-fixture.test/images/products/kira-geometric-studs-2.jpg"
+        ],
+        "metal": "Platinum",
+        "stone": "None",
+        "category": "Earrings",
+        "length": null,
+        "sku": "AU-E-005",
+        "brand": null,
+        "description": "Hexagon studs with brushed faces and polished edges. Modern and quietly architectural."
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

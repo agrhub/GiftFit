@@ -1,0 +1,35 @@
+{
+  "id": "msg_synthetic_mira_choker",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_synthetic_mira_choker",
+      "name": "record_product",
+      "input": {
+        "title": "Mira Choker",
+        "price": 95.0,
+        "currency": "USD",
+        "images": [
+          "https://aurum-fixture.test/images/products/mira-choker-1-1600.jpg",
+          "https://aurum-fixture.test/images/products/mira-choker-2-1600.jpg"
+        ],
+        "metal": "sterling silver",
+        "stone": null,
+        "category": null,
+        "length": "15 in",
+        "sku": null,
+        "brand": null,
+        "description": "A slim sterling silver choker, 15 in long, with a lobster clasp and a short extender."
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

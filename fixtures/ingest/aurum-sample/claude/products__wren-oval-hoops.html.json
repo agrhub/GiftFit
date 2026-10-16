@@ -1,0 +1,35 @@
+{
+  "id": "msg_synthetic_wren_oval_hoops",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_synthetic_wren_oval_hoops",
+      "name": "record_product",
+      "input": {
+        "title": "Wren Oval Hoops",
+        "price": 120.0,
+        "currency": "USD",
+        "images": [
+          "https://aurum-fixture.test/images/products/wren-oval-hoops-1.jpg",
+          "https://aurum-fixture.test/images/products/wren-oval-hoops-2.jpg"
+        ],
+        "metal": "Rose Gold Vermeil",
+        "stone": "None",
+        "category": "Earrings",
+        "length": null,
+        "sku": "AU-E-010",
+        "brand": null,
+        "description": "Softly elongated oval hoops with a high-shine finish."
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "msg_synthetic_marisol_chandelier_earrings",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_synthetic_marisol_chandelier_earrings",
+      "name": "record_product",
+      "input": {
+        "title": "Marisol Chandelier Earrings",
+        "price": 295.0,
+        "currency": "USD",
+        "images": [
+          "https://aurum-fixture.test/images/products/marisol-chandelier-earrings-1.jpg",
+          "https://aurum-fixture.test/images/products/marisol-chandelier-earrings-2.jpg",
+          "https://aurum-fixture.test/images/products/marisol-chandelier-earrings-3.jpg"
+        ],
+        "metal": "14k Rose Gold",
+        "stone": "Morganite",
+        "category": "Earrings",
+        "length": null,
+        "sku": "AU-E-004",
+        "brand": null,
+        "description": "Three tiers of pale pink morganite cascade from a rose gold crown. Made for weddings and evenings out."
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

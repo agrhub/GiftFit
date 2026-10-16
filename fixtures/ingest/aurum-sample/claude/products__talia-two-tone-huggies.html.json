@@ -1,0 +1,35 @@
+{
+  "id": "msg_synthetic_talia_two_tone_huggies",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_synthetic_talia_two_tone_huggies",
+      "name": "record_product",
+      "input": {
+        "title": "Talia Two-Tone Huggies",
+        "price": 210.0,
+        "currency": "USD",
+        "images": [
+          "https://aurum-fixture.test/images/products/talia-two-tone-huggies-1.jpg",
+          "https://aurum-fixture.test/images/products/talia-two-tone-huggies-2.jpg"
+        ],
+        "metal": "Two-tone 14k yellow and white gold",
+        "stone": "None",
+        "category": "Earrings",
+        "length": null,
+        "sku": "AU-E-008",
+        "brand": null,
+        "description": "Small huggie hoops that pair a yellow gold outer band with a white gold inner band."
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

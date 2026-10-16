@@ -1,0 +1,35 @@
+{
+  "id": "msg_synthetic_jun_thin_chain",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_synthetic_jun_thin_chain",
+      "name": "record_product",
+      "input": {
+        "title": "Jun Fine Chain Necklace",
+        "price": 160.0,
+        "currency": "USD",
+        "images": [
+          "https://aurum-fixture.test/images/products/jun-thin-chain-1.jpg",
+          "https://aurum-fixture.test/images/products/jun-thin-chain-2.jpg"
+        ],
+        "metal": "14k White Gold",
+        "stone": "None",
+        "category": "Necklaces",
+        "length": "16 in",
+        "sku": "AU-N-016",
+        "brand": null,
+        "description": "A delicate cable chain for layering or wearing alone."
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

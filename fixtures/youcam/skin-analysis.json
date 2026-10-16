@@ -1,0 +1,271 @@
+{
+  "_synthetic": true,
+  "_source": "https://docs.perfectcorp.com/reference/ai_skin_analysis (SkinAnalysisResponse, format_json_success)",
+  "_note": "Hand-made from the documented sample response; values are illustrative, not from a real face. Replace with the real smoke-run output (fixtures/youcam/real/).",
+  "feature": "skin-analysis",
+  "response": {
+    "status": 200,
+    "data": {
+      "task_status": "success",
+      "error": null,
+      "results": {
+        "output": [
+          {
+            "type": "hd_wrinkle",
+            "region": "whole",
+            "raw_score": 72.4,
+            "ui_score": 72,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_wrinkle",
+            "region": "forehead",
+            "raw_score": 78.1,
+            "ui_score": 78,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_wrinkle",
+            "region": "glabellar",
+            "raw_score": 81.6,
+            "ui_score": 82,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_wrinkle",
+            "region": "crowfeet",
+            "raw_score": 69.5,
+            "ui_score": 70,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_wrinkle",
+            "region": "periocular",
+            "raw_score": 70.2,
+            "ui_score": 70,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_wrinkle",
+            "region": "nasolabial",
+            "raw_score": 66.8,
+            "ui_score": 67,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_wrinkle",
+            "region": "marionette",
+            "raw_score": 74.9,
+            "ui_score": 75,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_pore",
+            "region": "whole",
+            "raw_score": 64.8,
+            "ui_score": 65,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_pore",
+            "region": "forehead",
+            "raw_score": 70,
+            "ui_score": 70,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_pore",
+            "region": "nose",
+            "raw_score": 54.3,
+            "ui_score": 54,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_pore",
+            "region": "cheek",
+            "raw_score": 67.9,
+            "ui_score": 68,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_texture",
+            "region": "whole",
+            "raw_score": 68.7,
+            "ui_score": 69,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_acne",
+            "region": "whole",
+            "raw_score": 81.2,
+            "ui_score": 81,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_moisture",
+            "region": "whole",
+            "raw_score": 58.6,
+            "ui_score": 59,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_oiliness",
+            "region": "whole",
+            "raw_score": 61.3,
+            "ui_score": 61,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_redness",
+            "region": "whole",
+            "raw_score": 76.4,
+            "ui_score": 76,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_radiance",
+            "region": "whole",
+            "raw_score": 63.9,
+            "ui_score": 64,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_age_spot",
+            "region": "whole",
+            "raw_score": 79.8,
+            "ui_score": 80,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_dark_circle",
+            "region": "whole",
+            "raw_score": 62.5,
+            "ui_score": 63,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_eye_bag",
+            "region": "whole",
+            "raw_score": 71.1,
+            "ui_score": 71,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_firmness",
+            "region": "whole",
+            "raw_score": 77.3,
+            "ui_score": 77,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_droopy_upper_eyelid",
+            "region": "whole",
+            "raw_score": 83,
+            "ui_score": 83,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_droopy_lower_eyelid",
+            "region": "whole",
+            "raw_score": 80.4,
+            "ui_score": 80,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_tear_trough",
+            "region": "whole",
+            "raw_score": 73.6,
+            "ui_score": 74,
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_skin_type",
+            "region": "whole",
+            "skin_type": "Combination",
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_skin_type",
+            "region": "t_zone",
+            "skin_type": "Oily",
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "hd_skin_type",
+            "region": "u_zone",
+            "skin_type": "Normal",
+            "mask_urls": [
+              "/api/youcam/mock-asset/mock-skin-mask.png"
+            ]
+          },
+          {
+            "type": "skin_age",
+            "score": 29
+          },
+          {
+            "type": "all",
+            "score": 71.5
+          },
+          {
+            "type": "resize_image",
+            "mask_urls": [
+              "/api/youcam/mock-asset/placeholder-selfie.png"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

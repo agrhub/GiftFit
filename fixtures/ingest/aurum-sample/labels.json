@@ -1,0 +1,25 @@
+{
+  "_note": "Hand labels (A10) for the 20 golden extraction pages: what a correct extractor + normaliser must produce from each rendered page. null = the page does not state it, so the field must stay empty. stone_contains is a substring of the normalised stone; 'none' means the page states no stone. images = number of distinct product photos of THIS product.",
+  "pages": {
+    "aurora-pearl-drop-earrings": { "title": "Aurora Pearl Drop Earrings", "price": 185, "currency": "USD", "metal": "yellow_gold", "stone_contains": "pearl", "category": "earring", "earring_shape": "drop_teardrop", "images": 3 },
+    "luna-small-hoops": { "title": "Luna Small Hoops", "price": 65, "currency": "USD", "metal": "silver", "stone_contains": "none", "category": "earring", "earring_shape": "hoop_small_medium", "images": 2 },
+    "solene-diamond-studs": { "title": "Solène Diamond Studs", "price": 420, "currency": "USD", "metal": "white_gold", "stone_contains": "diamond", "category": "earring", "earring_shape": "stud_small", "images": 2 },
+    "marisol-chandelier-earrings": { "title": "Marisol Chandelier Earrings", "price": 295, "currency": "USD", "metal": "rose_gold", "stone_contains": "morganite", "category": "earring", "earring_shape": "chandelier", "images": 3 },
+    "kira-geometric-studs": { "title": "Kira Geometric Studs", "price": 510, "currency": "USD", "metal": "platinum", "stone_contains": "none", "category": "earring", "earring_shape": "geometric_angular", "images": 2 },
+    "noor-large-hoops": { "title": "Noor Large Hoops", "price": 240, "currency": "USD", "metal": "yellow_gold", "stone_contains": null, "category": "earring", "earring_shape": "hoop_round_large", "images": 2 },
+    "ivy-linear-drops": { "title": "Ivy Linear Drop Earrings", "price": 89, "currency": "USD", "metal": "silver", "stone_contains": "zirconia", "category": "earring", "earring_shape": "drop_long_narrow", "images": 2 },
+    "talia-two-tone-huggies": { "title": "Talia Two-Tone Huggies", "price": 210, "currency": "USD", "metal": "mixed_two_tone", "stone_contains": "none", "category": "earring", "earring_shape": "hoop_small_medium", "images": 2 },
+    "celeste-cluster-studs": { "title": "Celeste Sapphire Cluster Studs", "price": null, "currency": null, "metal": "yellow_gold", "stone_contains": "sapphire", "category": "earring", "earring_shape": "stud_statement", "images": 2 },
+    "wren-oval-hoops": { "title": "Wren Oval Hoops", "price": 120, "currency": "USD", "metal": "rose_gold", "stone_contains": "none", "category": "earring", "earring_shape": "hoop_oval_curved", "images": 2 },
+    "elara-v-pendant": { "title": "Elara V Pendant Necklace", "price": 350, "currency": "USD", "metal": "yellow_gold", "stone_contains": "diamond", "category": "necklace", "necklace_style": "pendant_v_y", "necklace_length_in": 18, "images": 3 },
+    "mira-choker": { "title": "Mira Choker", "price": 95, "currency": "USD", "metal": "silver", "stone_contains": null, "category": "necklace", "necklace_style": "choker", "necklace_length_in": 15, "images": 2 },
+    "odette-locket": { "title": "Odette Locket Necklace", "price": 275, "currency": "USD", "metal": "rose_gold", "stone_contains": "none", "category": "necklace", "necklace_style": "pendant_curved", "necklace_length_in": 20, "images": 3 },
+    "sienna-bib-collar": { "title": "Sienna Bib Collar Necklace", "price": 680, "currency": "USD", "metal": "yellow_gold", "stone_contains": "none", "category": "necklace", "necklace_style": "collar_bib_horizontal", "necklace_length_in": 17, "images": 2 },
+    "arden-long-chain": { "title": "Arden Opera Chain", "price": 890, "currency": "USD", "metal": "platinum", "stone_contains": null, "category": "necklace", "necklace_style": "long_vertical", "necklace_length_in": 31.9, "images": 2 },
+    "jun-thin-chain": { "title": "Jun Fine Chain Necklace", "price": 160, "currency": "USD", "metal": "white_gold", "stone_contains": "none", "category": "necklace", "necklace_style": "thin_chain", "necklace_length_in": 16, "images": 2 },
+    "vela-emerald-pendant": { "title": "Vela Emerald Statement Pendant", "price": 520, "currency": "USD", "metal": null, "stone_contains": "emerald", "category": "necklace", "necklace_style": "large_stone", "necklace_length_in": 18, "images": 2 },
+    "halo-solitaire-ring": { "title": "Halo Solitaire Ring", "price": 1250, "currency": "USD", "metal": "platinum", "stone_contains": "diamond", "category": "ring", "images": 3 },
+    "ember-cuff-bracelet": { "title": "Ember Cuff Bracelet", "price": 430, "currency": "USD", "metal": "yellow_gold", "stone_contains": "none", "category": "bracelet", "images": 2 },
+    "orbit-watch": { "title": "Orbit Automatic Watch", "price": 310, "currency": "EUR", "metal": null, "stone_contains": "none", "category": "watch", "images": 2 }
+  }
+}

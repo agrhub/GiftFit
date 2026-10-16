@@ -1,0 +1,35 @@
+{
+  "id": "msg_synthetic_ember_cuff_bracelet",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_synthetic_ember_cuff_bracelet",
+      "name": "record_product",
+      "input": {
+        "title": "Ember Cuff Bracelet",
+        "price": 430.0,
+        "currency": "USD",
+        "images": [
+          "https://aurum-fixture.test/images/products/ember-cuff-bracelet-1.jpg",
+          "https://aurum-fixture.test/images/products/ember-cuff-bracelet-2.jpg"
+        ],
+        "metal": "14k Yellow Gold",
+        "stone": "None",
+        "category": "Bracelets",
+        "length": null,
+        "sku": "AU-B-019",
+        "brand": null,
+        "description": "An open cuff with a hammered finish that catches the light."
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

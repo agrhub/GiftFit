@@ -1,0 +1,36 @@
+{
+  "id": "msg_synthetic_halo_solitaire_ring",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_synthetic_halo_solitaire_ring",
+      "name": "record_product",
+      "input": {
+        "title": "Halo Solitaire Ring",
+        "price": 1250.0,
+        "currency": "USD",
+        "images": [
+          "https://aurum-fixture.test/images/products/halo-solitaire-ring-1-1600.jpg",
+          "https://aurum-fixture.test/images/products/halo-solitaire-ring-2-1600.jpg",
+          "https://aurum-fixture.test/images/products/halo-solitaire-ring-3-1600.jpg"
+        ],
+        "metal": "platinum",
+        "stone": "diamond",
+        "category": null,
+        "length": null,
+        "sku": null,
+        "brand": null,
+        "description": "A stunning engagement ring for the love of your life, guaranteed to sparkle forever."
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

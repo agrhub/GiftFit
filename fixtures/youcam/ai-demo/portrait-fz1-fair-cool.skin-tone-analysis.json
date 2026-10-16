@@ -1,0 +1,31 @@
+{
+  "_synthetic": false,
+  "_ai_generated_subject": true,
+  "_subject_set": "fairness (fixtures/youcam/real/inbox/ai/)",
+  "_source": "real YouCam API, 2026-10-15 (ADR-028/030); task deleted after recording",
+  "feature": "skin-tone-analysis",
+  "response": {
+    "status": 200,
+    "data": {
+      "task_status": "success",
+      "results": {
+        "color": {
+          "eye_color": "#5f4a37",
+          "eye_color_name": "Brown",
+          "lip_color": "#c39192",
+          "eyebrow_color": "#a78b78",
+          "skin_color": "#c1a28c",
+          "hair_color": "#B56637",
+          "hair_color_name": "Auburn"
+        },
+        "face_quality": {
+          "has_face": true,
+          "area": "good",
+          "frontal": "good",
+          "lighting": "good",
+          "faceangle": "good"
+        }
+      }
+    }
+  }
+}

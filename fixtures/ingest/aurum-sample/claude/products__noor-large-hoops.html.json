@@ -1,0 +1,35 @@
+{
+  "id": "msg_synthetic_noor_large_hoops",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_synthetic_noor_large_hoops",
+      "name": "record_product",
+      "input": {
+        "title": "Noor Large Hoops",
+        "price": 240.0,
+        "currency": "USD",
+        "images": [
+          "https://aurum-fixture.test/images/products/noor-large-hoops-1-1600.jpg",
+          "https://aurum-fixture.test/images/products/noor-large-hoops-2-1600.jpg"
+        ],
+        "metal": "14k yellow gold",
+        "stone": null,
+        "category": null,
+        "length": null,
+        "sku": null,
+        "brand": null,
+        "description": "Bold 40 mm hoops in 14k yellow gold with a click-top closure. A statement that still feels easy."
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

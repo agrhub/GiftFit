@@ -1,0 +1,35 @@
+{
+  "id": "msg_synthetic_solene_diamond_studs",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_synthetic_solene_diamond_studs",
+      "name": "record_product",
+      "input": {
+        "title": "Solène Diamond Studs",
+        "price": 420.0,
+        "currency": "USD",
+        "images": [
+          "https://aurum-fixture.test/images/products/solene-diamond-studs-1-1600.jpg",
+          "https://aurum-fixture.test/images/products/solene-diamond-studs-2-1600.jpg"
+        ],
+        "metal": "18k white gold",
+        "stone": "lab-grown diamond",
+        "category": null,
+        "length": null,
+        "sku": "AU-E-003",
+        "brand": null,
+        "description": "Crafted in 18k white gold, these studs each hold a lab-grown diamond in a four-claw basket. A classic first piece of fine jewelry."
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

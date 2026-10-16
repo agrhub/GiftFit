@@ -1,0 +1,40 @@
+{
+  "_synthetic": true,
+  "_source": "https://docs.perfectcorp.com/reference/ai_face_analyzer (GET /s2s/v2.0/task/face-attr-analysis/{task_id})",
+  "_note": "Hand-made from the documented response schema; values are illustrative, not from a real face. Shows GiftFit's 5 features (faceShape, faceAspectRatio, cheekbones, eyeDistance, noseWidth). Replace with the real smoke-run output (fixtures/youcam/real/).",
+  "feature": "face-attr-analysis",
+  "response": {
+    "status": 200,
+    "data": {
+      "task_status": "success",
+      "error": null,
+      "results": {
+        "face_quality": {
+          "has_face": true,
+          "area": "good",
+          "frontal": "good",
+          "lighting": "good",
+          "faceangle": "good"
+        },
+        "faceshape": "Oval",
+        "facialratio": {
+          "face_aspect_ratio": [
+            1,
+            1.44
+          ]
+        },
+        "cheekbone": {
+          "left": "High Cheekbone",
+          "right": "High Cheekbone",
+          "overall": "High Cheekbone"
+        },
+        "eyelid": {
+          "setting": "Average"
+        },
+        "nose": {
+          "width": "Average"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "msg_synthetic_celeste_cluster_studs",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_synthetic_celeste_cluster_studs",
+      "name": "record_product",
+      "input": {
+        "title": "Celeste Sapphire Cluster Studs",
+        "price": 185.0,
+        "currency": "USD",
+        "images": [
+          "https://aurum-fixture.test/images/products/celeste-cluster-studs-1-1600.jpg",
+          "https://aurum-fixture.test/images/products/celeste-cluster-studs-2-1600.jpg"
+        ],
+        "metal": "18k yellow gold",
+        "stone": "blue sapphires",
+        "category": null,
+        "length": null,
+        "sku": null,
+        "brand": null,
+        "description": "Seven blue sapphires gathered in a flower cluster on 18k yellow gold posts. Made to order."
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "products": [
+    {
+      "id": 9001, "title": "Stella Pearl Studs", "handle": "stella-pearl-studs",
+      "body_html": "<p>Round <strong>freshwater pearl</strong> studs on 14k gold posts.</p>",
+      "vendor": "Fixture Jewelry", "product_type": "Earrings",
+      "tags": ["metal::14k Yellow Gold", "stone::Freshwater pearl", "earring_shape::stud_small", "style::classic", "gift"],
+      "variants": [{"id": 90011, "title": "Default Title", "option1": "Default Title", "sku": "FX-ST-01", "price": "78.00", "available": true}],
+      "images": [{"src": "https://shopify-fixture.test/cdn/shop/products/stella-1.jpg"}, {"src": "https://shopify-fixture.test/cdn/shop/products/stella-2.jpg"}],
+      "options": [{"name": "Title", "position": 1, "values": ["Default Title"]}]
+    },
+    {
+      "id": 9002, "title": "Nova Solitaire Ring", "handle": "nova-solitaire-ring",
+      "body_html": "<p>A lab-grown diamond solitaire.</p>", "vendor": "Fixture Jewelry", "product_type": "Rings",
+      "tags": "stone::Lab-grown diamond, anniversary",
+      "variants": [
+        {"id": 90021, "title": "14k Yellow Gold / 6", "option1": "14k Yellow Gold", "option2": "6", "sku": "FX-NV-Y6", "price": "899.00"},
+        {"id": 90022, "title": "14k Yellow Gold / 7", "option1": "14k Yellow Gold", "option2": "7", "sku": "FX-NV-Y7", "price": "899.00"},
+        {"id": 90023, "title": "14k White Gold / 6", "option1": "14k White Gold", "option2": "6", "sku": "FX-NV-W6", "price": "929.00"},
+        {"id": 90024, "title": "Platinum / 6", "option1": "Platinum", "option2": "6", "sku": "FX-NV-P6", "price": "1199.00"}
+      ],
+      "images": [{"src": "https://shopify-fixture.test/cdn/shop/products/nova-1.jpg"}],
+      "options": [{"name": "Metal", "position": 1, "values": ["14k Yellow Gold", "14k White Gold", "Platinum"]}, {"name": "Size", "position": 2, "values": ["6", "7"]}]
+    },
+    {
+      "id": 9003, "title": "Sterling Silver Bar Necklace", "handle": "silver-bar-necklace",
+      "body_html": "<p>A slim horizontal bar on an 18 in chain.</p>", "vendor": "Fixture Jewelry", "product_type": "Necklaces",
+      "tags": ["length::18 in"],
+      "variants": [{"id": 90031, "title": "Default Title", "option1": "Default Title", "sku": "FX-BAR-01", "price": "59.00"}],
+      "images": [{"src": "https://shopify-fixture.test/cdn/shop/products/bar-1.jpg"}],
+      "options": [{"name": "Title", "position": 1, "values": ["Default Title"]}]
+    },
+    {
+      "id": 9004, "title": "Gift Card", "handle": "gift-card", "body_html": "", "vendor": "Fixture Jewelry", "product_type": "Gift Card",
+      "tags": [], "variants": [{"id": 90041, "title": "50 dollars", "option1": "50 dollars", "price": "50.00"}], "images": [],
+      "options": [{"name": "Denominations", "position": 1, "values": ["50 dollars"]}]
+    }
+  ]
+}

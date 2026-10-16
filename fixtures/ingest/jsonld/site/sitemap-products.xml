@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://jsonld-fixture.test/products/lyra-hoops</loc></url>
+  <url><loc>https://jsonld-fixture.test/products/cora-pendant</loc></url>
+  <url><loc>https://jsonld-fixture.test/products/rhea-bangle</loc></url>
+  <url><loc>https://jsonld-fixture.test/private/unreleased-ring</loc></url>
+</urlset>

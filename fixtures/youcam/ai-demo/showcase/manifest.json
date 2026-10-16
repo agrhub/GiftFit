@@ -1,0 +1,88 @@
+{
+  "_ai_generated_subjects": true,
+  "label": "AI-generated model",
+  "source": "real YouCam API, 2026-10-15 (ADR-037); tasks deleted after recording",
+  "demo": {
+    "seed": "giftfit-judge-demo-v1",
+    "request": {
+      "occasion": "anniversary",
+      "budgetMax": 300,
+      "currency": "USD",
+      "metalLock": null
+    },
+    "picks": [
+      "AUR-EAR-028",
+      "AUR-NEC-037",
+      "AUR-EAR-034"
+    ],
+    "decoys": [
+      "AUR-NEC-021",
+      "AUR-EAR-042",
+      "AUR-EAR-038"
+    ],
+    "note": "Decoys from lib/fit selectDecoys(seed, request) on 2026-10-15; rebuild and compare before relying on them."
+  },
+  "subjects": {
+    "showcase-latina-medium-warm": {
+      "role": "hero recipient",
+      "faceShape": "Heart",
+      "tryons": {
+        "AUR-EAR-028-yellow_gold": "tryons/AUR-EAR-028-yellow_gold.jpg",
+        "AUR-NEC-037-white_gold": "tryons/AUR-NEC-037-white_gold.jpg",
+        "AUR-EAR-034-yellow_gold": "tryons/AUR-EAR-034-yellow_gold.jpg",
+        "AUR-NEC-021-yellow_gold": "tryons/AUR-NEC-021-yellow_gold.jpg",
+        "AUR-EAR-042-yellow_gold": "tryons/AUR-EAR-042-yellow_gold.jpg",
+        "AUR-EAR-038-white_gold": "tryons/AUR-EAR-038-white_gold.jpg",
+        "AUR-EAR-028-white_gold": "tryons/AUR-EAR-028-white_gold.jpg",
+        "AUR-EAR-028-rose_gold": "tryons/AUR-EAR-028-rose_gold.jpg",
+        "AUR-NEC-037-yellow_gold": "tryons/AUR-NEC-037-yellow_gold.jpg"
+      }
+    },
+    "showcase-black-deep-warm": {
+      "role": "demo recipient",
+      "faceShape": "Heart",
+      "tryons": {
+        "AUR-EAR-028-yellow_gold": "tryons/AUR-EAR-028-yellow_gold.jpg",
+        "AUR-NEC-037-white_gold": "tryons/AUR-NEC-037-white_gold.jpg",
+        "AUR-EAR-034-yellow_gold": "tryons/AUR-EAR-034-yellow_gold.jpg",
+        "AUR-NEC-021-yellow_gold": "tryons/AUR-NEC-021-yellow_gold.jpg",
+        "AUR-EAR-042-yellow_gold": "tryons/AUR-EAR-042-yellow_gold.jpg",
+        "AUR-EAR-038-white_gold": "tryons/AUR-EAR-038-white_gold.jpg"
+      }
+    },
+    "showcase-man-lightmed-neutral": {
+      "role": "demo recipient (men's gifts)",
+      "faceShape": "Oval",
+      "tryons": {
+        "AUR-NEC-033-rose_gold": "tryons/AUR-NEC-033-rose_gold.jpg",
+        "AUR-NEC-032-yellow_gold": "tryons/AUR-NEC-032-yellow_gold.jpg",
+        "AUR-WCH-002-mixed_two_tone": "tryons/AUR-WCH-002-mixed_two_tone.jpg",
+        "AUR-WCH-010-yellow_gold": "tryons/AUR-WCH-010-yellow_gold.jpg",
+        "AUR-RNG-016-mixed_two_tone": "tryons/AUR-RNG-016-mixed_two_tone.jpg",
+        "AUR-NEC-016-silver": "tryons/AUR-NEC-016-silver.jpg"
+      },
+      "handPhoto": "AI-generated back-of-hand photo (hand-lightmed-m-centered.jpg, git-ignored inbox; wrist centred), used only for the watch try-on",
+      "handPhotoRing": "ring rendered on a tighter crop of the same AI hand photo (hand fills the frame; YouCam code 4 'Hand size should fit in range' on the full frame)"
+    }
+  },
+  "demoMen": {
+    "seed": "giftfit-judge-demo-men-v1",
+    "request": {
+      "occasion": "birthday",
+      "budgetMax": 600,
+      "currency": "USD",
+      "metalLock": null
+    },
+    "picks": [
+      "AUR-WCH-002",
+      "AUR-NEC-033",
+      "AUR-NEC-032"
+    ],
+    "decoys": [
+      "AUR-WCH-010",
+      "AUR-RNG-016",
+      "AUR-NEC-016"
+    ],
+    "note": "Decoys from lib/fit selectDecoys with gender-presentation parity (A3, 2026-10-15); all six rendered (ADR-038)."
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "_synthetic": true,
+  "_source": "https://docs.perfectcorp.com/reference/ai_skin_tone_analysis (SkinToneAnalysisTaskStatusResponseV2)",
+  "_note": "Hand-made from the documented sample response; values are illustrative, not from a real face. Replace with the real smoke-run output (fixtures/youcam/real/).",
+  "feature": "skin-tone-analysis",
+  "response": {
+    "status": 200,
+    "data": {
+      "task_status": "success",
+      "error": null,
+      "results": {
+        "face_quality": {
+          "has_face": true,
+          "area": "good",
+          "frontal": "good",
+          "lighting": "good",
+          "faceangle": "good"
+        },
+        "color": {
+          "skin_color": "#c8a088",
+          "eye_color": "#4a3426",
+          "eye_color_name": "Brown",
+          "lip_color": "#b5636b",
+          "eyebrow_color": "#3d2b22",
+          "hair_color": "#42280E",
+          "hair_color_name": "Brown"
+        }
+      }
+    }
+  }
+}

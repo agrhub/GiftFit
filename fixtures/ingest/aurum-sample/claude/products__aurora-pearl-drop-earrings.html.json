@@ -1,0 +1,36 @@
+{
+  "id": "msg_synthetic_aurora_pearl_drop_earrings",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_synthetic_aurora_pearl_drop_earrings",
+      "name": "record_product",
+      "input": {
+        "title": "Aurora Pearl Drop Earrings",
+        "price": 185.0,
+        "currency": "USD",
+        "images": [
+          "https://aurum-fixture.test/images/products/aurora-pearl-drop-earrings-1.jpg",
+          "https://aurum-fixture.test/images/products/aurora-pearl-drop-earrings-2.jpg",
+          "https://aurum-fixture.test/images/products/aurora-pearl-drop-earrings-3.jpg"
+        ],
+        "metal": "14k Yellow Gold",
+        "stone": "Freshwater pearl",
+        "category": "Earrings",
+        "length": null,
+        "sku": "AU-E-001",
+        "brand": null,
+        "description": "A single freshwater pearl hangs from a polished teardrop setting. Light enough for every day, special enough for an anniversary."
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

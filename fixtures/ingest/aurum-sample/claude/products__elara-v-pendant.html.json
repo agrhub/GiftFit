@@ -1,0 +1,36 @@
+{
+  "id": "msg_synthetic_elara_v_pendant",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_synthetic_elara_v_pendant",
+      "name": "record_product",
+      "input": {
+        "title": "Elara V Pendant Necklace",
+        "price": 350.0,
+        "currency": "USD",
+        "images": [
+          "https://aurum-fixture.test/images/products/elara-v-pendant-1.jpg",
+          "https://aurum-fixture.test/images/products/elara-v-pendant-2.jpg",
+          "https://aurum-fixture.test/images/products/elara-v-pendant-3.jpg"
+        ],
+        "metal": "14k Yellow Gold",
+        "stone": "Diamond",
+        "category": "Necklaces",
+        "length": "18 in",
+        "sku": "AU-N-011",
+        "brand": null,
+        "description": "A V-shaped pendant tipped with a single diamond on a cable chain."
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

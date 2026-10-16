@@ -1,0 +1,16 @@
+{
+  "_synthetic": true,
+  "_source": "https://docs.perfectcorp.com/reference/ai_watch (GET /s2s/v2.0/task/2d-vto/watch/{task_id})",
+  "_note": "Hand-made from the documented sample response; values are illustrative, not from a real face. Replace with the real smoke-run output (fixtures/youcam/real/). Source photo for this kind is the back of the hand/wrist.",
+  "feature": "2d-vto/watch",
+  "response": {
+    "status": 200,
+    "data": {
+      "task_status": "success",
+      "error": null,
+      "results": {
+        "url": "/api/youcam/mock-asset/mock-hand-vto.png"
+      }
+    }
+  }
+}
