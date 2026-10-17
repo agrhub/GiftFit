@@ -9,6 +9,7 @@ import type { CatalogSku, JewelryRules } from "@/lib/contracts/giftfit";
 import { jewelryRules } from "@/lib/verticals/jewelry";
 import aurumCatalog from "@/data/aurum/catalog.json";
 import { type ExplainClient, createExplainClient } from "./explain";
+import { type TasteClient, createTasteClient } from "./taste";
 import { getPrivacyDeps } from "@/lib/privacy/runtime";
 import { type FitRepository, PrivacyFitRepository, StaticCatalog } from "./repository";
 
@@ -16,7 +17,9 @@ export interface FitDeps {
   repository: FitRepository;
   rules: JewelryRules | null;
   explainer: ExplainClient | null;
-  /** Secret mixed into decoy seeds so the recipient cannot reproduce the order. */
+  /** "help_me_choose" taste summary writer (Claude when ANTHROPIC_API_KEY is set; null = template). */
+  taster?: TasteClient | null;
+  /** Secret mixed into decoy and curation seeds so the recipient cannot reproduce the order. */
   decoySecret: string;
   now: () => Date;
 }
@@ -31,6 +34,7 @@ function buildDefaults(): FitDeps {
     repository: new PrivacyFitRepository(async () => (await getPrivacyDeps()).repos, new StaticCatalog(aurumCatalog as unknown as CatalogSku[])),
     rules: jewelryRules,
     explainer: createExplainClient(),
+    taster: createTasteClient(),
     decoySecret: process.env.FIT_DECOY_SECRET || randomBytes(32).toString("hex"),
     now: () => new Date(),
   };

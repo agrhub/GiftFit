@@ -1,7 +1,7 @@
 /**
  * Two-context end-to-end gift flow through the UI (owner: A8), mock mode, production build.
  *
- * Giver (desktop viewport) creates a Fit Request from the Halo Drop PDP via the Giver Panel.
+ * Giver (desktop viewport) creates an "I have ideas" Fit Request from the Halo Drop PDP via the Giver Panel.
  * Recipient (Pixel 7 context, separate cookies) opens /r/<token>, consents, uploads the placeholder
  * selfie through the file fallback, hearts 2 items and finishes. Giver opens /g/<token>.
  *
@@ -43,6 +43,8 @@ test.describe("gift flow: giver and recipient in two contexts", () => {
       const g = await giver.newPage();
       await g.goto("/p/halo-drop-earrings");
       await g.getByTestId("gift-it-right").first().click();
+      // "Help me choose" is the default (ADR-045); this flow is the giver's own picks.
+      await g.getByTestId("mode-i_have_ideas").check({ force: true });
       await g.getByTestId("occasion-anniversary").check({ force: true });
       await g.getByTestId("budget-300").check({ force: true });
       await expect(g.getByTestId("shortlist").locator("li")).toHaveCount(1);

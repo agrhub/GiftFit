@@ -205,10 +205,10 @@ describe("POST /api/fit/report", () => {
 
     const waiting = await report(created.body.giverToken);
     expect(waiting.res.status).toBe(200);
-    expect(waiting.body).toEqual({ status: "waiting", expiresAt });
+    expect(waiting.body).toEqual({ status: "waiting", expiresAt, mode: "i_have_ideas" });
 
     await repos.fitRequests.setStatus(row.id, "opened");
-    expect((await report(created.body.giverToken)).body).toEqual({ status: "in_progress", expiresAt });
+    expect((await report(created.body.giverToken)).body).toEqual({ status: "in_progress", expiresAt, mode: "i_have_ideas" });
     await repos.fitRequests.setStatus(row.id, "tried_on");
     expect((await report(created.body.giverToken)).body.status).toBe("in_progress");
 
@@ -218,7 +218,7 @@ describe("POST /api/fit/report", () => {
     expect(done.res.status).toBe(200);
     const body = done.body;
     expect(body.status).toBe("completed");
-    expect(Object.keys(body).every((k) => ["status", "expiresAt", "results", "recipientLabels", "heartedShortlistIds"].includes(k))).toBe(true);
+    expect(Object.keys(body).every((k) => ["status", "expiresAt", "results", "recipientLabels", "heartedShortlistIds", "mode"].includes(k))).toBe(true);
     expect(body.heartedShortlistIds).toEqual(["fix-001"]);
     expect(body.results!.map((r) => r.skuId).sort()).toEqual([...SHORTLIST].sort());
     expect(body.results![0].skuId).toBe("fix-001"); // hearted, best first
@@ -261,12 +261,12 @@ describe("POST /api/fit/report", () => {
     const created = await create();
     await simulateRecipient(created.body.fitRequestId, ["fix-001"]);
     now = new Date(T0.getTime() + 72 * 3600_000 + 1);
-    expect((await report(created.body.giverToken)).body).toEqual({ status: "expired", expiresAt: created.body.expiresAt });
+    expect((await report(created.body.giverToken)).body).toEqual({ status: "expired", expiresAt: created.body.expiresAt, mode: "i_have_ideas" });
     now = T0;
     await repos.fitRequests.setStatus(created.body.fitRequestId, "deleted");
     expect((await report(created.body.giverToken)).body.status).toBe("expired");
     await repos.fitRequests.setStatus(created.body.fitRequestId, "expired");
-    expect((await report(created.body.giverToken)).body).toEqual({ status: "expired", expiresAt: created.body.expiresAt });
+    expect((await report(created.body.giverToken)).body).toEqual({ status: "expired", expiresAt: created.body.expiresAt, mode: "i_have_ideas" });
   });
 
   it("answers 503 for a completed request until the jewelry rules are wired", async () => {

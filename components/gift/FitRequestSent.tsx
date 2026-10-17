@@ -22,7 +22,8 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-export function FitRequestSent({ result, titles, onDone }: { result: CreateFitRequestResponse; titles: string[]; onDone: () => void }) {
+/** `curated`: a "Help me choose" request (ADR-045): GiftFit picked every piece, there are no look-alikes. */
+export function FitRequestSent({ result, titles, onDone, curated = false }: { result: CreateFitRequestResponse; titles: string[]; onDone: () => void; curated?: boolean }) {
   const link = absoluteUrl(result.recipientPath);
   const reportLink = absoluteUrl(result.giverReportPath);
   const [canShare, setCanShare] = useState(false);
@@ -39,7 +40,7 @@ export function FitRequestSent({ result, titles, onDone }: { result: CreateFitRe
     try {
       await navigator.share({
         title: "A little gift question",
-        text: "Someone who cares about you is choosing a gift. Try on 6 pieces and heart the ones you love. They will never see your photos.",
+        text: `Someone who cares about you is choosing a gift. Try on ${result.carouselSize} pieces and heart the ones you love. They will never see your photos.`,
         url: link,
       });
       setStatus("Shared.");
@@ -57,14 +58,20 @@ export function FitRequestSent({ result, titles, onDone }: { result: CreateFitRe
       <p className="text-sm leading-6 text-ink-soft">
         Send this private link to the person you&apos;re shopping for. {expiry ? <>It works for 72 hours, until {expiry}.</> : "It works for 72 hours."}
       </p>
-      <ul className="mt-3 flex flex-wrap gap-1.5 text-xs text-ink-soft" aria-label="Your shortlist">
-        {titles.map((t) => (
-          <li key={t} className="rounded-full border border-line bg-white px-2.5 py-1">
-            {t}
-          </li>
-        ))}
-        <li className="rounded-full border border-dashed border-line-strong px-2.5 py-1 text-muted">+ similar pieces</li>
-      </ul>
+      {curated ? (
+        <p className="mt-3 text-xs text-ink-soft" data-testid="curated-note">
+          <span className="rounded-full border border-line bg-white px-2.5 py-1">{result.carouselSize} pieces picked by GiftFit</span>
+        </p>
+      ) : (
+        <ul className="mt-3 flex flex-wrap gap-1.5 text-xs text-ink-soft" aria-label="Your shortlist">
+          {titles.map((t) => (
+            <li key={t} className="rounded-full border border-line bg-white px-2.5 py-1">
+              {t}
+            </li>
+          ))}
+          <li className="rounded-full border border-dashed border-line-strong px-2.5 py-1 text-muted">+ similar pieces</li>
+        </ul>
+      )}
 
       <label htmlFor={linkId} className="mt-6 block text-xs font-semibold uppercase tracking-[0.18em] text-muted">
         Their link

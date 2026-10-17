@@ -57,6 +57,8 @@ export class MemoryPrivacyRepos implements PrivacyRepos {
         decoyIds: [...input.decoyIds],
         metalLock: input.metalLock && input.metalLock.length ? [...input.metalLock] : null,
         photoDeletedAt: input.photoDeletedAt ?? null,
+        ...(input.categories ? { categories: [...input.categories] } : {}),
+        ...(input.styleHints ? { styleHints: [...input.styleHints] } : {}),
       };
       (rec.demo ? this.demoRequests : this.requests).set(rec.id, rec);
       return { ...rec };
@@ -161,6 +163,10 @@ export class MemoryPrivacyRepos implements PrivacyRepos {
   }
 
   private copy(r: FitRequestRecord | undefined): FitRequestRecord | undefined {
-    return r ? { ...r, shortlistIds: [...r.shortlistIds], decoyIds: [...r.decoyIds], metalLock: r.metalLock ? [...r.metalLock] : (r.metalLock ?? null) } : undefined;
+    if (!r) return undefined;
+    const out: FitRequestRecord = { ...r, shortlistIds: [...r.shortlistIds], decoyIds: [...r.decoyIds], metalLock: r.metalLock ? [...r.metalLock] : (r.metalLock ?? null) };
+    if (r.categories) out.categories = [...r.categories];
+    if (r.styleHints) out.styleHints = [...r.styleHints];
+    return out;
   }
 }

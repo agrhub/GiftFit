@@ -64,6 +64,8 @@ test("script tag adds Gift it right on a cross-origin product page and opens the
   await expect(frameEl).toHaveAttribute("src", new RegExp(`^${appOrigin.replace(/[.:/]/g, "\\$&")}/embed\\?`));
   const frame = page.frameLocator("giftfit-overlay iframe");
   await expect(frame.getByRole("dialog")).toBeVisible({ timeout: 60_000 });
+  // "Help me choose" is the default (ADR-045); the product page's piece is the giver's pick.
+  await frame.getByTestId("mode-i_have_ideas").check({ force: true });
   await expect(frame.getByTestId("shortlist")).toContainText("Halo Drop");
 
   await frame.getByTestId("occasion-anniversary").check({ force: true });

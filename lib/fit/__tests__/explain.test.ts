@@ -14,10 +14,13 @@ import {
   checkText,
   createExplainClient,
   explainFit,
+  explainMaxTokens,
   explainSchema,
+  templateExplanation,
   validateExplanation,
   wordCount,
 } from "../explain";
+import { DEFAULT_CLAUDE_MODEL } from "@/lib/anthropic/budget";
 import { type ScoredSku, fitScore } from "../score";
 import { seededRandom } from "../rng";
 import { fakeRules, makeCatalog, profile, request, sku } from "./fixtures";
@@ -225,36 +228,87 @@ describe("adversarial grounding: rejected or repaired", () => {
 });
 
 describe("AnthropicExplainClient request shape (SDK mocked)", () => {
+  const USAGE = { input_tokens: 900, output_tokens: 300, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };
   const fakeSdk = (response: unknown) => {
     const create = vi.fn(async () => response);
     return { sdk: { beta: { messages: { create } } } as unknown as Anthropic, create };
   };
+  /** A reservation spy: records the reserve input and the usage it was settled with. */
+  const spendSpy = (ok = true) => {
+    const log: { reserved?: { model: string; inputTokens: number; maxTokens: number }; settled?: unknown[] } = { settled: [] };
+    const reserve = vi.fn(async (input: { model: string; inputTokens: number; maxTokens: number }) => {
+      log.reserved = input;
+      if (!ok) return { ok: false as const, reason: "daily_cap" as const };
+      return { ok: true as const, settle: async (u: unknown) => void log.settled!.push(u) };
+    });
+    return { reserve, log };
+  };
 
-  it("calls claude-sonnet-5-5 with a strict json_schema output format and parses the text block", async () => {
-    const { sdk, create } = fakeSdk({ stop_reason: "end_turn", content: [{ type: "text", text: JSON.stringify(good) }] });
-    const r = await explainFit(SCORED, { client: new AnthropicExplainClient(sdk), catalog: CATALOG_REFS });
+  it("calls DEFAULT_CLAUDE_MODEL with a strict json_schema output, a cached system prompt and tight max_tokens", async () => {
+    const { sdk, create } = fakeSdk({ stop_reason: "end_turn", model: EXPLAIN_MODEL, usage: USAGE, content: [{ type: "text", text: JSON.stringify(good) }] });
+    const { reserve, log } = spendSpy();
+    const r = await explainFit(SCORED, { client: new AnthropicExplainClient(sdk, { reserve }), catalog: CATALOG_REFS });
     expect(r.source).toBe("llm");
     const params = (create.mock.calls[0] as unknown as [Record<string, unknown>])[0] as {
       model: string;
-      output_config: { format: { type: string; schema: unknown } };
+      max_tokens: number;
+      thinking?: { type: string };
+      output_config: { effort: string; format: { type: string; schema: unknown } };
       tool_choice?: unknown;
       messages: { content: string }[];
-      system: string;
+      system: { type: string; text: string; cache_control?: { type: string } }[];
     };
-    expect(params.model).toBe("claude-sonnet-5-5");
+    expect(EXPLAIN_MODEL).toBe(DEFAULT_CLAUDE_MODEL);
+    expect(params.model).toBe(DEFAULT_CLAUDE_MODEL);
+    expect(params.max_tokens).toBe(explainMaxTokens(2));
+    expect(params.max_tokens).toBeLessThanOrEqual(1600);
+    expect(params.thinking).toEqual({ type: "between_tools" }); // no extended thinking on Sonnet 5.5
+    expect(params.output_config.effort).toBe("low");
     expect(params.output_config.format.type).toBe("json_schema");
     expect(params.output_config.format.schema).toEqual(explainSchema(["aur-001", "aur-002"]));
     expect(params.tool_choice).toBeUndefined(); // forced tool_choice is rejected on Sonnet 5.5
-    expect(params.system).toMatch(/never name products/i);
+    expect(params.system).toHaveLength(1);
+    expect(params.system[0].text).toMatch(/never name products/i);
+    expect(params.system[0].cache_control).toEqual({ type: "ephemeral" });
     expect(JSON.parse(params.messages[0].content)).toEqual(buildExplainInput(SCORED));
+    // Reserve before, settle with the real usage after.
+    expect(log.reserved).toMatchObject({ model: DEFAULT_CLAUDE_MODEL, maxTokens: explainMaxTokens(2) });
+    expect(log.reserved!.inputTokens).toBeGreaterThan(100);
+    expect(log.settled).toEqual([USAGE]);
   });
 
-  it("treats a refusal or truncation as an error (template fallback)", async () => {
+  it("treats a refusal or truncation as an error (template fallback) and still settles the spend", async () => {
     for (const stop_reason of ["refusal", "max_tokens"]) {
-      const { sdk } = fakeSdk({ stop_reason, content: [] });
-      const r = await explainFit(SCORED, { client: new AnthropicExplainClient(sdk) });
+      const { sdk } = fakeSdk({ stop_reason, usage: USAGE, content: [] });
+      const { reserve, log } = spendSpy();
+      const r = await explainFit(SCORED, { client: new AnthropicExplainClient(sdk, { reserve }) });
       expect(r.source).toBe("template");
       expect(r.issues[0].code).toBe("client_error");
+      expect(log.settled).toEqual([USAGE]);
+    }
+  });
+
+  it("spend cap refusal: no API call, template text, issue spend_cap", async () => {
+    const { sdk, create } = fakeSdk({ stop_reason: "end_turn", usage: USAGE, content: [{ type: "text", text: JSON.stringify(good) }] });
+    const { reserve } = spendSpy(false);
+    const r = await explainFit(SCORED, { client: new AnthropicExplainClient(sdk, { reserve }) });
+    expect(create).not.toHaveBeenCalled();
+    expect(r.source).toBe("template");
+    expect(r.issues).toEqual([{ code: "spend_cap", detail: "daily_cap" }]);
+    expect(r.results).toEqual(templateExplanation(SCORED));
+  });
+
+  it("the real daily cap (ANTHROPIC_DAILY_USD_CAP=0) refuses without calling the API", async () => {
+    const { sdk, create } = fakeSdk({ stop_reason: "end_turn", usage: USAGE, content: [] });
+    const prev = process.env.ANTHROPIC_DAILY_USD_CAP;
+    process.env.ANTHROPIC_DAILY_USD_CAP = "0";
+    try {
+      const r = await explainFit(SCORED, { client: new AnthropicExplainClient(sdk) });
+      expect(create).not.toHaveBeenCalled();
+      expect(r.issues[0]).toEqual({ code: "spend_cap", detail: "disabled" });
+    } finally {
+      if (prev === undefined) delete process.env.ANTHROPIC_DAILY_USD_CAP;
+      else process.env.ANTHROPIC_DAILY_USD_CAP = prev;
     }
   });
 });

@@ -80,6 +80,20 @@ The metal factor is pulled toward its midpoint (5 points) in proportion to `1 �
 
 Guess probability (`estimateGuessProbability`): see docs/reports/A3.md for the measured numbers.
 
+## Curation: "Help me choose" (ADR-045)
+
+`lib/fit/curate.ts`. The giver sets a budget cap, occasion and optionally categories, a metal lock, style hints and a gender presentation; GiftFit picks **6 real candidates** (up to 8, see below). **No decoys** in this mode: every item can be bought. Decoys and the guess-probability machinery stay for "I have ideas".
+
+1. **Pool**: designs with ≥ 1 variant ≤ cap, in the request currency and inside the lock (ADR-032), default variant try-on ready, category in `categories` (empty = all).
+2. **Gender presentation** (brief only; absent = any): decoy parity rule — feminine → feminine/unisex, masculine → masculine/unisex, unisex → unisex. Others only if the compatible pool can't fill the set (`GENDER_RELAXED`).
+3. **Buckets** per design: style family (`attributes.style`), category, silhouette (per category: earring stud/hoop/drop/chandelier/geometric; necklace choker/chain/long/pendant; ring signet/band/cocktail/gemstone; bracelet tennis/bangle/beaded/chain; watch leather/metal/rubber strap), default metal.
+4. **Objective** (greedy marginal gain): `3·new style + C·new category + 2·new silhouette + 1·new metal + 4·hinted style under quota + 1.5·exact gender`, C = 5 when categories were named, else 2. Hint quota = max(1, round(6 / 2 / #hints)): about half the set leans to the hints; hints never exclude.
+5. **Search**: seeded greedy, greedy restarts from every first pick, then 1-swap local search (strict improvements only). Tie-break among equal gains: `0.5·catalog-only Fit Score + 0.2·price fit (1 at 75% of the cap, log scale) + 0.3·seeded key`. Seed = HMAC(FIT_DECOY_SECRET, request id): stable per request, different across requests.
+6. **Size**: 6; up to 8 only to bring in a named category or hinted style still absent (`EXTENDED_FOR_COVERAGE`). Fewer than 4 eligible designs → 422 `insufficient_catalog`.
+7. **Audit**: each pick carries `why` (`style:minimal`, `silhouette:earring/hoop`, `hint:minimal`, `fill`, `extended`).
+
+**Report extras** (`lib/fit/taste.ts`): a taste summary from the hearted designs' catalog attributes (Claude when the key and the daily spend cap allow, else a template; `source` says which) and 2–3 **"not tried on"** designs the recipient never saw: `2·style family hearted + 2·silhouette hearted + 1·category hearted + 1·hearted metal eligible + 0.5·price fit`, ≥ 3 points (≥ 2 if fewer than two qualify), −1.5 per repeated silhouette, within cap, lock and presentation.
+
 ## Return-Risk (G8)
 
 `lib/fit/returnRisk.ts`. An **estimate**, not a measured return rate:

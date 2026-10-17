@@ -7,7 +7,7 @@ const STAGES = [
   { at: 0, label: "Uploading your photo securely" },
   { at: 2, label: "Estimating your undertone" },
   { at: 5, label: "Reading your face shape" },
-  { at: 8, label: "Trying on 6 pieces" },
+  { at: 8, label: "Trying on your pieces" },
   { at: 1e9, label: "Deleting your photos" },
 ];
 

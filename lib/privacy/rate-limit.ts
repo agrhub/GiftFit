@@ -9,6 +9,7 @@
  *   fit_requests  10 / hour          (creating a request is free but unlocks a paid capture)
  *   capture        2 / hour, 4 / 24 h (only when the call can reach YouCam)
  *   swatch         8 / hour          (only when the call can reach YouCam; the 4-per-request cap stays)
+ *   concierge     20 / hour, 60 / 24 h (Gift Concierge messages, A7; mock and fallback answers count too)
  *
  * Over a limit: 429 {"error":"rate_limited"} with Retry-After, before any YouCam call.
  * Enabled everywhere except under NODE_ENV=test (unit tests force it on with setRateLimitOverride),
@@ -21,7 +22,7 @@ import { privacyState } from "./global-state";
 import { giverJson } from "./giver-guard";
 import { FirestoreRateLimitStore } from "./rate-limit-firestore";
 
-export type RateScope = "demo_seed" | "fit_requests" | "capture" | "swatch";
+export type RateScope = "demo_seed" | "fit_requests" | "capture" | "swatch" | "concierge";
 
 const HOUR = 60 * 60 * 1000;
 export const RATE_LIMITS: Record<RateScope, ReadonlyArray<{ limit: number; windowMs: number }>> = {
@@ -32,6 +33,10 @@ export const RATE_LIMITS: Record<RateScope, ReadonlyArray<{ limit: number; windo
     { limit: 4, windowMs: 24 * HOUR },
   ],
   swatch: [{ limit: 8, windowMs: HOUR }],
+  concierge: [
+    { limit: 20, windowMs: HOUR },
+    { limit: 60, windowMs: 24 * HOUR },
+  ],
 };
 
 /** Bound on remembered keys; beyond it, keys with no hit inside their longest window are dropped. */

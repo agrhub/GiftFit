@@ -75,7 +75,8 @@ describe("route-audience manifest", () => {
     it(`giver route ${file} never touches recipient imagery or raw analysis, and guards its output`, async () => {
       const sources = giverSources(file);
       const combined = sources.map((s) => s.source).join(String.fromCharCode(10));
-      const violations = giverSourceViolations(combined);
+      // ndjsonStream routes (A7) may build their one streaming Response: each line passes assertGiverSafe.
+      const violations = giverSourceViolations(combined).filter((v) => !(entry.ndjsonStream && v.startsWith("builds a raw Response")));
       const guardMissing = violations.filter((v) => v.includes("giverJson"));
       const hard = violations.filter((v) => !v.includes("giverJson"));
       expect(hard, `${file} (+ ${sources.slice(1).map((s) => s.file).join(", ")})`).toEqual([]);

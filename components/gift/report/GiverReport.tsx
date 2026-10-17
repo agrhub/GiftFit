@@ -4,26 +4,89 @@
  * shortlist. By construction it renders NO image elements at all (no <img>, <picture>, SVG
  * <image> or CSS background images): the recipient's photos never reach this page, and product
  * photos are left out too so the "0 photos" promise is literal. Labels only, never hex or LAB.
+ * "Help me choose" requests (ADR-045, A3) add a taste summary from the hearts and 2–3 similar
+ * designs they did not see, each clearly labelled "Not tried on", so the gift can stay a surprise.
  */
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { FitResult } from "@/lib/contracts/giftfit";
+import type { FitResult, Metal } from "@/lib/contracts/giftfit";
+import { FIT_WEIGHTS } from "@/lib/fit/weights";
 import type { Product } from "@/components/store/catalog";
 import { GiverTransparencyCard, Disclaimer } from "@/components/trust";
-import { METAL_LABELS, METAL_SWATCH, formatExpiry, formatPrice } from "@/components/store/format";
+import { METAL_LABELS, METAL_SWATCH, formatExpiry, formatPrice, productPath } from "@/components/store/format";
 import { ApiError, type GiftApi, type GiverReportView, friendlyError, loadGiftApi } from "../api";
 import { HeartIcon, ShieldIcon } from "../icons";
 
 export const REPORT_POLL_MS = 5000;
 
+// Maxima are the published weights (fit-v1.1: hearts 60, metal 10, style 15, budget and occasion 15).
 const FACTORS: Array<{ key: keyof FitResult["breakdown"]; label: string; max: number }> = [
-  { key: "hearts", label: "Their hearts", max: 50 },
-  { key: "metal", label: "Metal and undertone", max: 20 },
-  { key: "style", label: "Style and face shape", max: 15 },
-  { key: "budgetOccasion", label: "Budget and occasion", max: 15 },
+  { key: "hearts", label: "Their hearts", max: FIT_WEIGHTS.hearts },
+  { key: "metal", label: "Metal and undertone", max: FIT_WEIGHTS.metal },
+  { key: "style", label: "Style and face shape", max: FIT_WEIGHTS.style },
+  { key: "budgetOccasion", label: "Budget and occasion", max: FIT_WEIGHTS.budgetOccasion },
 ];
 
-type ProductInfo = Pick<Product, "id" | "slug" | "title" | "price" | "currency" | "metal">;
+type ProductInfo = Pick<Product, "id" | "slug" | "title" | "price" | "currency" | "metal"> & { variants?: Product["variants"] };
+
+/** "Help me choose": what their hearts say. Words only, from catalog attributes of the hearted pieces. */
+export function TasteSummaryCard({ summary }: { summary: NonNullable<GiverReportView["tasteSummary"]> }) {
+  return (
+    <section aria-labelledby="taste-summary-h" className="gf-fade-in mt-6 rounded-2xl border border-gold/40 bg-white p-5" data-testid="taste-summary">
+      <h2 id="taste-summary-h" className="text-xs font-semibold uppercase tracking-[0.18em] text-gold-deep">
+        Their taste
+      </h2>
+      <p className="mt-2 font-display text-xl leading-snug text-ink" data-testid="taste-summary-text">
+        {summary.text}
+      </p>
+      <p className="mt-2 text-xs text-muted" data-testid="taste-summary-source">
+        {summary.source === "claude" ? "Written by Claude from the pieces they hearted (no photos)." : "Summed up from the pieces they hearted."}
+      </p>
+    </section>
+  );
+}
+
+/** "Help me choose": similar designs they did NOT see. Clearly labelled, never scored, no images. */
+export function NotTriedList({ picks, products }: { picks: GiverReportView["similarNotTried"]; products: Record<string, ProductInfo> }) {
+  if (picks.length === 0) return null;
+  return (
+    <section aria-labelledby="not-tried-h" className="mt-8" data-testid="not-tried">
+      <h2 id="not-tried-h" className="font-display text-2xl text-ink">
+        Similar pieces, not tried on
+      </h2>
+      <p className="mt-1 text-sm leading-6 text-ink-soft">They match what they hearted and fit your budget. They haven&apos;t seen these, so one could stay a surprise.</p>
+      <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+        {picks.map((p) => {
+          const product = products[p.catalogId];
+          const variant = product?.variants?.find((v) => v.variantId === p.variantId);
+          const metal: Metal | undefined = variant?.metal ?? product?.metal;
+          return (
+            <li key={p.catalogId} className="rounded-2xl border border-dashed border-line-strong bg-white p-4" data-testid="not-tried-item">
+              <span className="inline-flex rounded-full bg-cream px-2 py-0.5 text-xs font-medium text-ink-soft" data-testid="not-tried-label">
+                Not tried on
+              </span>
+              <h3 className="mt-2 font-display text-lg leading-tight text-ink">{product?.title ?? "A similar piece"}</h3>
+              <p className="mt-1 flex flex-wrap items-center gap-x-3 text-sm text-ink-soft">
+                {metal ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span aria-hidden="true" className="inline-block h-3 w-3 rounded-full border border-line-strong" style={{ background: METAL_SWATCH[metal] }} />
+                    {METAL_LABELS[metal]}
+                  </span>
+                ) : null}
+                <span>{formatPrice(p.price, p.currency)}</span>
+              </p>
+              {product ? (
+                <Link href={productPath(product)} className="mt-3 inline-flex min-h-11 items-center text-sm text-ink underline decoration-gold underline-offset-4">
+                  View piece
+                </Link>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
 
 export function PhotosSeenCounter() {
   return (
@@ -51,7 +114,7 @@ function ScoreRing({ score }: { score: number }) {
 }
 
 export function ReportItem({ result, product, hearted, wished = false, rank }: { result: FitResult; product?: ProductInfo; hearted: boolean; wished?: boolean; rank: number }) {
-  const title = product?.title ?? "A piece from your shortlist";
+  const title = product?.title ?? "A piece they tried on";
   // ADR-032: the result is about one metal variant (the hearted one, else the best eligible one).
   const metal = result.metal ?? product?.metal;
   const price = result.price ?? product?.price;
@@ -269,7 +332,7 @@ export function GiverReport({ token, api: apiProp, products: productsProp, pollM
         <>
           <dl className="mt-6 grid grid-cols-3 gap-2 text-center">
             <div className="rounded-xl border border-line bg-white p-3">
-              <dt className="text-[0.65rem] uppercase tracking-[0.14em] text-muted">Your picks</dt>
+              <dt className="text-[0.65rem] uppercase tracking-[0.14em] text-muted">{report.mode === "help_me_choose" ? "Pieces tried" : "Your picks"}</dt>
               <dd className="font-display text-3xl text-ink">{sorted.length}</dd>
             </div>
             <div className="rounded-xl border border-line bg-white p-3">
@@ -292,11 +355,13 @@ export function GiverReport({ token, api: apiProp, products: productsProp, pollM
               ))}
             </ul>
           ) : null}
+          {report.tasteSummary ? <TasteSummaryCard summary={report.tasteSummary} /> : null}
           <ol className="mt-6 space-y-4">
             {sorted.map((r, i) => (
               <ReportItem key={r.skuId} result={r} product={products[r.skuId]} hearted={heartedSet.has(r.skuId)} wished={wishedSet.has(r.skuId)} rank={i + 1} />
             ))}
           </ol>
+          <NotTriedList picks={report.similarNotTried} products={products} />
           <Disclaimer className="mt-4" />
         </>
       ) : null}

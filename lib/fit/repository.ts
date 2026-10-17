@@ -6,7 +6,8 @@
  * catalog source (the Aurum JSON by default, ADR-020). There is never a second copy of a request.
  * `InMemoryFitRepository` stays as a self-contained helper for unit tests.
  */
-import type { CatalogSku, FaceShape, FitRequestInput, Metal, Occasion, RecipientProfile, Undertone } from "@/lib/contracts/giftfit";
+import type { GiftMode, StyleFamily } from "@/lib/contracts/api";
+import type { CatalogSku, FaceShape, FitRequestInput, JewelryCategory, Metal, Occasion, RecipientProfile, Undertone } from "@/lib/contracts/giftfit";
 import { OCCASIONS } from "@/lib/contracts/giftfit";
 import { hashToken } from "@/lib/privacy/tokens";
 import type { FitReportRecord, FitRequestRecord, FitRequestStatus, NewFitRequest, PrivacyRepos } from "@/lib/privacy/repos/types";
@@ -15,16 +16,43 @@ import { variantIndex } from "./variants";
 export type { FitRequestStatus };
 export { hashToken };
 
+/** The giver's mode and "help_me_choose" brief (ADR-045), as stored with the request. */
+export interface StoredBrief {
+  mode: GiftMode;
+  categories?: JewelryCategory[];
+  styleHints?: StyleFamily[];
+  genderPresentation?: "feminine" | "masculine" | "unisex";
+}
+
 /** A Fit Request as the giver routes need it. `profile` is null until the recipient produced data. */
 export interface StoredFitRequest {
   id: string;
   storeId?: string;
+  /** For "help_me_choose", `input.shortlistIds` are the curated designs (all real candidates). */
   input: FitRequestInput;
   decoyIds: string[];
   status: FitRequestStatus;
   expiresAt: Date;
   /** Estimates and hearted catalog ids (shortlist and decoys). Never returned on a giver route as-is. */
   profile: RecipientProfile | null;
+  /** Absent on older test fixtures = "i_have_ideas". */
+  brief?: StoredBrief;
+  /** Seeded judge demo (AI-generated model). */
+  demo?: boolean;
+}
+
+/**
+ * Mode and brief of a stored request. Rows without a `mode` (Drizzle has no column yet; older rows)
+ * read as "help_me_choose" when they have no decoys and ≥ 5 designs (that mode's shape: 6–8 real
+ * candidates, never decoys), else "i_have_ideas" (1–4 picks plus ≥ 2 decoys).
+ */
+export function briefOf(rec: Pick<FitRequestRecord, "mode" | "categories" | "styleHints" | "genderPresentation" | "decoyIds" | "shortlistIds">): StoredBrief {
+  const mode: GiftMode = rec.mode ?? (rec.decoyIds.length === 0 && rec.shortlistIds.length >= 5 ? "help_me_choose" : "i_have_ideas");
+  const brief: StoredBrief = { mode };
+  if (rec.categories && rec.categories.length) brief.categories = [...rec.categories];
+  if (rec.styleHints && rec.styleHints.length) brief.styleHints = [...rec.styleHints];
+  if (rec.genderPresentation) brief.genderPresentation = rec.genderPresentation;
+  return brief;
 }
 
 /** Cached giver report (fit_reports), keyed by a fingerprint of everything it was computed from. */
@@ -33,6 +61,8 @@ export interface CachedFitReport {
   items: unknown;
   weights?: unknown;
   model?: string | null;
+  /** "help_me_choose" extras (taste summary, not-tried picks), cached with the results so Claude runs once. */
+  extras?: unknown;
 }
 
 export interface CatalogSource {
@@ -163,20 +193,22 @@ export class PrivacyFitRepository implements FitRepository {
       status: rec.status,
       expiresAt: rec.expiresAt,
       profile: toRecipientProfile(row, parseHeartRows(hearts, variantIndex(catalog))),
+      brief: briefOf(rec),
+      ...(rec.demo ? { demo: true } : {}),
     };
   }
 
   async getReport(fitRequestId: string): Promise<CachedFitReport | null> {
     const rec = await (await this.repos()).reports.get(fitRequestId);
-    const items = rec?.items as { fingerprint?: unknown; items?: unknown } | undefined;
+    const items = rec?.items as { fingerprint?: unknown; items?: unknown; extras?: unknown } | undefined;
     if (!rec || typeof items?.fingerprint !== "string") return null;
-    return { fingerprint: items.fingerprint, items: items.items, weights: rec.weights, model: rec.model };
+    return { fingerprint: items.fingerprint, items: items.items, weights: rec.weights, model: rec.model, ...(items.extras !== undefined ? { extras: items.extras } : {}) };
   }
 
   async saveReport(fitRequestId: string, report: CachedFitReport): Promise<void> {
     const rec: FitReportRecord = {
       fitRequestId,
-      items: { fingerprint: report.fingerprint, items: report.items },
+      items: { fingerprint: report.fingerprint, items: report.items, ...(report.extras !== undefined ? { extras: report.extras } : {}) },
       weights: report.weights,
       model: report.model ?? null,
     };
@@ -232,6 +264,7 @@ export class InMemoryFitRepository extends StaticCatalog implements FitRepositor
       status: input.status ?? "created",
       expiresAt,
       profile: null,
+      brief: briefOf(input),
     });
     return { id, expiresAt };
   }

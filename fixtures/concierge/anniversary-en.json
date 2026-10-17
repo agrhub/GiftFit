@@ -1,0 +1,109 @@
+{
+  "name": "anniversary-en",
+  "recordedAt": "2026-10-17T07:35:24.347Z",
+  "model": "claude-sonnet-5-5",
+  "match": [
+    "anniversary",
+    "wife",
+    "minimal"
+  ],
+  "messages": [
+    {
+      "role": "user",
+      "content": "Anniversary gift for my wife. She loves minimal, delicate pieces and mostly wears gold. Budget around $300."
+    }
+  ],
+  "turns": [
+    {
+      "content": [
+        {
+          "type": "text",
+          "text": "Budget and occasion are both given, so I'll search now. She wears mostly gold, but she didn't insist on it, so I'll keep gold as a search preference rather than a lock."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01HwAGk8u16mc2Rh8jCiDGWZ",
+          "name": "search_catalog",
+          "input": {
+            "style": [
+              "minimal"
+            ],
+            "metal": [
+              "yellow_gold",
+              "rose_gold"
+            ],
+            "maxPrice": 300,
+            "genderPresentation": "feminine",
+            "occasion": "anniversary",
+            "text": "delicate",
+            "limit": 8
+          }
+        }
+      ],
+      "stop_reason": "tool_use",
+      "usage": {
+        "input_tokens": 4,
+        "output_tokens": 273,
+        "cache_creation_input_tokens": 2998,
+        "cache_read_input_tokens": 0
+      }
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01199ibKEzBHcLQpAG7XknwB",
+          "name": "create_fit_request",
+          "input": {
+            "brief": {
+              "mode": "help_me_choose",
+              "occasion": "anniversary",
+              "budgetMax": 300,
+              "currency": "USD",
+              "genderPresentation": "feminine",
+              "styleHints": [
+                "minimal"
+              ]
+            },
+            "suggestions": [
+              {
+                "catalogId": "caa0b0a6-7807-59c7-8898-e1a19a5563a3",
+                "reason": "A fine cable chain in yellow gold is a delicate, timeless anniversary staple."
+              },
+              {
+                "catalogId": "6818528d-7f7e-565d-ba25-ec706cc31d0d",
+                "reason": "Threader earrings add a subtle, graceful touch that suits minimal taste."
+              },
+              {
+                "catalogId": "531e6037-9319-50bd-998f-e9ac230894cc",
+                "reason": "The Y-shaped lariat is understated yet elegant in yellow gold."
+              }
+            ]
+          }
+        }
+      ],
+      "stop_reason": "tool_use",
+      "usage": {
+        "input_tokens": 2,
+        "output_tokens": 336,
+        "cache_creation_input_tokens": 1017,
+        "cache_read_input_tokens": 2998
+      }
+    },
+    {
+      "content": [
+        {
+          "type": "text",
+          "text": "I've drafted an anniversary brief for you, with a $300 budget and a minimal style. I found three delicate yellow-gold options: the Whisper Fine Cable Chain, the Willow Threader Earrings and the Lariat Y Necklace. I didn't lock the metal, so GiftFit may include other metals too. Review the draft in the app and tap \"Use this brief\" to continue. She can then try pieces on privately and heart her favourites."
+        }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+        "input_tokens": 2,
+        "output_tokens": 147,
+        "cache_creation_input_tokens": 709,
+        "cache_read_input_tokens": 4015
+      }
+    }
+  ]
+}

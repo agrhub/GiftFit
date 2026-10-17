@@ -14,7 +14,7 @@ const STEPS = [
   {
     n: "02",
     title: "They try on, privately",
-    body: "On their phone they see six pieces on themselves, as an AI preview, and heart the ones they love. Your picks are mixed with similar pieces, so the surprise holds.",
+    body: "On their phone they see six to eight pieces on themselves, as an AI preview, and heart the ones they love. You see their taste, never their photos, so the surprise holds.",
   },
   {
     n: "03",

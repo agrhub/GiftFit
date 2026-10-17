@@ -90,7 +90,8 @@ describe("giver routes leak nothing (dynamic probe)", () => {
     // POST /api/fit/requests (A3, ADR-021) is covered by the static scan; its response holds only
     // giver-supplied data and links. The other three are probed below.
     // POST /api/demo/seed (A5) is probed in app/api/demo/__tests__/seed.test.ts.
-    expect(giver.filter((f) => f !== "app/api/demo/seed/route.ts")).toEqual(["app/api/fit/decoys/route.ts", "app/api/fit/report/route.ts", "app/api/fit/requests/route.ts", "app/api/fit/weights/route.ts"]);
+    // POST /api/concierge (A7) is probed in app/api/concierge/__tests__/route.test.ts (every NDJSON event).
+    expect(giver.filter((f) => f !== "app/api/demo/seed/route.ts" && f !== "app/api/concierge/route.ts")).toEqual(["app/api/fit/decoys/route.ts", "app/api/fit/report/route.ts", "app/api/fit/requests/route.ts", "app/api/fit/weights/route.ts"]);
   });
 
   it("POST /api/fit/report", async () => {

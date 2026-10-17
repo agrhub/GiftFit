@@ -7,18 +7,20 @@
  */
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { z } from "zod";
-import type { CreateFitRequestResponse, GiverReportStatus } from "@/lib/contracts/api";
+import { type CreateFitRequestResponse, GIFT_MODES, type GiverReportStatus, STYLE_FAMILIES } from "@/lib/contracts/api";
 import { type CatalogSku, type FitResult, METALS, OCCASIONS, type RecipientProfile } from "@/lib/contracts/giftfit";
 import { findGiverLeaks, giverJson } from "@/lib/privacy/giver-guard";
 import { fitRequestExpiresAt, newFitRequestTokens } from "@/lib/privacy/tokens";
+import { curate, inferGender } from "./curate";
 import { type DecoyReasonCode, selectDecoys } from "./decoys";
 import type { FitDeps } from "./deps";
 import { explainFit } from "./explain";
 import { FACE_SHAPE_LABEL, UNDERTONE_LABEL, capitalize } from "./labels";
-import type { StoredFitRequest } from "./repository";
+import type { StoredBrief, StoredFitRequest } from "./repository";
 import { RETURN_RISK_DEFAULTS, RETURN_RISK_FORMULA, RETURN_RISK_LABEL, RETURN_RISK_SOURCES, type ReturnRiskInputs } from "./returnRisk";
 import { effectiveUndertone, scoreSkus } from "./score";
-import { type VariantRequest, eligibleVariants, swatchCap, variantView, variantsOf, visibleVariants } from "./variants";
+import { type HeartedDesign, type NotTriedPick, type TasteSummary, buildTasteInput, similarNotTried, tasteSummary } from "./taste";
+import { type VariantRequest, defaultVariant, eligibleVariants, swatchCap, variantView, variantsOf, visibleVariants } from "./variants";
 import { FIT_FORMULA, FIT_PARAMS, FIT_WEIGHTS, FIT_WEIGHTS_VERSION } from "./weights";
 
 export type { CreateFitRequestResponse, GiverReportStatus };
@@ -62,19 +64,32 @@ const json = <T extends GiverFitResponse>(body: T, status = 200) => giverJson(bo
 
 const ReportBody = z.object({ giverToken: z.string().min(16).max(256) });
 const DecoysBody = z.object({ shortlistIds: z.array(z.string().min(1).max(128)).min(1).max(4) });
+const CATEGORIES = ["earring", "necklace", "ring", "bracelet", "watch"] as const;
+const GENDER_PRESENTATIONS = ["feminine", "masculine", "unisex"] as const;
+const unique = (xs: readonly string[] | undefined) => !xs || new Set(xs).size === xs.length;
+const isIdeas = (b: { mode?: string }) => (b.mode ?? "i_have_ideas") === "i_have_ideas";
 const CreateBody = z
   .object({
     storeId: z.string().min(1).max(128).optional(),
+    /** Absent = "i_have_ideas" (backward compatible, ADR-045). */
+    mode: z.enum(GIFT_MODES).optional(),
     occasion: z.enum(OCCASIONS),
     budgetMin: z.number().finite().min(0).max(1_000_000).optional(),
     budgetMax: z.number().finite().min(0).max(1_000_000),
     metalLock: z.array(z.enum(METALS)).min(1).max(METALS.length).optional(),
     currency: z.string().regex(/^[A-Z]{3}$/),
-    shortlistIds: z.array(z.string().min(1).max(128)).min(1).max(4),
+    /** "i_have_ideas": 1–4 designs. Ignored for "help_me_choose". */
+    shortlistIds: z.array(z.string().min(1).max(128)).max(16).default([]),
+    categories: z.array(z.enum(CATEGORIES)).max(CATEGORIES.length).optional(),
+    styleHints: z.array(z.enum(STYLE_FAMILIES)).max(STYLE_FAMILIES.length).optional(),
+    genderPresentation: z.enum(GENDER_PRESENTATIONS).optional(),
   })
   .refine((b) => b.budgetMax > 0 && b.budgetMax >= (b.budgetMin ?? 0), { message: "budgetMax must be > 0 and ≥ budgetMin" })
-  .refine((b) => !b.metalLock || new Set(b.metalLock).size === b.metalLock.length, { message: "metalLock must be unique" })
-  .refine((b) => new Set(b.shortlistIds).size === b.shortlistIds.length, { message: "shortlistIds must be unique" });
+  .refine((b) => unique(b.metalLock), { message: "metalLock must be unique" })
+  .refine((b) => !isIdeas(b) || (b.shortlistIds.length >= 1 && b.shortlistIds.length <= 4), { message: "shortlistIds must list 1–4 designs" })
+  .refine((b) => !isIdeas(b) || unique(b.shortlistIds), { message: "shortlistIds must be unique" })
+  .refine((b) => unique(b.categories) && unique(b.styleHints), { message: "categories and styleHints must be unique" });
+type CreateInput = z.infer<typeof CreateBody>;
 
 async function readJson(req: Request): Promise<unknown> {
   try {
@@ -100,6 +115,7 @@ export async function handleCreateRequest(req: Request, deps: FitDeps): Promise<
   const parsed = CreateBody.safeParse(await readJson(req));
   if (!parsed.success) return json<FitErrorResponse>({ error: "bad_request", message: parsed.error.issues[0]?.message }, 400);
   const body = parsed.data;
+  if (body.mode === "help_me_choose") return createHelpMeChoose(body, deps);
   const shortlist = await deps.repository.getSkus(body.shortlistIds);
   if (shortlist.length !== body.shortlistIds.length) return json<FitErrorResponse>({ error: "unknown_sku" }, 404);
   const storeId = body.storeId ?? shortlist[0].storeId;
@@ -118,11 +134,54 @@ export async function handleCreateRequest(req: Request, deps: FitDeps): Promise<
   const sel = selectDecoys(shortlist, await deps.repository.listCatalog(storeId), { seed: decoySeed(deps.decoySecret, id), request: variantRequest });
   if (sel.decoyIds.length < 2) return json<FitErrorResponse>({ error: "insufficient_catalog" }, 422);
 
+  return storeRequest(deps, id, body, { mode: "i_have_ideas", storeId, shortlistIds: [...body.shortlistIds], decoyIds: sel.decoyIds });
+}
+
+/**
+ * "Help me choose" (ADR-045): GiftFit curates 6–8 real candidates (lib/fit/curate.ts) within the cap,
+ * lock, categories and gender presentation; no decoys. The curated designs are stored as the request's
+ * shortlist, so the recipient flow is unchanged. Refuses (422 insufficient_catalog) below 4 designs.
+ */
+async function createHelpMeChoose(body: CreateInput, deps: FitDeps): Promise<Response> {
+  const catalog = await deps.repository.listCatalog(body.storeId);
+  const storeId = body.storeId ?? catalog[0]?.storeId;
+  const pool = storeId ? catalog.filter((s) => s.storeId === storeId) : catalog;
+  const id = randomUUID();
+  const cur = curate(pool, {
+    seed: decoySeed(deps.decoySecret, id),
+    request: { budgetMax: body.budgetMax, currency: body.currency, metalLock: body.metalLock },
+    occasion: body.occasion,
+    categories: body.categories,
+    styleHints: body.styleHints,
+    genderPresentation: body.genderPresentation,
+    rules: deps.rules,
+  });
+  if (!cur.ok) {
+    return json<FitErrorResponse>({ error: "insufficient_catalog", message: "not enough designs within the budget cap, metal and categories" }, 422);
+  }
+  return storeRequest(deps, id, body, {
+    mode: "help_me_choose",
+    storeId,
+    shortlistIds: cur.ids,
+    decoyIds: [],
+    ...(body.categories?.length ? { categories: [...body.categories] } : {}),
+    ...(body.styleHints?.length ? { styleHints: [...body.styleHints] } : {}),
+    ...(body.genderPresentation ? { genderPresentation: body.genderPresentation } : {}),
+  });
+}
+
+/** Mints the tokens (only their SHA-256 hashes are stored, in lib/privacy) and stores the request with the 72 h expiry. */
+async function storeRequest(
+  deps: FitDeps,
+  id: string,
+  body: CreateInput,
+  shape: StoredBrief & { storeId?: string; shortlistIds: string[]; decoyIds: string[] },
+): Promise<Response> {
   const tokens = newFitRequestTokens();
   const now = deps.now();
   const created = await deps.repository.createRequest({
     id,
-    storeId: storeId ?? null,
+    storeId: shape.storeId ?? null,
     giverTokenHash: tokens.giverTokenHash,
     recipientTokenHash: tokens.recipientTokenHash,
     occasion: body.occasion,
@@ -130,8 +189,12 @@ export async function handleCreateRequest(req: Request, deps: FitDeps): Promise<
     budgetMax: body.budgetMax,
     ...(body.metalLock ? { metalLock: [...body.metalLock] } : {}),
     currency: body.currency,
-    shortlistIds: [...body.shortlistIds],
-    decoyIds: sel.decoyIds,
+    shortlistIds: shape.shortlistIds,
+    decoyIds: shape.decoyIds,
+    mode: shape.mode,
+    ...(shape.categories ? { categories: shape.categories } : {}),
+    ...(shape.styleHints ? { styleHints: shape.styleHints } : {}),
+    ...(shape.genderPresentation ? { genderPresentation: shape.genderPresentation } : {}),
     createdAt: now,
     expiresAt: fitRequestExpiresAt(now),
   });
@@ -142,7 +205,7 @@ export async function handleCreateRequest(req: Request, deps: FitDeps): Promise<
       recipientPath: `/r/${tokens.recipientToken}`,
       giverReportPath: `/g/${tokens.giverToken}`,
       expiresAt: created.expiresAt.toISOString(),
-      carouselSize: shortlist.length + sel.decoyIds.length,
+      carouselSize: shape.shortlistIds.length + shape.decoyIds.length,
     },
     201,
   );
@@ -172,7 +235,7 @@ export function recipientLabels(profile: RecipientProfile | null): GiverReportSt
 
 /** Hash of everything a report is computed from; a cached fit_reports row is reused only on a match. */
 function reportFingerprint(request: StoredFitRequest): string {
-  const material = JSON.stringify({ v: FIT_WEIGHTS_VERSION, input: request.input, decoys: request.decoyIds, profile: request.profile });
+  const material = JSON.stringify({ v: FIT_WEIGHTS_VERSION, input: request.input, decoys: request.decoyIds, profile: request.profile, brief: request.brief ?? null });
   return createHash("sha256").update(material).digest("hex");
 }
 
@@ -200,6 +263,49 @@ function heartedViews(designs: readonly CatalogSku[], profile: RecipientProfile,
   });
 }
 
+/** "help_me_choose" report extras, cached with the results (fit_reports) so Claude runs once per report. */
+interface HelpExtras {
+  tasteSummary: TasteSummary;
+  similarNotTried: NotTriedPick[];
+}
+
+function isHelpExtras(x: unknown): x is HelpExtras {
+  const e = x as HelpExtras | undefined;
+  return Boolean(e && typeof e.tasteSummary?.text === "string" && Array.isArray(e.similarNotTried));
+}
+
+/** Hearted curated designs in the metal they were hearted in (else their default eligible metal). */
+function heartedDesigns(designs: readonly CatalogSku[], profile: RecipientProfile, request: VariantRequest): HeartedDesign[] {
+  const hearts = new Set(profile.heartedSkuIds);
+  const hv = new Set(profile.heartedVariantIds ?? []);
+  return designs
+    .filter((d) => hearts.has(d.id))
+    .map((d) => {
+      const v = variantsOf(d).find((x) => hv.has(x.variantId)) ?? defaultVariant(d, request) ?? variantsOf(d)[0];
+      return { sku: d, metal: v.metal };
+    });
+}
+
+/**
+ * Taste summary (Claude or template) and 2–3 "not tried on" designs, from the hearts on the curated
+ * set. Inputs are catalog attributes and counts only (lib/fit/taste.ts).
+ */
+async function helpExtras(request: StoredFitRequest, brief: StoredBrief, profile: RecipientProfile, shown: readonly CatalogSku[], deps: FitDeps): Promise<{ extras: HelpExtras; model?: string }> {
+  const hearted = heartedDesigns(shown, profile, request.input);
+  const wished = shown.filter((d) => (profile.wishOtherMetalSkuIds ?? []).includes(d.id)).length;
+  const catalog = await deps.repository.listCatalog(request.storeId);
+  const refs = catalog.map((s) => ({ id: s.id, title: s.title }));
+  const taste = await tasteSummary(buildTasteInput(hearted, shown.length, wished), { client: deps.taster ?? null, catalog: refs });
+  const similar = similarNotTried(catalog, hearted, {
+    request: request.input,
+    shownIds: shown.map((s) => s.id),
+    // The brief's presentation; rows without one (Drizzle) infer it from the curated set.
+    genderPresentation: brief.genderPresentation ?? inferGender(shown),
+    seed: decoySeed(deps.decoySecret, request.id),
+  });
+  return { extras: { tasteSummary: taste.summary, similarNotTried: similar }, model: taste.summary.source === "claude" ? taste.model : undefined };
+}
+
 export async function handleReport(req: Request, deps: FitDeps): Promise<Response> {
   const headerToken = req.headers.get("x-giver-token");
   const parsed = ReportBody.safeParse(headerToken ? { giverToken: headerToken } : await readJson(req));
@@ -207,17 +313,22 @@ export async function handleReport(req: Request, deps: FitDeps): Promise<Respons
 
   const request = await deps.repository.findByGiverToken(parsed.data.giverToken);
   if (!request) return json<FitErrorResponse>({ error: "not_found" }, 404);
+  const brief: StoredBrief = request.brief ?? { mode: "i_have_ideas" };
+  const meta: Pick<GiverReportStatus, "mode" | "demo"> = { mode: brief.mode, ...(request.demo ? { demo: true } : {}) };
   const status = giverStatus(request, deps.now());
   const expiresAt = request.expiresAt.toISOString();
-  if (status !== "completed") return reportJson({ status, expiresAt });
+  if (status !== "completed") return reportJson({ status, expiresAt, ...meta });
   if (!deps.rules) return json<FitErrorResponse>({ error: "fit_rules_not_configured" }, 503);
 
   const profile: RecipientProfile = request.profile ?? { undertoneEstimate: "neutral", undertoneConfidence: 0, faceShape: "Unknown", heartedSkuIds: [] };
   const fingerprint = reportFingerprint(request);
   const cached = await deps.repository.getReport(request.id);
+  const help = brief.mode === "help_me_choose";
   let results: FitResult[];
-  if (cached && cached.fingerprint === fingerprint && Array.isArray(cached.items)) {
+  let extras: HelpExtras | undefined;
+  if (cached && cached.fingerprint === fingerprint && Array.isArray(cached.items) && (!help || isHelpExtras(cached.extras))) {
     results = cached.items as FitResult[];
+    if (help) extras = cached.extras as HelpExtras;
   } else {
     const shortlist = await deps.repository.getSkus(request.input.shortlistIds);
     const decoys = await deps.repository.getSkus(request.decoyIds);
@@ -228,9 +339,16 @@ export async function handleReport(req: Request, deps: FitDeps): Promise<Respons
       category: shortlist.find((k) => k.id === s.skuId)!.category,
     }));
     const catalog = (await deps.repository.listCatalog(request.storeId)).map((s) => ({ id: s.id, title: s.title }));
-    const explained = await explainFit(scored, { client: deps.explainer, catalog });
+    const [explained, extra] = await Promise.all([explainFit(scored, { client: deps.explainer, catalog }), help ? helpExtras(request, brief, profile, shortlist, deps) : undefined]);
     results = explained.results;
-    await deps.repository.saveReport(request.id, { fingerprint, items: results, weights: FIT_WEIGHTS, model: explained.model ?? null });
+    extras = extra?.extras;
+    await deps.repository.saveReport(request.id, {
+      fingerprint,
+      items: results,
+      weights: FIT_WEIGHTS,
+      model: explained.model ?? extra?.model ?? null,
+      ...(extras ? { extras } : {}),
+    });
   }
   const hearts = new Set(profile.heartedSkuIds);
   const wishes = new Set(profile.wishOtherMetalSkuIds ?? []);
@@ -244,6 +362,8 @@ export async function handleReport(req: Request, deps: FitDeps): Promise<Respons
     heartedShortlistIds: request.input.shortlistIds.filter((id) => hearts.has(id)),
     // Wishes on the shortlist only, like hearts.
     ...(otherMetalWishes.length > 0 ? { otherMetalWishes } : {}),
+    ...meta,
+    ...(extras ? { tasteSummary: extras.tasteSummary, ...(extras.similarNotTried.length > 0 ? { similarNotTried: extras.similarNotTried } : {}) } : {}),
   });
 }
 

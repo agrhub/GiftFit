@@ -340,6 +340,11 @@ function requestToDoc(r: FitRequestRecord): FsData {
     metalLock: r.metalLock && r.metalLock.length ? [...r.metalLock] : null,
     photoDeletedAt: r.photoDeletedAt ?? null,
     demo: Boolean(r.demo),
+    // "help_me_choose" brief (ADR-045); written only when set, so older documents read unchanged.
+    ...(r.mode ? { mode: r.mode } : {}),
+    ...(r.categories && r.categories.length ? { categories: [...r.categories] } : {}),
+    ...(r.styleHints && r.styleHints.length ? { styleHints: [...r.styleHints] } : {}),
+    ...(r.genderPresentation ? { genderPresentation: r.genderPresentation } : {}),
   };
 }
 
@@ -362,6 +367,10 @@ function requestFromDoc(d: FsData): FitRequestRecord {
     photoDeletedAt: toDateOrNull(d.photoDeletedAt),
   };
   if (d.demo === true) rec.demo = true;
+  if (d.mode === "help_me_choose" || d.mode === "i_have_ideas") rec.mode = d.mode;
+  if (Array.isArray(d.categories) && d.categories.length) rec.categories = [...d.categories] as FitRequestRecord["categories"];
+  if (Array.isArray(d.styleHints) && d.styleHints.length) rec.styleHints = [...d.styleHints] as FitRequestRecord["styleHints"];
+  if (d.genderPresentation === "feminine" || d.genderPresentation === "masculine" || d.genderPresentation === "unisex") rec.genderPresentation = d.genderPresentation;
   return rec;
 }
 

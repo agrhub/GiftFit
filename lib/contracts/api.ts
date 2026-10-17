@@ -25,8 +25,41 @@ export interface ApiError {
 // ---------------------------------------------------------------------------------------------
 
 /** POST /api/fit/requests — create a Fit Request. Decoys are chosen server-side and never returned. */
+/**
+ * Giver modes (ADR-045). "help_me_choose" (default): GiftFit curates 6–8 informative, real candidates
+ * within budget and lock; no decoys. "i_have_ideas": the giver's 1–4 picks plus decoys (the original mode).
+ */
+export const GIFT_MODES = ["help_me_choose", "i_have_ideas"] as const;
+export type GiftMode = (typeof GIFT_MODES)[number];
+
+/** Style families in the catalog (`attributes.style`). */
+export const STYLE_FAMILIES = ["classic", "minimal", "statement", "modern", "boho", "vintage", "sport"] as const;
+export type StyleFamily = (typeof STYLE_FAMILIES)[number];
+
+/**
+ * The structured gift brief (ADR-045/040). The Giver Panel form and the Gift Concierge both produce
+ * exactly this; the Concierge never creates a request without the giver confirming it.
+ */
+export interface GiftBrief {
+  mode: GiftMode;
+  occasion: Occasion;
+  budgetMax: number;
+  currency: string;
+  /** Categories to draw from; empty/absent = all. */
+  categories?: JewelryCategory[];
+  metalLock?: Metal[];
+  /** Optional hints, e.g. ["minimal"]; they bias coverage, never exclude. */
+  styleHints?: StyleFamily[];
+  /** From hints or the occasion; decoys/curation respect it. Absent = any. */
+  genderPresentation?: "feminine" | "masculine" | "unisex";
+  /** "i_have_ideas" only: 1–4 catalog ids. */
+  shortlistIds?: string[];
+}
+
 export interface CreateFitRequestBody {
   storeId?: string;
+  /** Absent = "i_have_ideas" for backward compatibility with existing clients and tests. */
+  mode?: GiftMode;
   occasion: Occasion;
   /** Optional floor (legacy). */
   budgetMin?: number;
@@ -35,8 +68,12 @@ export interface CreateFitRequestBody {
   /** Optional metal lock, e.g. ["yellow_gold", "rose_gold"]. */
   metalLock?: Metal[];
   currency: string;
-  /** 1–4 catalog ids the giver picked. */
+  /** "i_have_ideas": 1–4 catalog ids the giver picked. Ignored (may be empty) for "help_me_choose". */
   shortlistIds: string[];
+  /** "help_me_choose" inputs (ADR-045). */
+  categories?: JewelryCategory[];
+  styleHints?: StyleFamily[];
+  genderPresentation?: "feminine" | "masculine" | "unisex";
 }
 export interface CreateFitRequestResponse {
   fitRequestId: string;
@@ -62,6 +99,17 @@ export interface GiverReportStatus {
   heartedShortlistIds?: string[];
   /** Shortlist designs the recipient wished came in another metal (ADR-032). */
   otherMetalWishes?: string[];
+  /** Which mode created the request (ADR-045). */
+  mode?: GiftMode;
+  /** Seeded judge demo (AI-generated model), never a real request. */
+  demo?: boolean;
+  /**
+   * "help_me_choose": a short taste summary built from the hearts (style family, metal, silhouette).
+   * Claude-written when the key is present, else the template; `source` says which.
+   */
+  tasteSummary?: { text: string; source: "claude" | "template" };
+  /** 2–3 catalog designs the recipient did NOT see, matching the taste. The giver may buy these. */
+  similarNotTried?: Array<{ catalogId: string; variantId?: string; price: number; currency: string; label: "not tried on" }>;
 }
 
 // ---------------------------------------------------------------------------------------------

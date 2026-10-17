@@ -33,6 +33,12 @@ export interface RouteManifestEntry {
   guardPending?: string;
   /** Declared ahead of the owner's work (ADR-021); allowed to be missing on disk until it lands. */
   planned?: boolean;
+  /**
+   * A giver route that streams application/x-ndjson (A7 Gift Concierge): the one raw `new Response(stream)`
+   * is allowed because every line passes assertGiverSafe before it is written (the guard pattern is still
+   * required in its sources, and its route tests scan every streamed event). The value says why.
+   */
+  ndjsonStream?: string;
 }
 
 export const ROUTE_MANIFEST: Record<string, RouteManifestEntry> = {
@@ -88,6 +94,14 @@ export const ROUTE_MANIFEST: Record<string, RouteManifestEntry> = {
     audience: "giver",
     owner: "A5",
     description: "Seeded judge demo: fresh Fit Request for an AI-generated model from committed fixtures; 0 units; 10/hour per IP",
+  },
+  // A7 Gift Concierge (catalog-only tools; draft brief, never creates a request)
+  "app/api/concierge/route.ts": {
+    audience: "giver",
+    owner: "A7",
+    description: "Gift Concierge: natural language → streamed reply, tool transcript and a DRAFT gift brief with ≤ 3 grounded catalog suggestions; 20/h, 60/day per IP",
+    allowsProductImages: true,
+    ndjsonStream: "streamed chat; each NDJSON event passes assertGiverSafe (lib/concierge/stream.ts)",
   },
   // A5 recipient
   "app/api/recipient/session/route.ts": {

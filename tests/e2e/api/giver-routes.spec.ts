@@ -11,7 +11,7 @@ import { ROUTE_MANIFEST } from "../../../lib/privacy/route-manifest";
 import { scanGiverResponse } from "../support/giver-leaks";
 
 // app/api/fit/requests is exercised end to end in gift-journey.spec.ts (P3 merge).
-const COVERED_GIVER_ROUTES = ["app/api/fit/report/route.ts", "app/api/fit/decoys/route.ts", "app/api/fit/weights/route.ts", "app/api/fit/requests/route.ts", "app/api/demo/seed/route.ts"];
+const COVERED_GIVER_ROUTES = ["app/api/fit/report/route.ts", "app/api/fit/decoys/route.ts", "app/api/fit/weights/route.ts", "app/api/fit/requests/route.ts", "app/api/demo/seed/route.ts", "app/api/concierge/route.ts"];
 
 async function expectNoLeaks(res: APIResponse): Promise<unknown> {
   const text = await res.text();
@@ -96,4 +96,38 @@ test("POST /api/demo/seed returns links and the AI-model label only, with no rec
   expect(body.giverReportPath).toMatch(/^\/g\//);
   expect(String(body.label)).toMatch(/AI-generated model/);
   expect(JSON.stringify(body)).not.toMatch(/tryon|\.jpg|skin_color|faceshape/i);
+});
+
+test("POST /api/concierge streams NDJSON (mock fixture, keyless) with a draft brief and grounded suggestions", async ({ request }) => {
+  const res = await request.post("/api/concierge", {
+    data: { messages: [{ role: "user", content: "Anniversary gift for my wife. She loves minimal, delicate pieces and mostly wears gold. Budget around $300." }] },
+  });
+  expect(res.status()).toBe(200);
+  expect(res.headers()["content-type"]).toContain("application/x-ndjson");
+  const lines = (await res.text()).split("\n").filter(Boolean);
+  for (const line of lines) {
+    // Concierge suggestions may carry public catalog product images, never anything else.
+    const leaks = scanGiverResponse(line, res.headers(), { allowProductImagePrefixes: ["/catalog/"] });
+    expect(leaks, line).toEqual([]);
+  }
+  const events = lines.map((l) => JSON.parse(l) as { type: string; [k: string]: unknown });
+  expect(events[0]).toEqual({ type: "start", source: "mock" });
+  expect(events.some((e) => e.type === "text")).toBe(true);
+  expect(events.filter((e) => e.type === "tool").map((e) => e.name)).toContain("create_fit_request");
+  const final = events.at(-1) as { type: string; brief: { mode: string; budgetMax: number }; suggestions: Array<{ fromPrice: number }> };
+  expect(final.type).toBe("final");
+  expect(final.brief.mode).toBe("help_me_choose");
+  expect(final.suggestions.length).toBeGreaterThan(0);
+  for (const s of final.suggestions) expect(s.fromPrice).toBeLessThanOrEqual(final.brief.budgetMax);
+});
+
+test("POST /api/concierge rejects bad bodies with bare error codes", async ({ request }) => {
+  for (const data of [{}, { messages: [] }, { messages: [{ role: "assistant", content: "hi" }] }, { messages: [{ role: "user", content: "" }] }]) {
+    const res = await request.post("/api/concierge", { data });
+    expect(res.status()).toBe(400);
+    expect(await expectNoLeaks(res)).toEqual({ error: "invalid_request" });
+  }
+  const long = await request.post("/api/concierge", { data: { messages: [{ role: "user", content: "x".repeat(1501) }] } });
+  expect(long.status()).toBe(400);
+  expect(await expectNoLeaks(long)).toEqual({ error: "message_too_long" });
 });

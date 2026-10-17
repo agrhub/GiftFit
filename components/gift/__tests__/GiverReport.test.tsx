@@ -85,3 +85,45 @@ describe("GiverReport", () => {
     expect(document.querySelectorAll("img, picture").length).toBe(0);
   });
 });
+
+describe("GiverReport: Help me choose (ADR-045)", () => {
+  const help: GiverReportStatus = {
+    ...completed,
+    mode: "help_me_choose",
+    tasteSummary: { text: "Their hearts lean minimal, mostly in yellow gold, with a liking for drop earrings.", source: "template" },
+    similarNotTried: [
+      { catalogId: "nec", variantId: "nec:rose_gold", price: 230, currency: "USD", label: "not tried on" },
+      { catalogId: "unknown", price: 99, currency: "USD", label: "not tried on" },
+    ],
+  };
+  const withVariants = { ...products, nec: { ...products.nec, variants: [{ variantId: "nec:rose_gold", metal: "rose_gold" as const, price: 230, image: "/catalog/x.png", material: "10k rose gold" }] } };
+
+  it("shows the taste summary and the not-tried picks, clearly labelled, with no images", async () => {
+    const { container } = render(<GiverReport token={TOKEN} api={apiWith(help)} products={withVariants} />);
+    await screen.findAllByTestId("fit-report-item");
+    expect(screen.getByTestId("taste-summary-text").textContent).toBe(help.tasteSummary!.text);
+    expect(screen.getByTestId("taste-summary-source").textContent).toMatch(/hearted/);
+    const picks = screen.getAllByTestId("not-tried-item");
+    expect(picks).toHaveLength(2);
+    for (const p of picks) expect(within(p).getByTestId("not-tried-label").textContent).toBe("Not tried on");
+    expect(picks[0].textContent).toContain("Crescent Pendant");
+    expect(picks[0].textContent).toContain("Rose gold");
+    expect(picks[0].textContent).toContain("$230");
+    expect(picks[1].textContent).toContain("A similar piece");
+    expect(screen.getByText("Pieces tried")).toBeTruthy();
+    expect(container.querySelectorAll("img, picture, image, video, canvas, source").length).toBe(0);
+  });
+
+  it("credits Claude when it wrote the summary", async () => {
+    render(<GiverReport token={TOKEN} api={apiWith({ ...help, tasteSummary: { text: "They lean minimal.", source: "claude" } })} products={products} />);
+    expect((await screen.findByTestId("taste-summary-source")).textContent).toMatch(/Claude/);
+  });
+
+  it("an I have ideas report has neither section", async () => {
+    render(<GiverReport token={TOKEN} api={apiWith(completed)} products={products} />);
+    await screen.findAllByTestId("fit-report-item");
+    expect(screen.queryByTestId("taste-summary")).toBeNull();
+    expect(screen.queryByTestId("not-tried")).toBeNull();
+    expect(screen.getByText("Your picks")).toBeTruthy();
+  });
+});

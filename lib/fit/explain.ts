@@ -1,7 +1,7 @@
 /**
  * Fit Report explanations (MASTER_PLAN v2 G6, rule 2 "grounded").
  *
- * Claude (claude-sonnet-5-5) rewrites the deterministic reasons into 2 reasons + 1 caution per SKU,
+ * Claude (DEFAULT_CLAUDE_MODEL, lib/anthropic/budget.ts) rewrites the deterministic reasons into 2 reasons + 1 caution per SKU,
  * each ≤ 20 words, under a strict JSON schema whose `skuId` is an enum of the scored ids. The model
  * receives ONLY scored SKU ids, scores, category words and giver-safe signal labels such as
  * "hearted" or "warm undertone estimate → yellow gold: recommended": never titles, images, URLs,
@@ -9,13 +9,15 @@
  *
  * Every model output passes `validateExplanation`; anything ungrounded, leaky or too long is
  * replaced by the deterministic template text for that slot. Without ANTHROPIC_API_KEY (or on any
- * API error) the template is used for everything, so the app works with no key.
+ * API error, or when the daily spend cap refuses the call) the template is used for everything, so
+ * the app works with no key. Every call is reserve → call → settle (lib/fit/claude.ts).
  */
-import Anthropic from "@anthropic-ai/sdk";
+import { DEFAULT_CLAUDE_MODEL } from "@/lib/anthropic/budget";
 import type { FitResult, JewelryCategory } from "@/lib/contracts/giftfit";
+import { ClaudeSpendRefused, type MessagesLike, type ReserveFn, anthropicFromEnv, callClaudeJson } from "./claude";
 import { GENERIC_CAUTION, type ScoredSku, toFitResult } from "./score";
 
-export const EXPLAIN_MODEL = "claude-sonnet-5-5";
+export const EXPLAIN_MODEL = DEFAULT_CLAUDE_MODEL;
 export const MAX_WORDS = 20;
 
 /** What the model sees for one SKU. Built only by `buildExplainInput`. */
@@ -52,6 +54,8 @@ export interface ExplainIssue {
   code:
     | "no_client"
     | "client_error"
+    /** The daily Anthropic spend cap refused the call (lib/anthropic/budget.ts); nothing was sent. */
+    | "spend_cap"
     | "bad_shape"
     | "unknown_sku"
     | "duplicate_sku"
@@ -130,40 +134,42 @@ export const EXPLAIN_SYSTEM = [
 
 // ---------------------------------------------------------------- Anthropic client
 
-/** Real client: claude-sonnet-5-5 with structured outputs (forced tool_choice is not available on Sonnet 5.5). */
-export class AnthropicExplainClient implements ExplainClient {
-  readonly model = EXPLAIN_MODEL;
-  private readonly client: Anthropic;
+/** Output budget: ~150 tokens per item (three ≤ 20-word strings plus JSON), no extended thinking. */
+export const explainMaxTokens = (items: number) => Math.min(1600, 200 + 150 * Math.max(1, items));
 
-  constructor(client?: Anthropic) {
-    this.client = client ?? new Anthropic();
+/**
+ * Real client: DEFAULT_CLAUDE_MODEL with structured outputs (forced tool_choice is not available on
+ * Sonnet 5.5), the system prompt cached, and the daily spend cap around every call.
+ */
+export class AnthropicExplainClient implements ExplainClient {
+  readonly model: string;
+
+  constructor(
+    private readonly client: MessagesLike,
+    private readonly opts: { model?: string; reserve?: ReserveFn } = {},
+  ) {
+    this.model = opts.model ?? EXPLAIN_MODEL;
   }
 
   async explain(request: ExplainRequest, schema: Record<string, unknown>): Promise<unknown> {
-    const response = await this.client.beta.messages.create({
-      model: this.model,
-      max_tokens: 4000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      output_config: { effort: "low", format: { type: "json_schema", schema } },
-      system: EXPLAIN_SYSTEM,
-      messages: [{ role: "user", content: JSON.stringify(request) }],
-    });
-    if (response.stop_reason === "refusal") throw new Error("model declined");
-    if (response.stop_reason === "max_tokens") throw new Error("model output truncated");
-    const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
-    return JSON.parse(text);
+    const out = await callClaudeJson(
+      this.client,
+      { system: EXPLAIN_SYSTEM, user: JSON.stringify(request), schema, maxTokens: explainMaxTokens(request.items.length) },
+      { model: this.model, reserve: this.opts.reserve },
+    );
+    return out.data;
   }
 }
 
 /** Returns the real client when ANTHROPIC_API_KEY is set, else null (template mode). */
 export function createExplainClient(env: Record<string, string | undefined> = process.env): ExplainClient | null {
-  return env.ANTHROPIC_API_KEY ? new AnthropicExplainClient(new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })) : null;
+  const client = anthropicFromEnv(env);
+  return client ? new AnthropicExplainClient(client) : null;
 }
 
 // ---------------------------------------------------------------- output validation
 
-const LEAKS: { code: ExplainIssue["code"]; re: RegExp }[] = [
+export const LEAKS: { code: ExplainIssue["code"]; re: RegExp }[] = [
   { code: "leak_hex", re: /#[0-9a-f]{3,8}\b/i },
   { code: "leak_hex", re: /\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{6}\b/i },
   { code: "leak_hex", re: /\b(hex|rgb|hsl)\b/i },
@@ -280,7 +286,7 @@ export async function explainFit(
       results: templateExplanation(scored),
       source: "template",
       model: client.model,
-      issues: [{ code: "client_error", detail: (err as Error).message.slice(0, 200) }],
+      issues: [err instanceof ClaudeSpendRefused ? { code: "spend_cap", detail: err.reason } : { code: "client_error", detail: (err as Error).message.slice(0, 200) }],
     };
   }
   const v = validateExplanation(raw, scored, { catalog });

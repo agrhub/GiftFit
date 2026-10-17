@@ -1,9 +1,19 @@
 /**
- * Giver Panel rules (owner: A4). Pure functions so validation is unit-tested without a DOM.
+ * Giver Panel rules (owner: A4; "Help me choose" by A3, ADR-045). Pure functions so validation is
+ * unit-tested without a DOM.
  * ADR-032: the giver picks designs, a budget CAP and an optional metal lock; only variants
  * priced ≤ cap and inside the lock reach the recipient, so any choice they make is affordable.
+ * ADR-045: two modes. "Help me choose" (the panel's default): budget cap, occasion, categories,
+ * optional metal lock, style hints and presentation; GiftFit curates 6–8 real pieces. "I have
+ * ideas": the giver's 1–4 picks mixed with look-alikes. A draft without `mode` is "I have ideas".
  */
-import type { CreateFitRequestBody } from "@/lib/contracts/api";
+import {
+  type CreateFitRequestBody,
+  type GiftBrief,
+  type GiftMode,
+  STYLE_FAMILIES,
+  type StyleFamily,
+} from "@/lib/contracts/api";
 import type { JewelryCategory, Metal, Occasion } from "@/lib/contracts/giftfit";
 
 export const MIN_SHORTLIST = 1;
@@ -62,13 +72,72 @@ export function lockMetals(lock: MetalLockId): Metal[] | undefined {
   return m ? [...m] : undefined;
 }
 
+export type Presentation = "any" | "feminine" | "masculine" | "unisex";
+
 export interface GiverDraft {
+  /** Absent = "i_have_ideas" (the original mode). The Giver Panel starts in "help_me_choose". */
+  mode?: GiftMode;
   occasion: Occasion | null;
   budgetPreset: BudgetPresetId | null;
   customMax: string;
   metalLock: MetalLockId;
   shortlist: GiftPiece[];
+  /** "help_me_choose": empty = every category. */
+  categories?: JewelryCategory[];
+  /** "help_me_choose": bias, never exclude. */
+  styleHints?: StyleFamily[];
+  /** "help_me_choose": the pieces' presentation; "any" (default) sends nothing. */
+  presentation?: Presentation;
 }
+
+export const MODE_OPTIONS: ReadonlyArray<{
+  id: GiftMode;
+  label: string;
+  hint: string;
+}> = [
+  {
+    id: "help_me_choose",
+    label: "Help me choose",
+    hint: "Set a budget. GiftFit picks 6 different pieces for them to try.",
+  },
+  {
+    id: "i_have_ideas",
+    label: "I have ideas",
+    hint: "Pick 1–4 pieces. They're mixed with look-alikes to keep it a surprise.",
+  },
+];
+
+export const CATEGORY_OPTIONS: ReadonlyArray<{
+  id: JewelryCategory;
+  label: string;
+}> = [
+  { id: "earring", label: "Earrings" },
+  { id: "necklace", label: "Necklaces" },
+  { id: "ring", label: "Rings" },
+  { id: "bracelet", label: "Bracelets" },
+  { id: "watch", label: "Watches" },
+];
+
+export const STYLE_HINT_OPTIONS: ReadonlyArray<{
+  id: StyleFamily;
+  label: string;
+}> = STYLE_FAMILIES.map((id) => ({
+  id,
+  label: id.charAt(0).toUpperCase() + id.slice(1),
+}));
+
+export const PRESENTATION_OPTIONS: ReadonlyArray<{
+  id: Presentation;
+  label: string;
+}> = [
+  { id: "any", label: "Any" },
+  { id: "feminine", label: "Feminine" },
+  { id: "masculine", label: "Masculine" },
+  { id: "unisex", label: "Unisex" },
+];
+
+export const modeOf = (d: Pick<GiverDraft, "mode">): GiftMode =>
+  d.mode ?? "i_have_ideas";
 
 export interface DraftErrors {
   occasion?: string;
@@ -125,6 +194,15 @@ export function validateDraft(d: GiverDraft): DraftCheck {
     errors.budget = `Enter a maximum from $1 to $${MAX_BUDGET.toLocaleString("en-US")}.`;
   const capValue = typeof cap === "number" ? cap : null;
   const ids = new Set(d.shortlist.map((p) => p.id));
+  if (modeOf(d) === "help_me_choose") {
+    // No shortlist in this mode: GiftFit curates within the cap (the server answers 422 if too few fit).
+    return {
+      ok: Object.keys(errors).length === 0,
+      errors,
+      ineligible: [],
+      cap: capValue,
+    };
+  }
   const ineligible =
     capValue === null
       ? []
@@ -155,14 +233,95 @@ export function toRequestBody(
   if (!check.ok || check.cap === null || !d.occasion)
     throw new Error("Draft is not valid");
   const metalLock = lockMetals(d.metalLock);
+  if (modeOf(d) === "help_me_choose") {
+    return {
+      ...(storeId ? { storeId } : {}),
+      mode: "help_me_choose",
+      occasion: d.occasion,
+      budgetMax: check.cap,
+      ...(metalLock ? { metalLock } : {}),
+      currency: d.shortlist[0]?.currency ?? "USD",
+      shortlistIds: [],
+      ...(d.categories?.length ? { categories: [...d.categories] } : {}),
+      ...(d.styleHints?.length ? { styleHints: [...d.styleHints] } : {}),
+      ...(d.presentation && d.presentation !== "any"
+        ? { genderPresentation: d.presentation }
+        : {}),
+    };
+  }
   return {
     ...(storeId ? { storeId } : {}),
+    ...(d.mode ? { mode: d.mode } : {}),
     occasion: d.occasion,
     budgetMax: check.cap,
     ...(metalLock ? { metalLock } : {}),
     currency: d.shortlist[0]?.currency ?? "USD",
     shortlistIds: d.shortlist.map((p) => p.id),
   };
+}
+
+/** The metal-lock choice for a brief's metals: the exact preset, else the narrowest preset that contains them, else Any. */
+export function lockIdFor(metals: readonly Metal[] | undefined): MetalLockId {
+  if (!metals || metals.length === 0) return "any";
+  const want = new Set(metals);
+  const presets = METAL_LOCKS.filter(
+    (
+      l,
+    ): l is Extract<
+      (typeof METAL_LOCKS)[number],
+      { metals: readonly Metal[] }
+    > => l.metals !== null,
+  );
+  const exact = presets.find(
+    (l) => l.metals.length === want.size && l.metals.every((m) => want.has(m)),
+  );
+  if (exact) return exact.id;
+  const cover = presets
+    .filter((l) =>
+      metals.every((m) => (l.metals as readonly Metal[]).includes(m)),
+    )
+    .sort((a, b) => a.metals.length - b.metals.length)[0];
+  return cover?.id ?? "any";
+}
+
+/**
+ * Applies a structured gift brief (from the Gift Concierge, ADR-040/045) to a draft: mode, occasion,
+ * budget (preset when it matches, else custom), metal lock, categories, hints, presentation, and for
+ * "i_have_ideas" the shortlist (ids looked up in `catalog`; unknown ids are skipped).
+ */
+export function draftFromBrief(
+  brief: GiftBrief,
+  current: GiverDraft,
+  catalog: readonly GiftPiece[] = [],
+): GiverDraft {
+  const preset = BUDGET_PRESETS.find((b) => b.max === brief.budgetMax);
+  const byId = new Map(
+    [...catalog, ...current.shortlist].map((p) => [p.id, p]),
+  );
+  const shortlist =
+    brief.mode === "i_have_ideas" && brief.shortlistIds?.length
+      ? brief.shortlistIds
+          .flatMap((id) => byId.get(id) ?? [])
+          .slice(0, MAX_SHORTLIST)
+      : current.shortlist;
+  return {
+    ...current,
+    mode: brief.mode,
+    occasion: brief.occasion,
+    budgetPreset: preset ? preset.id : "custom",
+    customMax: preset ? current.customMax : String(Math.round(brief.budgetMax)),
+    metalLock: lockIdFor(brief.metalLock),
+    shortlist,
+    categories: [...(brief.categories ?? [])],
+    styleHints: [...(brief.styleHints ?? [])],
+    presentation: brief.genderPresentation ?? "any",
+  };
+}
+
+/** Adds or removes a value from a multi-select list (chips). */
+export function toggle<T>(list: readonly T[] | undefined, value: T): T[] {
+  const xs = list ?? [];
+  return xs.includes(value) ? xs.filter((x) => x !== value) : [...xs, value];
 }
 
 /** Smallest cap preset that covers a price, to pre-select something sensible. */

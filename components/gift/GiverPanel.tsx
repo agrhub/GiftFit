@@ -1,6 +1,9 @@
 "use client";
 /**
- * Giver Panel (owner: A4): occasion, budget, a shortlist of 1–4 pieces, then "Send a Fit Request".
+ * Giver Panel (owner: A4; modes by A3, ADR-045). Two modes: "Help me choose" (default): occasion,
+ * budget cap, categories, optional metal lock, style hints and presentation, and GiftFit curates
+ * 6–8 real pieces; "I have ideas": occasion, budget, a shortlist of 1–4 pieces mixed with look-alikes.
+ * Then "Send a Fit Request". A parent can pre-fill the form with a `brief` (the Gift Concierge's GiftBrief).
  * A native modal <dialog>: focus moves in, Esc closes, focus returns to the trigger, the page
  * behind is inert. Bottom sheet on phones, side panel from md up.
  */
@@ -13,7 +16,11 @@ import {
   useRef,
   useState,
 } from "react";
-import type { CreateFitRequestResponse } from "@/lib/contracts/api";
+import type {
+  CreateFitRequestResponse,
+  GiftBrief,
+  GiftMode,
+} from "@/lib/contracts/api";
 import { OCCASIONS, type Occasion } from "@/lib/contracts/giftfit";
 import storeInfo from "@/data/aurum/store.json";
 import {
@@ -25,16 +32,24 @@ import { ApiError, type GiftApi, friendlyError, loadGiftApi } from "./api";
 import {
   BUDGET_PRESETS,
   type BudgetPresetId,
+  CATEGORY_OPTIONS,
   type GiftPiece,
   type GiverDraft,
   MAX_SHORTLIST,
   METAL_LOCKS,
+  MODE_OPTIONS,
+  PRESENTATION_OPTIONS,
+  STYLE_HINT_OPTIONS,
+  draftFromBrief,
   eligibleVariants,
+  modeOf,
   suggestPieces,
   toRequestBody,
+  toggle,
   validateDraft,
   variantsOf,
 } from "./giverDraft";
+import { ConciergePanel } from "./concierge/ConciergePanel";
 import { FitRequestSent } from "./FitRequestSent";
 import { saveRequest } from "./savedRequests";
 import { GiftIcon, CloseIcon } from "./icons";
@@ -47,12 +62,44 @@ export interface GiverPanelProps {
   /** Catalog for suggestions; loaded lazily when omitted. */
   catalog?: readonly GiftPiece[];
   api?: GiftApi;
+  /** Starting mode (ADR-045). Default "help_me_choose". */
+  initialMode?: GiftMode;
+  /**
+   * Pre-fill from a structured gift brief (the Gift Concierge hands one over, ADR-040/045). Applied
+   * whenever a new brief object is passed; the giver still reviews and sends.
+   */
+  brief?: GiftBrief | null;
 }
 
 type Phase =
   | { kind: "form" }
   | { kind: "sending" }
-  | { kind: "sent"; result: CreateFitRequestResponse; titles: string[] };
+  | {
+      kind: "sent";
+      result: CreateFitRequestResponse;
+      titles: string[];
+      curated: boolean;
+    };
+
+const emptyDraft = (
+  mode: GiftMode,
+  initialPieces: GiftPiece[],
+): GiverDraft => ({
+  mode,
+  occasion: null,
+  budgetPreset: null,
+  metalLock: "any",
+  customMax: "",
+  shortlist: initialPieces.slice(0, MAX_SHORTLIST),
+  categories: [],
+  styleHints: [],
+  presentation: "any",
+});
+
+const segment = (checked: boolean) =>
+  `flex min-h-11 cursor-pointer items-center justify-center rounded-full px-3 text-sm font-medium transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink ${
+    checked ? "bg-ink text-ivory" : "text-ink-soft hover:text-ink"
+  }`;
 
 const chip = (checked: boolean) =>
   `flex min-h-11 cursor-pointer items-center justify-center rounded-full border px-4 text-sm transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink ${
@@ -81,6 +128,8 @@ export function GiverPanel({
   initialPieces,
   catalog: catalogProp,
   api: apiProp,
+  initialMode = "help_me_choose",
+  brief,
 }: GiverPanelProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -94,15 +143,12 @@ export function GiverPanel({
     shortlist: useId(),
     search: useId(),
     max: useId(),
+    mode: useId(),
   };
 
-  const [draft, setDraft] = useState<GiverDraft>(() => ({
-    occasion: null,
-    budgetPreset: null,
-    metalLock: "any",
-    customMax: "",
-    shortlist: initialPieces.slice(0, MAX_SHORTLIST),
-  }));
+  const [draft, setDraft] = useState<GiverDraft>(() =>
+    emptyDraft(initialMode, initialPieces),
+  );
   const [showErrors, setShowErrors] = useState(false);
   const [phase, setPhase] = useState<Phase>({ kind: "form" });
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -138,6 +184,23 @@ export function GiverPanel({
     };
   }, [catalogProp, open, catalog.length]);
 
+  // A new brief (from a parent, or from the Gift Concierge opened inside this panel) pre-fills the
+  // form; the giver reviews and sends.
+  const [conciergeOpen, setConciergeOpen] = useState(false);
+  const [conciergeBrief, setConciergeBrief] = useState<GiftBrief | null>(null);
+  const appliedBrief = conciergeBrief ?? brief;
+  useEffect(() => {
+    if (!appliedBrief) return;
+    setDraft((d) => draftFromBrief(appliedBrief, d, catalog));
+    setPhase({ kind: "form" });
+    setShowErrors(false);
+    setSubmitError(null);
+    // Only a new brief object re-applies; catalog loading later must not overwrite the giver's edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedBrief]);
+
+  const mode = modeOf(draft);
+  const helpMode = mode === "help_me_choose";
   const check = useMemo(() => validateDraft(draft), [draft]);
   const suggestions = useMemo(
     () => suggestPieces(catalog, draft, query, suggestLimit),
@@ -166,16 +229,10 @@ export function GiverPanel({
     if (phase.kind === "sent") {
       setPhase({ kind: "form" });
       setShowErrors(false);
-      setDraft({
-        occasion: null,
-        budgetPreset: null,
-        customMax: "",
-        metalLock: "any",
-        shortlist: initialPieces.slice(0, MAX_SHORTLIST),
-      });
+      setDraft(emptyDraft(initialMode, initialPieces));
     }
     onClose();
-  }, [onClose, phase.kind, initialPieces]);
+  }, [onClose, phase.kind, initialPieces, initialMode]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -186,7 +243,9 @@ export function GiverPanel({
         ? occasionRef.current
         : check.errors.budget
           ? budgetRef.current
-          : shortlistRef.current;
+          : helpMode
+            ? null
+            : shortlistRef.current;
       first?.querySelector<HTMLElement>("input, button")?.focus();
       return;
     }
@@ -196,7 +255,9 @@ export function GiverPanel({
       const result = await api.createFitRequest(
         toRequestBody(draft, storeInfo.id),
       );
-      const titles = draft.shortlist.map((p) => p.title);
+      const titles = helpMode
+        ? [`${result.carouselSize} pieces picked by GiftFit`]
+        : draft.shortlist.map((p) => p.title);
       saveRequest({
         giverReportPath: result.giverReportPath,
         recipientPath: result.recipientPath,
@@ -205,16 +266,18 @@ export function GiverPanel({
         occasion: draft.occasion!,
         titles,
       });
-      setPhase({ kind: "sent", result, titles });
+      setPhase({ kind: "sent", result, titles, curated: helpMode });
     } catch (err) {
       setPhase({ kind: "form" });
       setSubmitError(
         err instanceof ApiError && err.status === 422
-          ? /variant|eligib|metal|budget|cap/i.test(
-              `${err.code} ${err.message}`,
-            )
-            ? "One of your designs has no metal within your budget and metal choice. Raise the cap, change the metal or remove that design."
-            : "We couldn't find enough similar pieces to keep your picks a surprise. Try a higher cap or a design from another category."
+          ? helpMode
+            ? "Not enough pieces fit this budget and choice. Raise the cap, pick more kinds of piece or allow any metal."
+            : /variant|eligib|metal|budget|cap/i.test(
+                  `${err.code} ${err.message}`,
+                )
+              ? "One of your designs has no metal within your budget and metal choice. Raise the cap, change the metal or remove that design."
+              : "We couldn't find enough similar pieces to keep your picks a surprise. Try a higher cap or a design from another category."
           : friendlyError(err),
       );
     }
@@ -263,11 +326,28 @@ export function GiverPanel({
           </button>
         </header>
 
-        {phase.kind === "sent" ? (
+        {conciergeOpen && phase.kind !== "sent" ? (
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6" data-testid="giver-concierge">
+            <button
+              type="button"
+              onClick={() => setConciergeOpen(false)}
+              className="mb-4 min-h-11 text-sm text-ink underline decoration-gold underline-offset-4"
+            >
+              Back to the form
+            </button>
+            <ConciergePanel
+              onBrief={(b) => {
+                setConciergeBrief(b);
+                setConciergeOpen(false);
+              }}
+            />
+          </div>
+        ) : phase.kind === "sent" ? (
           <FitRequestSent
             result={phase.result}
             titles={phase.titles}
             onDone={close}
+            curated={phase.curated}
           />
         ) : (
           <form
@@ -277,11 +357,65 @@ export function GiverPanel({
             aria-describedby={submitError ? `${ids.title}-err` : undefined}
           >
             <div className="min-h-0 flex-1 space-y-8 overflow-y-auto px-5 py-6">
-              <p className="text-sm leading-6 text-ink-soft">
-                They&apos;ll try on 6 pieces with an AI preview and heart their
-                favourites. You&apos;ll get fit scores. You&apos;ll never see
-                their photos.
-              </p>
+              <fieldset aria-describedby={`${ids.mode}-hint`}>
+                <legend className="sr-only">How do you want to choose?</legend>
+                <div
+                  className="grid grid-cols-2 gap-1 rounded-full border border-line-strong bg-white p-1"
+                  data-testid="mode-switch"
+                >
+                  {MODE_OPTIONS.map((m) => (
+                    <label key={m.id} className={segment(mode === m.id)}>
+                      <input
+                        type="radio"
+                        name="gift-mode"
+                        value={m.id}
+                        checked={mode === m.id}
+                        onChange={() => {
+                          update({ mode: m.id });
+                          setSubmitError(null);
+                        }}
+                        className="sr-only"
+                        data-testid={`mode-${m.id}`}
+                      />
+                      {m.label}
+                    </label>
+                  ))}
+                </div>
+                <p
+                  id={`${ids.mode}-hint`}
+                  className="mt-3 text-sm leading-6 text-ink-soft"
+                >
+                  {helpMode
+                    ? "Set a budget and the occasion. GiftFit picks 6 different pieces; they try them on with an AI preview and heart their favourites. You'll see their taste and what fits. You'll never see their photos."
+                    : "They'll try on 6 pieces with an AI preview and heart their favourites. You'll get fit scores. You'll never see their photos."}
+                </p>
+                {helpMode ? (
+                  <p className="mt-2 text-xs text-muted">
+                    Not sure what to set?{" "}
+                    <button
+                      type="button"
+                      onClick={() => setConciergeOpen(true)}
+                      className="min-h-11 text-ink underline decoration-gold underline-offset-4"
+                      data-testid="open-concierge"
+                    >
+                      Ask the gift concierge
+                    </button>
+                  </p>
+                ) : null}
+                {helpMode && initialPieces.length > 0 ? (
+                  <p className="mt-2 text-xs text-muted">
+                    Already have {initialPieces[0].title} in mind?{" "}
+                    <button
+                      type="button"
+                      onClick={() => update({ mode: "i_have_ideas" })}
+                      className="min-h-11 text-ink underline decoration-gold underline-offset-4"
+                      data-testid="use-my-picks"
+                    >
+                      Use my picks instead
+                    </button>
+                  </p>
+                ) : null}
+              </fieldset>
 
               <fieldset
                 ref={occasionRef}
@@ -406,189 +540,285 @@ export function GiverPanel({
                 </div>
               </fieldset>
 
-              <div
-                ref={shortlistRef}
-                role="group"
-                aria-labelledby={ids.shortlist}
-                aria-describedby={
-                  err.shortlist ? `${ids.shortlist}-err` : undefined
-                }
-              >
-                <div className="flex items-baseline justify-between">
-                  <h3
-                    id={ids.shortlist}
-                    className="text-xs font-semibold uppercase tracking-[0.18em] text-muted"
-                  >
-                    Your shortlist
-                  </h3>
-                  <p
-                    className="text-sm text-ink-soft"
-                    data-testid="shortlist-count"
-                  >
-                    {draft.shortlist.length} of {MAX_SHORTLIST} designs
-                  </p>
-                </div>
-                {draft.shortlist.length === 0 ? (
-                  <p className="mt-3 rounded-lg border border-dashed border-line-strong p-4 text-sm text-muted">
-                    Add between 1 and {MAX_SHORTLIST} designs you&apos;re
-                    considering.
-                  </p>
-                ) : null}
-                <ul className="mt-3 space-y-2" data-testid="shortlist">
-                  {draft.shortlist.map((p) => {
-                    const eligible = eligibleVariants(
-                      p,
-                      check.cap,
-                      draft.metalLock,
-                    );
-                    const all = variantsOf(p);
-                    const blocked = check.cap !== null && eligible.length === 0;
-                    const metalsNote =
-                      check.cap === null
-                        ? `${all.length === 1 ? METAL_LABELS[all[0].metal] : `${all.length} metals`} · from ${formatPrice(Math.min(...all.map((v) => v.price)), p.currency)}`
-                        : blocked
-                          ? null
-                          : eligible.length === 1
-                            ? `${METAL_LABELS[eligible[0].metal]} within your budget`
-                            : `${eligible.length} metals within your budget`;
-                    return (
-                      <li
-                        key={p.id}
-                        className="flex items-center gap-3 rounded-lg border border-line bg-white p-2 pr-1"
-                      >
-                        <Image
-                          src={p.image}
-                          alt=""
-                          width={56}
-                          height={56}
-                          className="h-14 w-14 shrink-0 object-contain"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-display text-lg leading-tight">
-                            {p.title}
-                          </p>
-                          <p
-                            className="text-xs text-muted"
-                            data-testid="shortlist-metals"
-                          >
-                            {blocked ? (
-                              <span className="text-rose">
-                                No metal within your budget and metal choice
-                              </span>
-                            ) : (
-                              metalsNote
-                            )}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removePiece(p)}
-                          className="grid h-11 w-11 place-items-center rounded-full text-ink-soft hover:bg-cream hover:text-ink"
-                          aria-label={`Remove ${p.title} from shortlist`}
-                        >
-                          <CloseIcon className="h-4 w-4" />
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-                {err.shortlist ? (
-                  <p
-                    id={`${ids.shortlist}-err`}
-                    className="mt-2 text-sm text-rose"
-                  >
-                    {err.shortlist}
-                  </p>
-                ) : null}
-              </div>
+              {helpMode ? (
+                <>
+                  <fieldset>
+                    <legend className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                      Kind of piece (optional)
+                    </legend>
+                    <p className="mt-1 text-xs text-muted">
+                      None chosen means any kind. Rings, bracelets and watches
+                      ask them for a hand photo too.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {CATEGORY_OPTIONS.map((c) => {
+                        const on = (draft.categories ?? []).includes(c.id);
+                        return (
+                          <label key={c.id} className={chip(on)}>
+                            <input
+                              type="checkbox"
+                              checked={on}
+                              onChange={() =>
+                                update({
+                                  categories: toggle(draft.categories, c.id),
+                                })
+                              }
+                              className="sr-only"
+                              data-testid={`category-${c.id}`}
+                            />
+                            {c.label}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
 
-              <section
-                aria-labelledby={`${ids.search}-h`}
-                className="rounded-xl border border-line bg-cream/60 p-4"
-              >
-                <h3
-                  id={`${ids.search}-h`}
-                  className="text-xs font-semibold uppercase tracking-[0.18em] text-muted"
-                >
-                  Add pieces
-                </h3>
-                <label htmlFor={ids.search} className="sr-only">
-                  Search Aurum pieces
-                </label>
-                <input
-                  id={ids.search}
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search, e.g. pendant, rose gold"
-                  className="mt-3 block min-h-11 w-full rounded-lg border border-line-strong bg-white px-3 text-sm placeholder:text-muted"
-                />
-                {full ? (
-                  <p className="mt-3 text-sm text-ink-soft">
-                    Your shortlist is full. Remove a piece to add another.
-                  </p>
-                ) : null}
-                <ul
-                  className="mt-3 grid grid-cols-1 gap-2"
-                  data-testid="suggestions"
-                >
-                  {catalog.length === 0
-                    ? [0, 1, 2].map((i) => (
-                        <li
-                          key={i}
-                          className="gf-shimmer h-16 rounded-lg"
-                          aria-hidden="true"
-                        />
-                      ))
-                    : suggestions.map((p) => (
-                        <li
-                          key={p.id}
-                          className="flex items-center gap-3 rounded-lg bg-white p-2 pr-1"
-                        >
-                          <Image
-                            src={p.image}
-                            alt=""
-                            width={48}
-                            height={48}
-                            className="h-12 w-12 shrink-0 object-contain"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">
-                              {p.title}
-                            </p>
-                            <p className="text-xs text-muted">
-                              {pieceSummary(p, check.cap, draft.metalLock)}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => addPiece(p)}
-                            disabled={full}
-                            data-testid="add-to-shortlist"
-                            className="min-h-11 rounded-full border border-ink px-4 text-sm font-medium text-ink hover:bg-ink hover:text-ivory disabled:cursor-not-allowed disabled:border-line-strong disabled:text-muted disabled:hover:bg-transparent"
-                            aria-label={`Add ${p.title} to shortlist`}
-                          >
-                            Add
-                          </button>
-                        </li>
-                      ))}
-                </ul>
-                {catalog.length > 0 && suggestions.length === 0 ? (
-                  <p className="mt-2 text-sm text-muted">
-                    No designs match. Try another word, a higher cap or another
-                    metal.
-                  </p>
-                ) : null}
-                {suggestions.length >= suggestLimit ? (
-                  <button
-                    type="button"
-                    onClick={() => setSuggestLimit((n) => n + 6)}
-                    className="mt-3 min-h-11 text-sm text-ink underline decoration-gold underline-offset-4"
+                  <fieldset>
+                    <legend className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                      Their style (optional)
+                    </legend>
+                    <p className="mt-1 text-xs text-muted">
+                      A hint, not a filter: we lean towards it and still show a
+                      few other styles.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {STYLE_HINT_OPTIONS.map((h) => {
+                        const on = (draft.styleHints ?? []).includes(h.id);
+                        return (
+                          <label key={h.id} className={chip(on)}>
+                            <input
+                              type="checkbox"
+                              checked={on}
+                              onChange={() =>
+                                update({
+                                  styleHints: toggle(draft.styleHints, h.id),
+                                })
+                              }
+                              className="sr-only"
+                              data-testid={`style-${h.id}`}
+                            />
+                            {h.label}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+
+                  <fieldset>
+                    <legend className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                      Pieces styled as (optional)
+                    </legend>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {PRESENTATION_OPTIONS.map((g) => {
+                        const on = (draft.presentation ?? "any") === g.id;
+                        return (
+                          <label key={g.id} className={chip(on)}>
+                            <input
+                              type="radio"
+                              name="presentation"
+                              value={g.id}
+                              checked={on}
+                              onChange={() => update({ presentation: g.id })}
+                              className="sr-only"
+                              data-testid={`presentation-${g.id}`}
+                            />
+                            {g.label}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                </>
+              ) : null}
+
+              {helpMode ? null : (
+                <>
+                  <div
+                    ref={shortlistRef}
+                    role="group"
+                    aria-labelledby={ids.shortlist}
+                    aria-describedby={
+                      err.shortlist ? `${ids.shortlist}-err` : undefined
+                    }
                   >
-                    Show more pieces
-                  </button>
-                ) : null}
-              </section>
+                    <div className="flex items-baseline justify-between">
+                      <h3
+                        id={ids.shortlist}
+                        className="text-xs font-semibold uppercase tracking-[0.18em] text-muted"
+                      >
+                        Your shortlist
+                      </h3>
+                      <p
+                        className="text-sm text-ink-soft"
+                        data-testid="shortlist-count"
+                      >
+                        {draft.shortlist.length} of {MAX_SHORTLIST} designs
+                      </p>
+                    </div>
+                    {draft.shortlist.length === 0 ? (
+                      <p className="mt-3 rounded-lg border border-dashed border-line-strong p-4 text-sm text-muted">
+                        Add between 1 and {MAX_SHORTLIST} designs you&apos;re
+                        considering.
+                      </p>
+                    ) : null}
+                    <ul className="mt-3 space-y-2" data-testid="shortlist">
+                      {draft.shortlist.map((p) => {
+                        const eligible = eligibleVariants(
+                          p,
+                          check.cap,
+                          draft.metalLock,
+                        );
+                        const all = variantsOf(p);
+                        const blocked =
+                          check.cap !== null && eligible.length === 0;
+                        const metalsNote =
+                          check.cap === null
+                            ? `${all.length === 1 ? METAL_LABELS[all[0].metal] : `${all.length} metals`} · from ${formatPrice(Math.min(...all.map((v) => v.price)), p.currency)}`
+                            : blocked
+                              ? null
+                              : eligible.length === 1
+                                ? `${METAL_LABELS[eligible[0].metal]} within your budget`
+                                : `${eligible.length} metals within your budget`;
+                        return (
+                          <li
+                            key={p.id}
+                            className="flex items-center gap-3 rounded-lg border border-line bg-white p-2 pr-1"
+                          >
+                            <Image
+                              src={p.image}
+                              alt=""
+                              width={56}
+                              height={56}
+                              className="h-14 w-14 shrink-0 object-contain"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-display text-lg leading-tight">
+                                {p.title}
+                              </p>
+                              <p
+                                className="text-xs text-muted"
+                                data-testid="shortlist-metals"
+                              >
+                                {blocked ? (
+                                  <span className="text-rose">
+                                    No metal within your budget and metal choice
+                                  </span>
+                                ) : (
+                                  metalsNote
+                                )}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removePiece(p)}
+                              className="grid h-11 w-11 place-items-center rounded-full text-ink-soft hover:bg-cream hover:text-ink"
+                              aria-label={`Remove ${p.title} from shortlist`}
+                            >
+                              <CloseIcon className="h-4 w-4" />
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {err.shortlist ? (
+                      <p
+                        id={`${ids.shortlist}-err`}
+                        className="mt-2 text-sm text-rose"
+                      >
+                        {err.shortlist}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <section
+                    aria-labelledby={`${ids.search}-h`}
+                    className="rounded-xl border border-line bg-cream/60 p-4"
+                  >
+                    <h3
+                      id={`${ids.search}-h`}
+                      className="text-xs font-semibold uppercase tracking-[0.18em] text-muted"
+                    >
+                      Add pieces
+                    </h3>
+                    <label htmlFor={ids.search} className="sr-only">
+                      Search Aurum pieces
+                    </label>
+                    <input
+                      id={ids.search}
+                      type="search"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search, e.g. pendant, rose gold"
+                      className="mt-3 block min-h-11 w-full rounded-lg border border-line-strong bg-white px-3 text-sm placeholder:text-muted"
+                    />
+                    {full ? (
+                      <p className="mt-3 text-sm text-ink-soft">
+                        Your shortlist is full. Remove a piece to add another.
+                      </p>
+                    ) : null}
+                    <ul
+                      className="mt-3 grid grid-cols-1 gap-2"
+                      data-testid="suggestions"
+                    >
+                      {catalog.length === 0
+                        ? [0, 1, 2].map((i) => (
+                            <li
+                              key={i}
+                              className="gf-shimmer h-16 rounded-lg"
+                              aria-hidden="true"
+                            />
+                          ))
+                        : suggestions.map((p) => (
+                            <li
+                              key={p.id}
+                              className="flex items-center gap-3 rounded-lg bg-white p-2 pr-1"
+                            >
+                              <Image
+                                src={p.image}
+                                alt=""
+                                width={48}
+                                height={48}
+                                className="h-12 w-12 shrink-0 object-contain"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium">
+                                  {p.title}
+                                </p>
+                                <p className="text-xs text-muted">
+                                  {pieceSummary(p, check.cap, draft.metalLock)}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => addPiece(p)}
+                                disabled={full}
+                                data-testid="add-to-shortlist"
+                                className="min-h-11 rounded-full border border-ink px-4 text-sm font-medium text-ink hover:bg-ink hover:text-ivory disabled:cursor-not-allowed disabled:border-line-strong disabled:text-muted disabled:hover:bg-transparent"
+                                aria-label={`Add ${p.title} to shortlist`}
+                              >
+                                Add
+                              </button>
+                            </li>
+                          ))}
+                    </ul>
+                    {catalog.length > 0 && suggestions.length === 0 ? (
+                      <p className="mt-2 text-sm text-muted">
+                        No designs match. Try another word, a higher cap or
+                        another metal.
+                      </p>
+                    ) : null}
+                    {suggestions.length >= suggestLimit ? (
+                      <button
+                        type="button"
+                        onClick={() => setSuggestLimit((n) => n + 6)}
+                        className="mt-3 min-h-11 text-sm text-ink underline decoration-gold underline-offset-4"
+                      >
+                        Show more pieces
+                      </button>
+                    ) : null}
+                  </section>
+                </>
+              )}
             </div>
 
             <footer className="border-t border-line bg-ivory px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4">
@@ -618,8 +848,9 @@ export function GiverPanel({
                   : "Send a Fit Request"}
               </button>
               <p className="mt-3 text-center text-xs leading-5 text-muted">
-                Your picks are mixed with similar pieces, so they can&apos;t
-                tell which you chose.
+                {helpMode
+                  ? "Every piece is a real option within your budget. You'll see what they loved, plus a few similar pieces they haven't seen."
+                  : "Your picks are mixed with similar pieces, so they can't tell which you chose."}
               </p>
             </footer>
           </form>

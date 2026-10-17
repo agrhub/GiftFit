@@ -7,7 +7,8 @@
  * per-request home for their task id and cache key, and both are needed to delete the
  * YouCam task and purge the result cache. `isRenderFeature` separates them from try-ons.
  */
-import type { FaceShape, Metal, Undertone } from "@/lib/contracts/giftfit";
+import type { GiftMode, StyleFamily } from "@/lib/contracts/api";
+import type { FaceShape, JewelryCategory, Metal, Undertone } from "@/lib/contracts/giftfit";
 
 export const FIT_REQUEST_STATUSES = ["created", "opened", "consented", "tried_on", "completed", "expired", "deleted"] as const;
 export type FitRequestStatus = (typeof FIT_REQUEST_STATUSES)[number];
@@ -39,6 +40,17 @@ export interface FitRequestRecord {
    * fixture try-on rows (isDemoRequest).
    */
   demo?: boolean;
+  /**
+   * Giver mode (ADR-045). Absent on older rows and in Drizzle (no column yet): lib/fit reads a request
+   * with no decoys and ≥ 5 shortlisted designs as "help_me_choose", anything else as "i_have_ideas".
+   * For "help_me_choose", `shortlistIds` holds the curated designs (all real candidates) and
+   * `decoyIds` is empty.
+   */
+  mode?: GiftMode;
+  /** "help_me_choose" brief (ADR-045). Memory and Firestore keep them; Drizzle drops them (TODO A1: a `brief jsonb` column). */
+  categories?: JewelryCategory[] | null;
+  styleHints?: StyleFamily[] | null;
+  genderPresentation?: "feminine" | "masculine" | "unisex" | null;
 }
 
 export type NewFitRequest = Omit<FitRequestRecord, "id" | "status" | "createdAt" | "expiresAt"> &

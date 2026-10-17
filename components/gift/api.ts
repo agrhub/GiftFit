@@ -14,6 +14,7 @@ import type {
   DemoSeedResponse,
   DemoSubject,
   DoneResponse,
+  GiftMode,
   GiverReportStatus,
   HeartsBody,
   RecipientSessionResponse,
@@ -48,6 +49,12 @@ export interface GiverReportView {
   otherMetalWishes: string[];
   /** Seeded judge demo request (AI-generated model). */
   demo: boolean;
+  /** How the request was made (ADR-045); older servers omit it = "i_have_ideas". */
+  mode: GiftMode;
+  /** "help_me_choose": what their hearts say (Claude or template). */
+  tasteSummary?: GiverReportStatus["tasteSummary"];
+  /** "help_me_choose": 2–3 similar designs they did not see, labelled "not tried on". */
+  similarNotTried: NonNullable<GiverReportStatus["similarNotTried"]>;
 }
 
 /** A heart on one design; `swatchId` is the metal shown (absent only for swatch-less items). */
@@ -166,8 +173,20 @@ export function normalizeReport(raw: GiverReportStatus): GiverReportView {
     labels: raw.recipientLabels ?? {},
     heartedIds: raw.heartedShortlistIds ?? [],
     otherMetalWishes: [...wished],
-    // `demo` is not in GiverReportStatus yet (requested in A4.md); read it when A3 adds it.
-    demo: (raw as GiverReportStatus & { demo?: boolean }).demo === true,
+    demo: raw.demo === true,
+    mode: raw.mode === "help_me_choose" ? "help_me_choose" : "i_have_ideas",
+    ...(raw.tasteSummary?.text
+      ? {
+          tasteSummary: {
+            text: raw.tasteSummary.text,
+            source:
+              raw.tasteSummary.source === "claude" ? "claude" : "template",
+          },
+        }
+      : {}),
+    similarNotTried: (raw.similarNotTried ?? []).filter(
+      (p) => typeof p?.catalogId === "string",
+    ),
   };
 }
 

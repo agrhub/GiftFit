@@ -27,6 +27,19 @@ describe("httpGiftApi", () => {
   });
 
   it("normalizes a GiverReportStatus", () => {
-    expect(normalizeReport({ status: "waiting", expiresAt: "x" })).toEqual({ state: "waiting", expiresAt: "x", results: [], labels: {}, heartedIds: [], otherMetalWishes: [], demo: false });
+    expect(normalizeReport({ status: "waiting", expiresAt: "x" })).toEqual({ state: "waiting", expiresAt: "x", results: [], labels: {}, heartedIds: [], otherMetalWishes: [], demo: false, mode: "i_have_ideas", similarNotTried: [] });
+  });
+
+  it("normalizes the Help me choose extras (ADR-045)", () => {
+    const v = normalizeReport({
+      status: "completed",
+      expiresAt: "x",
+      mode: "help_me_choose",
+      demo: true,
+      tasteSummary: { text: "They lean minimal.", source: "claude" },
+      similarNotTried: [{ catalogId: "c1", variantId: "c1:yellow_gold", price: 120, currency: "USD", label: "not tried on" }],
+    });
+    expect(v).toMatchObject({ mode: "help_me_choose", demo: true, tasteSummary: { text: "They lean minimal.", source: "claude" } });
+    expect(v.similarNotTried).toHaveLength(1);
   });
 });

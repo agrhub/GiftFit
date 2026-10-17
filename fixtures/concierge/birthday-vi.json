@@ -1,0 +1,106 @@
+{
+  "name": "birthday-vi",
+  "recordedAt": "2026-10-17T07:36:31.333Z",
+  "model": "claude-sonnet-5-5",
+  "match": [
+    "sinh nhật",
+    "mẹ",
+    "tặng",
+    "triệu"
+  ],
+  "messages": [
+    {
+      "role": "user",
+      "content": "Mình muốn tặng mẹ quà sinh nhật, khoảng 2 triệu. Mẹ thích kiểu cổ điển, sang trọng."
+    }
+  ],
+  "turns": [
+    {
+      "content": [
+        {
+          "type": "text",
+          "text": "2 triệu VND khoảng 80 USD (tỷ giá tạm tính ~25.000 VND/USD)."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01Y2Jf5gJshVuavLMcAJAp4w",
+          "name": "search_catalog",
+          "input": {
+            "maxPrice": 80,
+            "style": [
+              "classic"
+            ],
+            "genderPresentation": "feminine",
+            "occasion": "birthday",
+            "text": "elegant classic",
+            "limit": 8
+          }
+        }
+      ],
+      "stop_reason": "tool_use",
+      "usage": {
+        "input_tokens": 4,
+        "output_tokens": 219,
+        "cache_creation_input_tokens": 889,
+        "cache_read_input_tokens": 2177
+      }
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_013ifr428E9CtqiDKoTmQmqC",
+          "name": "create_fit_request",
+          "input": {
+            "brief": {
+              "mode": "help_me_choose",
+              "occasion": "birthday",
+              "budgetMax": 80,
+              "currency": "USD",
+              "genderPresentation": "feminine",
+              "styleHints": [
+                "classic"
+              ]
+            },
+            "suggestions": [
+              {
+                "catalogId": "d4abf589-7abf-5674-b018-c338ae285341",
+                "reason": "Choker ngọc trai vàng hồng mang vẻ sang trọng, cổ điển và rất hợp làm quà sinh nhật."
+              },
+              {
+                "catalogId": "6dbe86ac-9561-523f-804e-7bcb284b1d3d",
+                "reason": "Mặt dây chuyền halo hình tròn thanh lịch, tinh tế và không bao giờ lỗi mốt."
+              },
+              {
+                "catalogId": "8d530648-2715-5b88-ba7b-ffadcd345ae7",
+                "reason": "Vòng tay ngọc trai vàng kiểu cổ điển, dịu dàng và sang trọng."
+              }
+            ]
+          }
+        }
+      ],
+      "stop_reason": "tool_use",
+      "usage": {
+        "input_tokens": 2,
+        "output_tokens": 544,
+        "cache_creation_input_tokens": 876,
+        "cache_read_input_tokens": 3066
+      }
+    },
+    {
+      "content": [
+        {
+          "type": "text",
+          "text": "Mình đã soạn xong bản nháp quà sinh nhật cho mẹ với ngân sách khoảng 80 USD (2 triệu quy đổi tạm tính). Mình gợi ý choker ngọc trai Isle, mặt dây chuyền halo Eternal Circle và vòng tay ngọc trai Shoreline, đều cổ điển và sang trọng. Bạn xem lại rồi bấm \"Use this brief\" trong app để tiếp tục nhé."
+        }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+        "input_tokens": 2,
+        "output_tokens": 168,
+        "cache_creation_input_tokens": 1109,
+        "cache_read_input_tokens": 3942
+      }
+    }
+  ]
+}

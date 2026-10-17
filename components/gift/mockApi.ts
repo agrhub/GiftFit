@@ -4,7 +4,9 @@
  * a fallback. State lives in this browser's localStorage, so giver and recipient must share a
  * browser. Scores are placeholders, not the Fit Engine. "Try-ons" are the catalog variant images.
  * Follows the ADR-032 contract: cap + metal lock, swatches without prices, lazy swatch renders
- * capped at 4 extra, hearts per variant, wish-for-another-metal.
+ * capped at 4 extra, hearts per variant, wish-for-another-metal. "Help me choose" (ADR-045) picks 6
+ * varied pieces with a simple style/category spread (not the Fit Engine's curation) and returns a
+ * placeholder taste summary and "not tried on" picks.
  */
 import type {
   CaptureResponse,
@@ -184,11 +186,53 @@ async function mockCapture(
   };
 }
 
+/** UI-mock curation: 6 pieces within the cap/lock/categories, spreading style and category first. */
+function mockCurate(
+  all: readonly Product[],
+  body: CreateFitRequestBody,
+): string[] {
+  const fits = (p: Product) =>
+    (!body.categories?.length || body.categories.includes(p.category)) &&
+    (!body.genderPresentation ||
+      (p.genderPresentation ?? "unisex") === body.genderPresentation ||
+      (p.genderPresentation ?? "unisex") === "unisex") &&
+    p.variants.some(
+      (v) =>
+        v.price <= body.budgetMax &&
+        (!body.metalLock || body.metalLock.includes(v.metal)),
+    );
+  const pool = all
+    .filter(fits)
+    .sort(
+      (a, b) =>
+        Math.abs(a.price - body.budgetMax * 0.75) -
+        Math.abs(b.price - body.budgetMax * 0.75),
+    );
+  const picks: Product[] = [];
+  const seen = (k: (p: Product) => string, p: Product) =>
+    picks.some((x) => k(x) === k(p));
+  for (const pass of [2, 1, 0]) {
+    for (const p of pool) {
+      if (picks.length >= 6 || picks.includes(p)) continue;
+      const fresh =
+        Number(!seen((x) => x.style, p)) + Number(!seen((x) => x.category, p));
+      if (fresh >= pass) picks.push(p);
+    }
+  }
+  return picks.map((p) => p.id);
+}
+
 export const mockGiftApi: GiftApi = {
   isMock: true,
   async createFitRequest(body) {
     await wait(500);
     const all = await catalog();
+    if (body.mode === "help_me_choose") {
+      const ids = mockCurate(all, body);
+      if (ids.length < 4)
+        throw new ApiError(422, "insufficient_catalog", "Not enough pieces.");
+      body = { ...body, shortlistIds: ids };
+    }
     const picks = all.filter((p) => body.shortlistIds.includes(p.id));
     if (
       picks.some(
@@ -206,18 +250,21 @@ export const mockGiftApi: GiftApi = {
         "A design has no variant within the cap and metal lock.",
       );
     }
-    const decoys = all
-      .filter(
-        (p) =>
-          !body.shortlistIds.includes(p.id) &&
-          picks.some(
-            (s) =>
-              s.category === p.category &&
-              Math.abs(p.price - s.price) <= s.price * 0.2,
-          ),
-      )
-      .slice(0, 6 - picks.length)
-      .map((p) => p.id);
+    const decoys =
+      body.mode === "help_me_choose"
+        ? []
+        : all
+            .filter(
+              (p) =>
+                !body.shortlistIds.includes(p.id) &&
+                picks.some(
+                  (s) =>
+                    s.category === p.category &&
+                    Math.abs(p.price - s.price) <= s.price * 0.2,
+                ),
+            )
+            .slice(0, 6 - picks.length)
+            .map((p) => p.id);
     const order = [...body.shortlistIds, ...decoys].sort(
       () => Math.random() - 0.5,
     );
@@ -290,9 +337,43 @@ export const mockGiftApi: GiftApi = {
             };
           })
         : undefined;
+    const help = r.body.mode === "help_me_choose";
+    const heartedItems = shortlist.filter((i) => heartedVariant(i));
+    const allProducts = await catalog();
+    const similar =
+      help && status === "completed" && heartedItems.length
+        ? allProducts
+            .filter(
+              (p) =>
+                !r.order.includes(p.id) &&
+                heartedItems.some((i) => i.category === p.category) &&
+                p.variants.some((v) => v.price <= r.body.budgetMax),
+            )
+            .slice(0, 3)
+            .map((p) => {
+              const v = p.variants.find((x) => x.price <= r.body.budgetMax)!;
+              return {
+                catalogId: p.id,
+                variantId: v.variantId,
+                price: v.price,
+                currency: p.currency,
+                label: "not tried on" as const,
+              };
+            })
+        : undefined;
     return normalizeReport({
       status,
       expiresAt: r.expiresAt,
+      mode: help ? "help_me_choose" : "i_have_ideas",
+      ...(help && status === "completed"
+        ? {
+            tasteSummary: {
+              text: `They hearted ${heartedItems.length} of ${shortlist.length} pieces. (UI mock: placeholder summary.)`,
+              source: "template" as const,
+            },
+            ...(similar?.length ? { similarNotTried: similar } : {}),
+          }
+        : {}),
       results,
       heartedShortlistIds:
         status === "completed"

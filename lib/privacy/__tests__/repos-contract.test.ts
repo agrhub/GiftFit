@@ -82,6 +82,20 @@ describe.each(factories)("PrivacyRepos contract: $name", ({ make }) => {
     expect((await repos.fitRequests.findById(plain.id))!.demo).toBeFalsy();
   });
 
+  it("keeps the Help me choose brief (mode, categories, styleHints, genderPresentation; ADR-045) and returns copies", async () => {
+    const { repos } = make();
+    const { rec } = await create(repos, { id: "req-brief", decoyIds: [], mode: "help_me_choose", categories: ["earring", "necklace"], styleHints: ["minimal"], genderPresentation: "feminine" });
+    expect(rec).toMatchObject({ mode: "help_me_choose", categories: ["earring", "necklace"], styleHints: ["minimal"], genderPresentation: "feminine" });
+    const found = (await repos.fitRequests.findById("req-brief"))!;
+    expect(found).toMatchObject({ mode: "help_me_choose", decoyIds: [], categories: ["earring", "necklace"], styleHints: ["minimal"], genderPresentation: "feminine" });
+    found.categories!.push("ring");
+    expect((await repos.fitRequests.findById("req-brief"))!.categories).toEqual(["earring", "necklace"]);
+    const { rec: plain } = await create(repos);
+    const old = (await repos.fitRequests.findById(plain.id))!;
+    expect(old.mode).toBeUndefined();
+    expect(old.categories ?? null).toBeNull();
+  });
+
   it("sets status and photo_deleted_at; unknown ids are a no-op", async () => {
     const { repos } = make();
     const { rec } = await create(repos);
