@@ -7,10 +7,11 @@
  *
  * Every object carries an expiry (<= 1 h). Vercel Blob has no native TTL, so the expiry is
  * also encoded in the key and sweepExpired() deletes overdue objects (run on every capture
- * and on the purge cron). Implementations: VercelBlobPhotoStore (when BLOB_READ_WRITE_TOKEN
- * is set) and MemoryPhotoStore (tests, local dev).
+ * and on the purge cron). Implementations: GcsPhotoStore (photo-store-gcs.ts, STORE=firestore),
+ * VercelBlobPhotoStore (when BLOB_READ_WRITE_TOKEN is set) and MemoryPhotoStore (tests, local dev).
  */
 import { randomBytes } from "node:crypto";
+import { storeKind } from "@/lib/store/config";
 import { privacyState } from "./global-state";
 
 export const PHOTO_MAX_TTL_MS = 60 * 60 * 1000;
@@ -207,8 +208,15 @@ export class VercelBlobPhotoStore implements PhotoStore {
   }
 }
 
-/** Vercel Blob when BLOB_READ_WRITE_TOKEN is set, otherwise a process-local memory store. */
+/**
+ * Private Cloud Storage (GCS_PHOTO_BUCKET) with STORE=firestore (photo-store-gcs.ts), else Vercel Blob when
+ * BLOB_READ_WRITE_TOKEN is set, otherwise a process-local memory store.
+ */
 export async function createPhotoStore(env: Record<string, string | undefined> = process.env): Promise<PhotoStore> {
+  if (storeKind(env) === "firestore") {
+    const { createGcsPhotoStore } = await import("./photo-store-gcs");
+    return createGcsPhotoStore(env);
+  }
   const token = env.BLOB_READ_WRITE_TOKEN?.trim();
   if (!token) {
     // Shared by every route bundle in this process (see global-state.ts).

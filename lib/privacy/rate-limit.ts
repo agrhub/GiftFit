@@ -1,6 +1,9 @@
 /**
- * Per-IP sliding-window limits (owner: A5; A8 "Requirement for A5"). In memory on globalThis, which
- * is exact with Cloud Run `--max-instances 1`. Keys are salted IP hashes (client-ip.ts).
+ * Per-IP limits (owner: A5; A8 "Requirement for A5"; durable store: A11). With STORE=firestore the
+ * windows live in Firestore `rate_limits` (rate-limit-firestore.ts: fixed windows in a transaction), so
+ * they survive Cloud Run cold starts; if Firestore is unreachable the in-memory limiter answers instead
+ * (never unlimited). Otherwise sliding windows in memory on globalThis (exact with `--max-instances 1`,
+ * reset on restart). Keys are salted IP hashes (client-ip.ts).
  *
  *   demo_seed     10 / hour
  *   fit_requests  10 / hour          (creating a request is free but unlocks a paid capture)
@@ -11,9 +14,12 @@
  * Enabled everywhere except under NODE_ENV=test (unit tests force it on with setRateLimitOverride),
  * or when GIFTFIT_RATE_LIMITS=off outside production (local dev convenience; ignored in production).
  */
+import { isFirestoreStore } from "@/lib/store/config";
+import { getFirestoreDb } from "@/lib/store/gcp-clients";
 import { clientKey } from "./client-ip";
 import { privacyState } from "./global-state";
 import { giverJson } from "./giver-guard";
+import { FirestoreRateLimitStore } from "./rate-limit-firestore";
 
 export type RateScope = "demo_seed" | "fit_requests" | "capture" | "swatch";
 
@@ -31,7 +37,7 @@ export const RATE_LIMITS: Record<RateScope, ReadonlyArray<{ limit: number; windo
 /** Bound on remembered keys; beyond it, keys with no hit inside their longest window are dropped. */
 const MAX_KEYS = 50_000;
 
-type RateState = { rateHits?: Map<string, number[]>; rateOverride?: boolean };
+type RateState = { rateHits?: Map<string, number[]>; rateOverride?: boolean; rateStore?: FirestoreRateLimitStore | null };
 const state = () => privacyState() as ReturnType<typeof privacyState> & RateState;
 
 /** Tests: force limits on (true) or off (false); undefined restores the environment default. */
@@ -80,10 +86,33 @@ export function takeRate(scope: RateScope, key: string, nowMs: number): RateDeci
   return { ok: true, retryAfterSec: 0 };
 }
 
-/** Rate decision for a request (salted IP hash); always ok when limits are disabled. */
-export function takeRateFor(req: Request, scope: RateScope, nowMs: number): RateDecision {
+/** The durable limiter (STORE=firestore), else undefined. Tests may inject one with setRateLimitStore. */
+function durableStore(): FirestoreRateLimitStore | undefined {
+  const s = state();
+  if (s.rateStore === undefined) s.rateStore = isFirestoreStore() ? new FirestoreRateLimitStore(() => getFirestoreDb()) : null;
+  return s.rateStore ?? undefined;
+}
+
+/** Tests: use this durable store (null = in-memory only; undefined = environment default). */
+export function setRateLimitStore(store: FirestoreRateLimitStore | null | undefined): void {
+  state().rateStore = store;
+}
+
+/**
+ * Rate decision for a request (salted IP hash); always ok when limits are disabled. The in-memory path
+ * records the hit synchronously (before the returned promise settles).
+ */
+export async function takeRateFor(req: Request, scope: RateScope, nowMs: number): Promise<RateDecision> {
   if (!rateLimitsEnabled()) return { ok: true, retryAfterSec: 0 };
-  return takeRate(scope, clientKey(req, scope), nowMs);
+  const key = clientKey(req, scope);
+  const store = durableStore();
+  if (!store) return takeRate(scope, key, nowMs);
+  try {
+    return await store.take(scope, key, nowMs, RATE_LIMITS[scope]);
+  } catch (err) {
+    console.error("[privacy] durable rate limit unavailable, using the in-memory limiter:", (err as Error).message);
+    return takeRate(scope, key, nowMs);
+  }
 }
 
 export const RATE_LIMITED_BODY = { error: "rate_limited" } as const;
@@ -93,8 +122,8 @@ export function rateLimitedResponse(retryAfterSec: number): Response {
 }
 
 /** One-line hook for giver routes: a 429 (through giverJson) when over the limit, else undefined. */
-export function giverRateLimit(req: Request, scope: RateScope, nowMs = Date.now()): Response | undefined {
-  const d = takeRateFor(req, scope, nowMs);
+export async function giverRateLimit(req: Request, scope: RateScope, nowMs = Date.now()): Promise<Response | undefined> {
+  const d = await takeRateFor(req, scope, nowMs);
   return d.ok ? undefined : giverJson(RATE_LIMITED_BODY, { status: 429, headers: { "Retry-After": String(d.retryAfterSec) } });
 }
 

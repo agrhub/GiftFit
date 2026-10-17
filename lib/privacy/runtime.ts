@@ -1,10 +1,15 @@
 /**
- * Default dependencies for recipient routes (owner: A5): Drizzle repos when DATABASE_URL is
- * set, else a process-wide in-memory stack (local dev only; it does not survive restarts or
- * span serverless instances). Vercel Blob when BLOB_READ_WRITE_TOKEN is set, else memory.
+ * Default dependencies for recipient routes (owner: A5; store selection: A11, lib/store/config.ts):
+ *   STORE=firestore  Firestore repos (FIRESTORE_DATABASE_ID, default giftfit-db) + private Cloud Storage
+ *                    photos (GCS_PHOTO_BUCKET): survives Cloud Run scale-to-zero.
+ *   STORE=memory     a process-wide in-memory stack (tests, local mock mode; lost on restart).
+ *   unset            Drizzle repos when DATABASE_URL is set, else memory (as before).
+ * Photos without STORE=firestore: Vercel Blob when BLOB_READ_WRITE_TOKEN is set, else memory.
  * YouCam purge goes through the shared lib/youcam client (task delete is a no-op in mock mode).
  */
-import { getDb, hasDatabase } from "@/db/index";
+import { getDb } from "@/db/index";
+import { storeKind } from "@/lib/store/config";
+import { getFirestoreDb } from "@/lib/store/gcp-clients";
 import { getYoucamClient } from "@/lib/youcam/client";
 import { youcamCapturePorts } from "./capture";
 import { aurumCatalogSource } from "./catalog";
@@ -12,13 +17,20 @@ import type { PrivacyDeps } from "./deps";
 import { privacyState } from "./global-state";
 import { createPhotoStore } from "./photo-store";
 import { DrizzlePrivacyRepos, type AnyPgDb } from "./repos/drizzle";
+import { FirestorePrivacyRepos } from "./repos/firestore";
 import { MemoryPrivacyRepos } from "./repos/memory";
+import type { PrivacyRepos } from "./repos/types";
 import { getSigningSecret } from "./signed-url";
 
+async function defaultRepos(): Promise<PrivacyRepos> {
+  const kind = storeKind();
+  if (kind === "firestore") return new FirestorePrivacyRepos(await getFirestoreDb());
+  if (kind === "drizzle") return new DrizzlePrivacyRepos(() => getDb() as unknown as AnyPgDb);
+  return (privacyState().memoryRepos ??= new MemoryPrivacyRepos());
+}
+
 async function buildDefaults(): Promise<PrivacyDeps> {
-  const repos = hasDatabase()
-    ? new DrizzlePrivacyRepos(() => getDb() as unknown as AnyPgDb)
-    : (privacyState().memoryRepos ??= new MemoryPrivacyRepos());
+  const repos = await defaultRepos();
   return {
     repos,
     photos: await createPhotoStore(),

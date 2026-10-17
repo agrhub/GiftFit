@@ -31,6 +31,10 @@ const SERVER_EXTERNALS = [
   "cheerio",
   "drizzle-orm",
   "fast-xml-parser",
+  // GCP-native state (A11): Firestore + Cloud Storage via ADC; nodemailer for lib/email.
+  "@google-cloud/firestore",
+  "@google-cloud/storage",
+  "nodemailer",
   "pgvector",
   "robots-parser",
   "standardwebhooks",

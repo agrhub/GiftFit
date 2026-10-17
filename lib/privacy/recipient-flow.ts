@@ -111,7 +111,7 @@ export interface CaptureFlowInput {
    * Per-IP limit, called once right before the first YouCam call (never for demo requests or after a
    * refusal). Returns ok=false to refuse with 429 and no YouCam call.
    */
-  beforeYoucam?: () => { ok: boolean; retryAfterSec: number };
+  beforeYoucam?: () => { ok: boolean; retryAfterSec: number } | Promise<{ ok: boolean; retryAfterSec: number }>;
 }
 
 export async function captureFlow(deps: PrivacyDeps, input: CaptureFlowInput): Promise<CaptureResponse> {
@@ -135,7 +135,7 @@ export async function captureFlow(deps: PrivacyDeps, input: CaptureFlowInput): P
     if ((await input.ports.preflight({ analysis: true, renders })) === "daily_cap") throw dailyCapError(deps);
   }
   if (input.beforeYoucam) {
-    const d = input.beforeYoucam();
+    const d = await input.beforeYoucam();
     if (!d.ok) throw new FlowError(429, "rate_limited", d.retryAfterSec);
   }
   const started = performance.now();
@@ -275,7 +275,7 @@ export interface SwatchFlowInput {
   baseUrl: string;
   ports: CapturePorts;
   /** Per-IP limit, called only when a real render is about to happen (not cached, demo, capped or refused). */
-  beforeYoucam?: () => { ok: boolean; retryAfterSec: number };
+  beforeYoucam?: () => { ok: boolean; retryAfterSec: number } | Promise<{ ok: boolean; retryAfterSec: number }>;
 }
 
 /**
@@ -342,7 +342,7 @@ export async function swatchFlow(deps: PrivacyDeps, input: SwatchFlowInput): Pro
 
   if (input.ports.preflight && (await input.ports.preflight({ analysis: false, renders: [item.sku.category as JewelryKind] })) === "daily_cap") throw dailyCapError(deps);
   if (input.beforeYoucam) {
-    const d = input.beforeYoucam();
+    const d = await input.beforeYoucam();
     if (!d.ok) throw new FlowError(429, "rate_limited", d.retryAfterSec);
   }
   const photo = await deps.photos.get(inputKey);

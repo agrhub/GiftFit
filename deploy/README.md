@@ -3,7 +3,7 @@
 Owner: A8. Target: one public Cloud Run service for the judges, live until **2026-11-20**, then torn down.
 Background and the cost comparison are in `docs/reports/A8.md` under "Cloud Run readiness".
 
-**Recommended setup:** build with the repo's `Dockerfile` on Cloud Build (`gcloud run deploy --source .`). Keep state in memory. Run exactly one instance (`--min-instances=1 --max-instances=1`) on request-based billing with 1 vCPU and 1 GiB. Every secret comes from Secret Manager.
+**Recommended setup:** build with the repo's `Dockerfile` on Cloud Build (`gcloud run deploy --source .`). Keep state in memory. Run at most one instance (`--min-instances=0 --max-instances=1`) on request-based billing with 1 vCPU and 1 GiB. Every secret comes from Secret Manager.
 
 Nothing on this page has been run against a real project yet. Placeholders look like `<THIS>`. Never paste a secret value into a file, a commit, a chat or a shell history you share.
 
@@ -51,23 +51,24 @@ There are five secrets. The first two are values you already hold; the last thre
 
 | Env var in the app | Secret name | Value |
 |---|---|---|
-| `YOUCAM_API_KEY` | `youcam-api-key` | the YouCam key (R0) |
-| `ANTHROPIC_API_KEY` | `anthropic-api-key` | the Anthropic key (R0) |
+| `YOUCAM_API_KEY` | `giftfit-youcam-api-key` | the YouCam key (R0) |
+| `ANTHROPIC_API_KEY` | `giftfit-anthropic-api-key` | the Anthropic key (R0) |
 | `GIFTFIT_URL_SIGNING_SECRET` | `giftfit-url-signing-secret` | random, 32 bytes |
-| `FIT_DECOY_SECRET` | `fit-decoy-secret` | random, 32 bytes |
-| `CRON_SECRET` | `cron-secret` | random, 24 bytes |
+| `FIT_DECOY_SECRET` | `giftfit-fit-decoy-secret` | random, 32 bytes |
+| `CRON_SECRET` | `giftfit-cron-secret` | random, 24 bytes |
 
 ```bash
 # Keys you hold: read without echo, pipe straight in, then clear the variable.
-read -rs YOUCAM_KEY && printf '%s' "$YOUCAM_KEY" | gcloud secrets create youcam-api-key --replication-policy=automatic --data-file=- && unset YOUCAM_KEY
-read -rs ANTHROPIC_KEY && printf '%s' "$ANTHROPIC_KEY" | gcloud secrets create anthropic-api-key --replication-policy=automatic --data-file=- && unset ANTHROPIC_KEY
+read -rs YOUCAM_KEY && printf '%s' "$YOUCAM_KEY" | gcloud secrets create giftfit-youcam-api-key --replication-policy=automatic --data-file=- && unset YOUCAM_KEY
+read -rs ANTHROPIC_KEY && printf '%s' "$ANTHROPIC_KEY" | gcloud secrets create giftfit-anthropic-api-key --replication-policy=automatic --data-file=- && unset ANTHROPIC_KEY
 
-# Random secrets, generated and stored without being shown.
-openssl rand -hex 32 | tr -d '\n' | gcloud secrets create giftfit-url-signing-secret --replication-policy=automatic --data-file=-
-openssl rand -hex 32 | tr -d '\n' | gcloud secrets create fit-decoy-secret --replication-policy=automatic --data-file=-
-openssl rand -hex 24 | tr -d '\n' | gcloud secrets create cron-secret --replication-policy=automatic --data-file=-
+# Random secrets, generated and stored without being shown. Strip \r too: openssl on Windows
+# (Git Bash) ends its output with CRLF, and a trailing \r breaks the Scheduler's Bearer header.
+openssl rand -hex 32 | tr -d '\r\n' | gcloud secrets create giftfit-url-signing-secret --replication-policy=automatic --data-file=-
+openssl rand -hex 32 | tr -d '\r\n' | gcloud secrets create giftfit-fit-decoy-secret --replication-policy=automatic --data-file=-
+openssl rand -hex 24 | tr -d '\r\n' | gcloud secrets create giftfit-cron-secret --replication-policy=automatic --data-file=-
 
-for s in youcam-api-key anthropic-api-key giftfit-url-signing-secret fit-decoy-secret cron-secret; do
+for s in giftfit-youcam-api-key giftfit-anthropic-api-key giftfit-url-signing-secret giftfit-fit-decoy-secret giftfit-cron-secret; do
   gcloud secrets add-iam-policy-binding "$s" --member="serviceAccount:${RUN_SA}" --role=roles/secretmanager.secretAccessor
 done
 ```
@@ -86,21 +87,21 @@ gcloud run deploy "$SERVICE" \
   --allow-unauthenticated \
   --port 8080 \
   --cpu 1 --memory 1Gi \
-  --min-instances 1 --max-instances 1 \
+  --min-instances 0 --max-instances 1 \
   --concurrency 40 \
   --timeout 360 \
   --cpu-boost \
-  --set-env-vars "^@^NODE_ENV=production@YOUCAM_MOCK=0@YOUCAM_ALLOW_PAID=1@YOUCAM_RESERVE_UNITS=300@YOUCAM_MAX_UNITS_PER_RUN=40@INGEST_FIXTURE=1@GIFTFIT_DATA_DIR=/tmp/giftfit@NEXT_TELEMETRY_DISABLED=1" \
-  --set-secrets "YOUCAM_API_KEY=youcam-api-key:latest,ANTHROPIC_API_KEY=anthropic-api-key:latest,GIFTFIT_URL_SIGNING_SECRET=giftfit-url-signing-secret:latest,FIT_DECOY_SECRET=fit-decoy-secret:latest,CRON_SECRET=cron-secret:latest"
+  --set-env-vars "^@^NODE_ENV=production@YOUCAM_MOCK=0@YOUCAM_ALLOW_PAID=1@YOUCAM_RESERVE_UNITS=300@YOUCAM_MAX_UNITS_PER_RUN=40@YOUCAM_DAILY_UNIT_CAP=150@GIFTFIT_TRUSTED_PROXY_HOPS=1@INGEST_FIXTURE=1@GIFTFIT_DATA_DIR=/tmp/giftfit@NEXT_TELEMETRY_DISABLED=1" \
+  --set-secrets "YOUCAM_API_KEY=giftfit-youcam-api-key:latest,ANTHROPIC_API_KEY=giftfit-anthropic-api-key:latest,GIFTFIT_URL_SIGNING_SECRET=giftfit-url-signing-secret:latest,FIT_DECOY_SECRET=giftfit-fit-decoy-secret:latest,CRON_SECRET=giftfit-cron-secret:latest"
 ```
 
 Why these flags:
 - **`--max-instances 1` is required, not a cost choice.** Fit Requests, try-on photos, the cost guard's in-flight units, the demo rate limit and the job registry all live in process memory, so a second instance would split them.
-- **`--min-instances 1`** keeps that single instance and its memory alive between judge visits.
+- **`--min-instances 0`** (the live setting) scales to zero when idle, so the service costs almost nothing between judge visits. The trade-off: in-memory Fit Requests and photos are lost when the instance stops, and the first visit after a quiet spell waits for a cold start. The seeded demo is unaffected (each visit seeds a fresh one). Use `--min-instances 1` instead if real Fit Requests must survive idle periods; an idle minimum instance is billed at the idle rate.
 - **Request-based billing** is the default; don't pass `--no-cpu-throttling`. An idle minimum instance is billed at the idle rate. Async ingest jobs only progress while requests come in, which is fine because the UI polls.
 - **`--timeout 360`**: a real capture polls YouCam for up to 60 × 5 s.
 - **`--allow-unauthenticated`** gives the judges public access. Requests denied by IAM would not be billed, but here every request is allowed.
-- **A mock-only deployment** (0 units even for judges' selfies): set `YOUCAM_MOCK=1@YOUCAM_ALLOW_PAID=0` and drop `youcam-api-key` from `--set-secrets`.
+- **A mock-only deployment** (0 units even for judges' selfies): set `YOUCAM_MOCK=1@YOUCAM_ALLOW_PAID=0` and drop `giftfit-youcam-api-key` from `--set-secrets`.
 
 Later deploys run the same command. To change only env or secrets, use `gcloud run services update "$SERVICE" --update-env-vars ... / --update-secrets ...`.
 
@@ -115,12 +116,12 @@ URL=$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value
 gcloud scheduler jobs create http giftfit-purge-expired \
   --location "$REGION" --schedule "0 * * * *" --time-zone "Etc/UTC" \
   --uri "$URL/api/recipient/purge-expired" --http-method GET \
-  --headers "Authorization=Bearer $(gcloud secrets versions access latest --secret=cron-secret)" \
+  --headers "Authorization=Bearer $(gcloud secrets versions access latest --secret=giftfit-cron-secret | tr -d '\r\n')" \
   --attempt-deadline 120s
 gcloud scheduler jobs run giftfit-purge-expired --location "$REGION"   # one run now; check the logs
 ```
 
-The header value is stored in the job's configuration, where project viewers can see it. Keep the project's IAM limited to the team. If you rotate `cron-secret`, run `gcloud scheduler jobs update http ... --update-headers` with the new value.
+The header value is stored in the job's configuration, where project viewers can see it. Keep the project's IAM limited to the team. If you rotate `giftfit-cron-secret`, run `gcloud scheduler jobs update http ... --update-headers` with the new value.
 
 ## 5. Smoke check
 
@@ -164,13 +165,14 @@ Domain mappings are a preview feature and not offered in every region (us-centra
 ```bash
 gcloud scheduler jobs delete giftfit-purge-expired --location "$REGION" --quiet
 gcloud run services delete "$SERVICE" --region "$REGION" --quiet
-for s in youcam-api-key anthropic-api-key giftfit-url-signing-secret fit-decoy-secret cron-secret; do
+for s in giftfit-youcam-api-key giftfit-anthropic-api-key giftfit-url-signing-secret giftfit-fit-decoy-secret giftfit-cron-secret; do
   gcloud secrets delete "$s" --quiet
 done
-gcloud artifacts repositories delete cloud-run-source-deploy --location "$REGION" --quiet
 gcloud iam service-accounts delete "$RUN_SA" --quiet
-# Cloud Build keeps the uploaded source in gs://${PROJECT_ID}_cloudbuild; remove it too:
-gcloud storage rm -r "gs://${PROJECT_ID}_cloudbuild" 
+# In a project shared with other services, delete only GiftFit's image and uploaded sources, never
+# the shared cloud-run-source-deploy repository or the whole source bucket:
+gcloud artifacts docker images delete "$REGION-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/$SERVICE" --delete-tags --quiet
+gcloud storage rm -r "gs://run-sources-${PROJECT_ID}-${REGION}/services/$SERVICE"
 # If the project exists only for this: gcloud projects delete "$PROJECT_ID"
 ```
 

@@ -1,6 +1,6 @@
 /**
- * Repositories for the recipient-side tables (owner: A5). Two implementations:
- * MemoryPrivacyRepos (tests, local dev without DATABASE_URL) and DrizzlePrivacyRepos.
+ * Repositories for the recipient-side tables (owner: A5). Implementations: MemoryPrivacyRepos (tests,
+ * local dev without DATABASE_URL), DrizzlePrivacyRepos, and FirestorePrivacyRepos (STORE=firestore, A11).
  *
  * Analysis tasks (Facial Color Tones, Face Attributes) are recorded as `tryons` rows whose
  * `feature` is the analysis slug and whose `result_ref` is null: the schema has no other

@@ -17,5 +17,6 @@ export * from "./labels";
 export * from "./repos/types";
 export { MemoryPrivacyRepos } from "./repos/memory";
 export { DrizzlePrivacyRepos, type AnyPgDb } from "./repos/drizzle";
+export { FirestorePrivacyRepos } from "./repos/firestore";
 export { getPrivacyDeps, setPrivacyDeps } from "./runtime";
 export { PRIVACY_STATE_KEY, privacyState, resetPrivacyState } from "./global-state";

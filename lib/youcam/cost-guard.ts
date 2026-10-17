@@ -8,12 +8,19 @@
  *   4. live balance - units in flight - price >= YOUCAM_RESERVE_UNITS (default 280).
  * Checks 3-4 and the reservation run synchronously after the awaits, so concurrent
  * calls in one process cannot both slip under a limit.
+ *
+ * Daily cap (YOUCAM_DAILY_UNIT_CAP): counted in the ledger (`day`/`dayCommitted`) and, when a durable
+ * `dailyCounter` is given (STORE=firestore: Firestore `daily_counters/youcam-<YYYY-MM-DD>`), also there,
+ * so the cap holds across cold starts: evaluate() first refreshes dayCommitted from the durable count,
+ * authorize() then reserves atomically in the store (a transaction) and rolls back if it refuses, and
+ * settle() refunds the store when a task errored. A store failure refuses the call (fail closed).
  */
 import type { AuditEvent, AuditSink } from "./audit";
 import { FEATURE_COST_SNAPSHOT, priceFor } from "./costs";
 import { CostGuardError, DailyCapError, type CostGuardReason } from "./errors";
 import type { FeatureSlug, TierSelector } from "./features";
 import { newLedger, type GuardLedger } from "./global-state";
+import type { DailyCounterStore } from "../store/daily-counter";
 import type { Balance, FeatureCostSku } from "./types";
 
 export interface CostGuardOptions {
@@ -31,6 +38,11 @@ export interface CostGuardOptions {
    * (global-state.ts, ADR-023); without one the guard keeps its own.
    */
   ledger?: GuardLedger;
+  /**
+   * Durable per-day count for dailyUnitCap (survives restarts). Without one, the ledger alone counts
+   * (process memory). Key: `youcam-<YYYY-MM-DD>`.
+   */
+  dailyCounter?: DailyCounterStore;
   /** How long live prices are reused. Default 10 minutes. */
   costTtlMs?: number;
   now?: () => number;
@@ -119,6 +131,11 @@ export class CostGuard {
     return this.l.dayCommitted;
   }
 
+  /** The durable counter, when there is one and a daily cap is set. */
+  private durableCounter(): DailyCounterStore | undefined {
+    return (this.opts.dailyUnitCap ?? 0) > 0 ? this.opts.dailyCounter : undefined;
+  }
+
   private dailyRefusal(total: number): Pick<GuardDecision, "reason" | "message"> | undefined {
     const cap = this.opts.dailyUnitCap ?? 0;
     this.today();
@@ -175,6 +192,19 @@ export class CostGuard {
       prices.push(price);
     }
     const total = sum(prices);
+    const counter = this.durableCounter();
+    if (counter && this.opts.allowPaid) {
+      // Cold start: the ledger starts at 0, the durable count does not. Max, because this process's
+      // own reservations are in both.
+      const day = this.today();
+      try {
+        const used = await counter.get(dailyKey(day));
+        if (this.l.day === day) this.l.dayCommitted = Math.max(this.l.dayCommitted, used);
+      } catch (err) {
+        if (!gather) return { ...base, allowed: false, reason: "daily_counter_unavailable", unitsExpected: total, message: `daily counter unavailable: ${(err as Error).message}` };
+      }
+      base.dayUnits = this.l.dayCommitted;
+    }
     // Daily cap before the balance lookup, so a refused call makes no further request
     // (re-checked below in the synchronous block, where it is authoritative).
     const early = this.opts.allowPaid ? this.dailyRefusal(total) : undefined;
@@ -227,7 +257,8 @@ export class CostGuard {
 
   /** Reserves units for one paid task, or throws CostGuardError. Both outcomes are audited. */
   async authorize(feature: FeatureSlug, tier: TierSelector, cacheKey?: string): Promise<Reservation> {
-    const d = await this.evaluate([{ feature, tier }], "authorize");
+    let d = await this.evaluate([{ feature, tier }], "authorize");
+    if (d.allowed) d = await this.reserveDurable(d);
     if (!d.allowed) {
       await this.opts.audit.write(
         this.event({
@@ -264,12 +295,60 @@ export class CostGuard {
       );
     } catch (err) {
       // Fail closed: no audit row, no paid call.
-      this.l.committed -= units;
-      this.l.inFlight -= units;
-      this.l.dayCommitted -= units;
+      this.releaseLocal(units, day);
+      await this.refundDurable(day, units);
       throw err;
     }
     return reservation;
+  }
+
+  /** Undoes evaluate()'s in-process reservation. */
+  private releaseLocal(units: number, day: string | undefined): void {
+    this.l.committed -= units;
+    this.l.inFlight -= units;
+    if (day !== undefined && this.l.day === day) this.l.dayCommitted -= units;
+  }
+
+  /**
+   * The authoritative daily-cap check with a durable counter: an atomic reserve in the store. On a
+   * refusal or a store error the in-process reservation is released and the decision becomes a refusal.
+   */
+  private async reserveDurable(d: GuardDecision): Promise<GuardDecision> {
+    const counter = this.durableCounter();
+    if (!counter) return d;
+    const units = d.unitsExpected!;
+    const day = this.l.day!;
+    const cap = this.opts.dailyUnitCap ?? 0;
+    try {
+      const r = await counter.tryReserve(dailyKey(day), units, cap);
+      if (r.ok) {
+        if (this.l.day === day) this.l.dayCommitted = Math.max(this.l.dayCommitted, r.used);
+        return { ...d, dayUnits: this.l.dayCommitted };
+      }
+      this.releaseLocal(units, day);
+      if (this.l.day === day) this.l.dayCommitted = Math.max(this.l.dayCommitted, r.used);
+      return {
+        ...d,
+        allowed: false,
+        reason: "daily_cap",
+        dayUnits: r.used,
+        message: `daily cap: ${r.used} committed today (UTC ${day}) + ${units} > YOUCAM_DAILY_UNIT_CAP ${cap}`,
+      };
+    } catch (err) {
+      this.releaseLocal(units, day);
+      return { ...d, allowed: false, reason: "daily_counter_unavailable", message: `daily counter unavailable: ${(err as Error).message}` };
+    }
+  }
+
+  /** Gives units back to the durable day counter; never throws (logged). */
+  private async refundDurable(day: string | undefined, units: number): Promise<void> {
+    const counter = this.durableCounter();
+    if (!counter || day === undefined || units <= 0) return;
+    try {
+      await counter.refund(dailyKey(day), units);
+    } catch (err) {
+      console.error("[youcam] daily counter refund failed:", (err as Error).message);
+    }
   }
 
   /** Records the outcome. Success charges the reserved units; error releases them; timeout keeps them committed. */
@@ -285,6 +364,7 @@ export class CostGuard {
       // Release today's count only if the reservation was made today (a rollover already reset it).
       if (r.day !== undefined && r.day === this.today()) this.l.dayCommitted -= r.units;
       unitsCharged = 0;
+      await this.refundDurable(r.day, r.units);
     }
     try {
       await this.opts.audit.write(
@@ -328,6 +408,9 @@ export class CostGuard {
     return d;
   }
 }
+
+/** Durable counter key for one UTC day (lib/store/daily-counter.ts). */
+export const dailyKey = (day: string) => `youcam-${day}`;
 
 function sum(xs: readonly number[]): number {
   return xs.reduce((a, b) => a + b, 0);

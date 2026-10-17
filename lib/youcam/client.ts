@@ -12,6 +12,7 @@ import { globalLedger, youcamState } from "./global-state";
 import { loadYoucamConfig, type JewelryBodyVariant, type YoucamConfig } from "./config";
 import { parseFeatureCostPage } from "./costs";
 import { CostGuard, type GuardDecision } from "./cost-guard";
+import { defaultDailyCounterStore, type DailyCounterStore } from "../store/daily-counter";
 import { YoucamApiError, YoucamTaskError, YoucamTimeoutError, YoucamValidationError } from "./errors";
 import {
   DEFAULT_UPLOAD_PATH,
@@ -67,6 +68,11 @@ export interface YoucamClientOptions {
   cache?: ResultCache | null;
   now?: () => number;
   random?: () => number;
+  /**
+   * Durable counter for YOUCAM_DAILY_UNIT_CAP. Default: Firestore with STORE=firestore in "global" state
+   * (lib/store/daily-counter.ts), else none (the in-process ledger counts). null disables.
+   */
+  dailyCounter?: DailyCounterStore | null;
   /** Rate limiter for API requests; defaults to the process-wide 250 req / 300 s bucket. null disables. */
   limiter?: RateLimiter | null;
   /**
@@ -170,6 +176,7 @@ export class YoucamClient {
       fetchFeatureCosts: () => this.getFeatureCosts(),
       now: this.now,
       ledger: global ? globalLedger() : undefined,
+      dailyCounter: (opts.dailyCounter === undefined ? (global ? defaultDailyCounterStore() : undefined) : opts.dailyCounter) ?? undefined,
     });
   }
 

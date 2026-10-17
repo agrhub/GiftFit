@@ -1,7 +1,8 @@
 /**
  * Real Fit Requests from the single store (ADR-021: lib/privacy PrivacyRepos), turned into
  * RequestFacts (owner: A6). PrivacyRepos has no "list all" method, so this reads the memory repos'
- * public maps or, with DATABASE_URL, the same tables through Drizzle. Read-only.
+ * public maps, the Firestore collections (STORE=firestore; demo requests excluded) or, with
+ * DATABASE_URL, the same tables through Drizzle. Read-only.
  *
  * Only what the aggregates need is read: status, shortlist, hearts on shortlisted pieces, the
  * effective undertone and face shape (k-anonymous aggregates only), and the Fit Score of bought
@@ -11,6 +12,7 @@ import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import type { FaceShape, Undertone } from "@/lib/contracts/giftfit";
 import { FACE_SHAPES } from "@/lib/contracts/giftfit";
 import { getDb, schema } from "@/db/index";
+import { FirestorePrivacyRepos } from "@/lib/privacy/repos/firestore";
 import { MemoryPrivacyRepos } from "@/lib/privacy/repos/memory";
 import type { FitRequestStatus, PrivacyRepos } from "@/lib/privacy/repos/types";
 import type { PurchaseLog } from "./purchases";
@@ -100,6 +102,28 @@ export async function readRealFacts(repos: PrivacyRepos, purchases: PurchaseLog,
         };
       });
     return rows.map((r) => toFact(r, purchases));
+  }
+  if (repos instanceof FirestorePrivacyRepos) {
+    const rows = await repos.listForMetrics();
+    return rows
+      .filter(({ request: r }) => inStore(r.storeId, opts.storeId, opts.isDefaultStore))
+      .map(({ request: r, hearted, profile: p, reportItems }) =>
+        toFact(
+          {
+            id: r.id,
+            storeId: r.storeId,
+            status: r.status,
+            createdAt: r.createdAt,
+            shortlistIds: r.shortlistIds,
+            hearted,
+            toneEstimate: p?.undertoneEstimate,
+            toneOverride: p?.undertoneOverride,
+            shape: p?.faceShape,
+            reportItems,
+          },
+          purchases,
+        ),
+      );
   }
   if (repos.kind === "drizzle") return readDrizzleFacts(purchases, opts);
   return [];

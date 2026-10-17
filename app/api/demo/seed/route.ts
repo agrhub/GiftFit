@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request): Promise<Response> {
   const deps = await getPrivacyDeps();
-  const limit = takeRateFor(req, "demo_seed", deps.now().getTime());
+  const limit = await takeRateFor(req, "demo_seed", deps.now().getTime());
   if (!limit.ok) return giverJson({ error: "rate_limited" }, { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } });
   let body: unknown = {};
   const text = await req.text();

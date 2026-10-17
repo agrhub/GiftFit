@@ -11,5 +11,5 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request): Promise<Response> {
-  return giverRateLimit(req, "fit_requests") ?? handleCreateRequest(req, getFitDeps()); // A5 per-IP limit, 10/h
+  return (await giverRateLimit(req, "fit_requests")) ?? handleCreateRequest(req, getFitDeps()); // A5 per-IP limit, 10/h
 }

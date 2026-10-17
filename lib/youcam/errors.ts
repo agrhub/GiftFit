@@ -52,6 +52,8 @@ export type CostGuardReason =
   | "run_cap_exceeded"
   | "reserve_floor"
   | "daily_cap"
+  /** The durable daily counter (STORE=firestore) could not be read or written: fail closed. */
+  | "daily_counter_unavailable"
   | "balance_unavailable";
 
 /** The cost guard refused a paid call. The refusal is always written to the audit log. */
