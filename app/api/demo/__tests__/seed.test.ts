@@ -18,6 +18,7 @@ import { POST as swatchPOST } from "@/app/api/recipient/swatch/route";
 import { GET as tryonGET } from "@/app/api/recipient/tryon/[id]/route";
 import { readRealFacts } from "@/lib/metrics/real";
 import { MemoryPurchaseLog } from "@/lib/metrics/purchases";
+import { configureFit, resetFitDeps } from "@/lib/fit/deps";
 import { makeStack, seedAurumRequest, type TestStack } from "@/lib/privacy/__tests__/helpers";
 import type { CapturePorts } from "@/lib/privacy/capture";
 import { demoRoot } from "@/lib/privacy/demo";
@@ -61,8 +62,10 @@ beforeEach(() => {
   youcamCalls = 0;
   stack.deps.capturePorts = () => forbiddenPorts();
   setPrivacyDeps(stack.deps);
+  configureFit({ now: () => new Date(stack.clock.now) });
 });
 afterEach(() => {
+  resetFitDeps();
   setPrivacyDeps(undefined);
   resetPrivacyState();
 });

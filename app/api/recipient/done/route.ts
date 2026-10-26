@@ -6,6 +6,7 @@
 import { FlowError, doneFlow } from "@/lib/privacy/recipient-flow";
 import { getPrivacyDeps } from "@/lib/privacy/runtime";
 import { recipientError, recipientJson, resolveRecipientSession } from "@/lib/privacy/session";
+import { notifyGiverReportReady } from "@/lib/widget/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +16,10 @@ export async function POST(req: Request): Promise<Response> {
   const session = await resolveRecipientSession(req, deps);
   if (!session.ok) return recipientError(session.status, session.error);
   try {
-    return recipientJson(await doneFlow(deps, session.request));
+    const done = await doneFlow(deps, session.request);
+    // A6 widget (ADR-046): one "Fit Report ready" e-mail if the giver left an address; never throws.
+    await notifyGiverReportReady(session.request, req);
+    return recipientJson(done);
   } catch (err) {
     if (err instanceof FlowError) return recipientError(err.status, err.code);
     throw err;

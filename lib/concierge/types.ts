@@ -19,6 +19,23 @@ export interface ConciergeChatMessage {
 
 export interface ConciergeRequestBody {
   messages: ConciergeChatMessage[];
+  /** Optional page context from the embeddable widget (ADR-046): product facts only. */
+  context?: ConciergePageContext;
+}
+
+/**
+ * The store page the shopper is on (embeddable widget, A6). Product facts only, read from the host page
+ * and therefore untrusted: the server prefers catalog facts when `catalogId` resolves, sanitises the rest,
+ * and hands it to the model as a labelled data note, never as instructions.
+ */
+export interface ConciergePageContext {
+  product?: {
+    catalogId?: string;
+    title?: string;
+    price?: number;
+    currency?: string;
+    sku?: string;
+  };
 }
 
 /** History caps (enforced by the route and the engine). */

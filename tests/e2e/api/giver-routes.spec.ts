@@ -11,7 +11,17 @@ import { ROUTE_MANIFEST } from "../../../lib/privacy/route-manifest";
 import { scanGiverResponse } from "../support/giver-leaks";
 
 // app/api/fit/requests is exercised end to end in gift-journey.spec.ts (P3 merge).
-const COVERED_GIVER_ROUTES = ["app/api/fit/report/route.ts", "app/api/fit/decoys/route.ts", "app/api/fit/weights/route.ts", "app/api/fit/requests/route.ts", "app/api/demo/seed/route.ts", "app/api/concierge/route.ts"];
+const COVERED_GIVER_ROUTES = [
+  "app/api/fit/report/route.ts",
+  "app/api/fit/decoys/route.ts",
+  "app/api/fit/weights/route.ts",
+  "app/api/fit/requests/route.ts",
+  "app/api/demo/seed/route.ts",
+  "app/api/concierge/route.ts",
+  // A6 widget (ADR-046); the full UI flow is in tests/e2e/plugin/widget.spec.ts.
+  "app/api/widget/send-card/route.ts",
+  "app/api/widget/notify/route.ts",
+];
 
 async function expectNoLeaks(res: APIResponse): Promise<unknown> {
   const text = await res.text();
@@ -130,4 +140,36 @@ test("POST /api/concierge rejects bad bodies with bare error codes", async ({ re
   const long = await request.post("/api/concierge", { data: { messages: [{ role: "user", content: "x".repeat(1501) }] } });
   expect(long.status()).toBe(400);
   expect(await expectNoLeaks(long)).toEqual({ error: "message_too_long" });
+});
+
+test("POST /api/widget/send-card and /api/widget/notify: own request only, bare codes, no address or token echoed", async ({ request }) => {
+  const headers = { "X-Forwarded-For": "203.0.113.47" };
+  const created = await request.post("/api/fit/requests", { headers, data: { mode: "help_me_choose", occasion: "birthday", budgetMax: 300, currency: "USD", shortlistIds: [] } });
+  expect(created.status()).toBe(201);
+  const c = (await expectNoLeaks(created)) as { giverToken: string; recipientPath: string };
+  const recipientToken = c.recipientPath.split("/").pop()!;
+
+  for (const [data, status, error] of [
+    [{}, 400, "invalid_request"],
+    [{ giverToken: c.giverToken, recipientToken, to: "nope", lang: "en" }, 400, "invalid_email"],
+    [{ giverToken: "A".repeat(43), recipientToken, to: "a@example.com", lang: "en" }, 404, "not_found"],
+    [{ giverToken: c.giverToken, recipientToken: "B".repeat(43), to: "a@example.com", lang: "en" }, 404, "not_found"],
+  ] as const) {
+    const res = await request.post("/api/widget/send-card", { headers, data });
+    expect(res.status(), JSON.stringify(data)).toBe(status);
+    expect(await expectNoLeaks(res)).toEqual({ error });
+  }
+
+  const sent = await request.post("/api/widget/send-card", { headers, data: { giverToken: c.giverToken, recipientToken, to: "someone@example.com", lang: "vi", message: "Chúc mừng sinh nhật!" } });
+  expect(sent.status()).toBe(200);
+  const sentText = await sent.text();
+  expect(JSON.parse(sentText)).toEqual({ sent: true, delivery: "logged" });
+  expect(sentText).not.toMatch(/someone@example\.com|[A-Za-z0-9_-]{40,}/);
+
+  const saved = await request.post("/api/widget/notify", { headers, data: { giverToken: c.giverToken, email: "giver@example.com", lang: "en" } });
+  expect(saved.status()).toBe(200);
+  expect(await expectNoLeaks(saved)).toEqual({ saved: true });
+  const unknown = await request.post("/api/widget/notify", { headers, data: { giverToken: "C".repeat(43), email: "giver@example.com", lang: "en" } });
+  expect(unknown.status()).toBe(404);
+  expect(await expectNoLeaks(unknown)).toEqual({ error: "not_found" });
 });

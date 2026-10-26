@@ -2,7 +2,7 @@
  * Browser client for POST /api/concierge (owner: A7). UI-agnostic: the Concierge panel, and later the
  * embeddable widget (ADR-046), consume the same async iterator of ConciergeEvents. No server imports.
  */
-import type { ConciergeChatMessage, ConciergeEvent } from "./types";
+import type { ConciergeChatMessage, ConciergeEvent, ConciergePageContext } from "./types";
 
 export class ConciergeHttpError extends Error {
   constructor(
@@ -17,6 +17,8 @@ export class ConciergeHttpError extends Error {
 
 export interface StreamConciergeOptions {
   endpoint?: string;
+  /** Page context from the embeddable widget (product facts only). */
+  context?: ConciergePageContext;
   fetchImpl?: typeof fetch;
   signal?: AbortSignal;
 }
@@ -66,7 +68,7 @@ export async function* streamConcierge(messages: readonly ConciergeChatMessage[]
   const res = await doFetch(opts.endpoint ?? "/api/concierge", {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify(opts.context ? { messages, context: opts.context } : { messages }),
     signal: opts.signal,
   });
   if (!res.ok || !res.body) {

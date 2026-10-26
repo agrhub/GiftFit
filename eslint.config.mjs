@@ -18,6 +18,10 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      // Live2D Cubism Web Framework (git submodule, its own licence, ADR-050)
+      "vendor/**",
+      // Live2D Core and model files (git-ignored, unmodified third-party, ADR-050)
+      "public/live2d/**",
     ],
   },
 ];

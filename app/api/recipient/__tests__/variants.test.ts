@@ -5,6 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CaptureResponse, RecipientSessionResponse, SwatchResponse } from "@/lib/contracts/api";
+import { configureFit, resetFitDeps } from "@/lib/fit/deps";
 import { makeStack, type TestStack } from "@/lib/privacy/__tests__/helpers";
 import { youcamCapturePorts, type CapturePorts } from "@/lib/privacy/capture";
 import { deleteEverything } from "@/lib/privacy/delete-everything";
@@ -58,8 +59,12 @@ beforeEach(() => {
   renders = 0;
   stack.deps.capturePorts = countingPorts();
   setPrivacyDeps(stack.deps);
+  configureFit({ now: () => new Date(stack.clock.now) });
 });
-afterEach(() => setPrivacyDeps(undefined));
+afterEach(() => {
+  resetFitDeps();
+  setPrivacyDeps(undefined);
+});
 
 const auth = (t: string) => ({ authorization: `Bearer ${t}` });
 const post = (path: string, token: string, body?: unknown) =>

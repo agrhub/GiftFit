@@ -4,31 +4,14 @@
  * transcript, grounded suggestion cards and a "Use this brief" button that hands the DRAFT brief to
  * `onBrief` (the Giver Panel pre-fills from it; nothing is created here). Keyboard: Enter sends,
  * Shift+Enter adds a line, Esc stops a reply. The conversation is an aria-live log.
+ * Conversation state lives in useConciergeChat (shared with the embeddable widget, A6).
  */
 import Image from "next/image";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { GiftBrief } from "@/lib/contracts/api";
-import { ConciergeHttpError, streamConcierge } from "@/lib/concierge/client";
-import { CONCIERGE_LIMITS, type ConciergeChatMessage, type ConciergeEvent, type ConciergeToolName } from "@/lib/concierge/types";
+import { CONCIERGE_LIMITS, type ConciergeToolName } from "@/lib/concierge/types";
 import { METAL_LABELS, OCCASION_LABELS, formatPrice, humanize } from "@/components/store/format";
-
-type FinalEvent = Extract<ConciergeEvent, { type: "final" }>;
-
-interface UserTurn {
-  id: number;
-  role: "user";
-  text: string;
-}
-interface AssistantTurn {
-  id: number;
-  role: "assistant";
-  text: string;
-  tools: Array<{ name: ConciergeToolName; summary: string }>;
-  final?: FinalEvent;
-  pending: boolean;
-  error?: string;
-}
-type Turn = UserTurn | AssistantTurn;
+import { useConciergeChat, type ConciergeTurnError } from "./useConciergeChat";
 
 export const CONCIERGE_EXAMPLES = [
   "Anniversary gift for my wife. She loves minimal, delicate pieces and mostly wears gold. Budget around $300.",
@@ -52,11 +35,9 @@ const TOOL_LABEL: Record<ConciergeToolName, string> = {
   create_fit_request: "Draft brief",
 };
 
-function errorText(err: unknown): string {
-  if (err instanceof ConciergeHttpError) {
-    if (err.status === 429) return `You've sent a lot of messages. Please try again${err.retryAfterSec ? ` in about ${Math.ceil(err.retryAfterSec / 60)} min` : " later"}.`;
-    if (err.code === "message_too_long") return `That message is too long (max ${CONCIERGE_LIMITS.maxMessageChars} characters).`;
-  }
+function errorText(err: ConciergeTurnError): string {
+  if (err.kind === "rate_limited") return `You've sent a lot of messages. Please try again${err.retryAfterSec ? ` in about ${Math.ceil(err.retryAfterSec / 60)} min` : " later"}.`;
+  if (err.kind === "too_long") return `That message is too long (max ${CONCIERGE_LIMITS.maxMessageChars} characters).`;
   return "The concierge couldn't answer just now. Please try again.";
 }
 
@@ -84,60 +65,23 @@ function BriefSummary({ brief }: { brief: GiftBrief }) {
 
 export function ConciergePanel({ onBrief, endpoint, fetchImpl, examples = CONCIERGE_EXAMPLES, title = "Ask the gift concierge", className = "" }: ConciergePanelProps) {
   const ids = { heading: useId(), input: useId(), hint: useId() };
-  const [turns, setTurns] = useState<Turn[]>([]);
   const [draft, setDraft] = useState("");
-  const [busy, setBusy] = useState(false);
   const [usedBriefTurn, setUsedBriefTurn] = useState<number | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
-  const nextId = useRef(1);
+  const chat = useConciergeChat({ endpoint, fetchImpl, onSettled: () => inputRef.current?.focus() });
+  const { turns, busy, stop } = chat;
 
-  useEffect(() => () => abortRef.current?.abort(), []);
   useEffect(() => {
     const el = logRef.current;
     if (el && typeof el.scrollTo === "function") el.scrollTo({ top: el.scrollHeight });
   }, [turns]);
 
-  const patchAssistant = useCallback((id: number, patch: (t: AssistantTurn) => AssistantTurn) => {
-    setTurns((ts) => ts.map((t) => (t.id === id && t.role === "assistant" ? patch(t) : t)));
-  }, []);
-
-  const send = useCallback(
-    async (raw: string) => {
-      const text = raw.trim();
-      if (!text || busy) return;
-      const history: ConciergeChatMessage[] = [
-        ...turns.flatMap((t): ConciergeChatMessage[] => (t.text.trim() ? [{ role: t.role, content: t.text.trim() }] : [])),
-        { role: "user", content: text.slice(0, CONCIERGE_LIMITS.maxMessageChars) },
-      ];
-      const userId = nextId.current++;
-      const botId = nextId.current++;
-      setTurns((ts) => [...ts, { id: userId, role: "user", text }, { id: botId, role: "assistant", text: "", tools: [], pending: true }]);
-      setDraft("");
-      setBusy(true);
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-      try {
-        for await (const ev of streamConcierge(history, { endpoint, fetchImpl, signal: ctrl.signal })) {
-          if (ev.type === "text") patchAssistant(botId, (t) => ({ ...t, text: t.text + ev.delta }));
-          else if (ev.type === "tool") patchAssistant(botId, (t) => ({ ...t, tools: [...t.tools, { name: ev.name, summary: ev.summary }] }));
-          else if (ev.type === "final") patchAssistant(botId, (t) => ({ ...t, final: ev }));
-          else if (ev.type === "error") patchAssistant(botId, (t) => ({ ...t, error: errorText(null) }));
-        }
-      } catch (err) {
-        if (!ctrl.signal.aborted) patchAssistant(botId, (t) => ({ ...t, error: errorText(err) }));
-      } finally {
-        patchAssistant(botId, (t) => ({ ...t, pending: false, text: t.text || (ctrl.signal.aborted ? "(stopped)" : t.text) }));
-        setBusy(false);
-        abortRef.current = null;
-        inputRef.current?.focus();
-      }
-    },
-    [busy, turns, endpoint, fetchImpl, patchAssistant],
-  );
-
-  const stop = () => abortRef.current?.abort();
+  const send = async (raw: string) => {
+    if (!raw.trim() || busy) return;
+    setDraft("");
+    await chat.send(raw);
+  };
 
   return (
     <section aria-labelledby={ids.heading} className={`flex flex-col gap-4 rounded-2xl border border-line bg-white p-4 sm:p-6 ${className}`} onKeyDown={(e) => e.key === "Escape" && busy && stop()}>
@@ -160,7 +104,7 @@ export function ConciergePanel({ onBrief, endpoint, fetchImpl, examples = CONCIE
             <article key={t.id} aria-label="Concierge reply" className="mr-4 flex flex-col gap-3 self-start rounded-2xl rounded-bl-sm border border-line bg-white px-4 py-3 text-sm text-ink">
               <p className="whitespace-pre-wrap">
                 <span className="sr-only">Concierge: </span>
-                {t.text || (t.pending ? <span className="text-muted">Thinking…</span> : null)}
+                {t.text || (t.pending ? <span className="text-muted">Thinking…</span> : t.stopped ? "(stopped)" : null)}
               </p>
               {t.tools.length > 0 && (
                 <details className="text-xs text-muted">
@@ -226,7 +170,7 @@ export function ConciergePanel({ onBrief, endpoint, fetchImpl, examples = CONCIE
               )}
               {t.error && (
                 <p role="alert" className="text-sm text-rose">
-                  {t.error}
+                  {errorText(t.error)}
                 </p>
               )}
             </article>

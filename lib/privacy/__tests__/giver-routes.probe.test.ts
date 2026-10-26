@@ -91,7 +91,9 @@ describe("giver routes leak nothing (dynamic probe)", () => {
     // giver-supplied data and links. The other three are probed below.
     // POST /api/demo/seed (A5) is probed in app/api/demo/__tests__/seed.test.ts.
     // POST /api/concierge (A7) is probed in app/api/concierge/__tests__/route.test.ts (every NDJSON event).
-    expect(giver.filter((f) => f !== "app/api/demo/seed/route.ts" && f !== "app/api/concierge/route.ts")).toEqual(["app/api/fit/decoys/route.ts", "app/api/fit/report/route.ts", "app/api/fit/requests/route.ts", "app/api/fit/weights/route.ts"]);
+    // POST /api/widget/send-card and /api/widget/notify (A6) are probed in app/api/widget/__tests__/routes.test.ts.
+    const elsewhere = ["app/api/demo/seed/route.ts", "app/api/concierge/route.ts", "app/api/widget/send-card/route.ts", "app/api/widget/notify/route.ts"];
+    expect(giver.filter((f) => !elsewhere.includes(f))).toEqual(["app/api/fit/decoys/route.ts", "app/api/fit/report/route.ts", "app/api/fit/requests/route.ts", "app/api/fit/weights/route.ts"]);
   });
 
   it("POST /api/fit/report", async () => {

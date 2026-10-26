@@ -134,13 +134,20 @@ giftfit/
 
 ### 1. Installation
 ```bash
-# Clone the repository
-git clone https://github.com/agrhub/GiftFit.git
+# Clone the repository (with the Live2D Cubism Web Framework submodule)
+git clone --recurse-submodules https://github.com/agrhub/GiftFit.git
 cd GiftFit
 
 # Install dependencies
 npm ci
 ```
+
+#### Optional: the Live2D widget character
+The gift-assistant widget shows a Live2D character, with an SVG mascot as the fallback. Live2D files are not in this repository:
+1. Download the **Cubism SDK for Web 5-r.5** from Live2D (you accept Live2D's licence there) and copy `Core/live2dcubismcore.min.js`, unmodified, to `public/live2d/core/`.
+2. Run `npm run live2d:fetch` to download the "Mark-kun" sample model (sha256-verified) and the Framework shaders into `public/live2d/` (git-ignored).
+
+Without these files the widget uses the SVG mascot.
 
 ### 2. Environment Configuration
 Copy `.env.example` to `.env.local`:
@@ -197,6 +204,7 @@ All product and model imagery in GiftFit is strictly synthetic and rights-cleare
 - **Catalog Products (`public/catalog/aurum/`):** 161 jewelry items created by the team for the fictional *Aurum Jewelry* store (code-generated SVG/PNGs under CC0, plus AI-generated product photos via Google Flow). No real brand trademarks are used.
 - **Demo Models (`fixtures/youcam/ai-demo/`):** All people displayed in demo fixtures and screenshots are **fictional, AI-generated models** created by the team. No real individuals' biometrics or likenesses exist in this repository.
 - Full provenance log: [data/LICENSES.md](data/LICENSES.md) and [fixtures/youcam/ai-demo/README.md](fixtures/youcam/ai-demo/README.md).
+- **Widget character (Live2D):** This content uses sample data owned and copyrighted by Live2D Inc. The sample data are utilized in accordance with terms and conditions set by Live2D Inc. This content itself is created at the author's sole discretion. Live2D Cubism Core (Live2D Proprietary Software License) and the Cubism Web Framework (Live2D Open Software License, git submodule) are not covered by this repository's MIT licence; none of these files are committed. Live2D and Cubism are trademarks of Live2D Inc.; GiftFit is not made or endorsed by Live2D Inc. Details: [data/LICENSES.md](data/LICENSES.md).
 
 ---
 

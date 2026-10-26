@@ -11,6 +11,7 @@
  */
 import type { PrivacyDeps } from "./deps";
 import type { RequestRowCounts } from "./repos/types";
+import { deleteContactsForRequest } from "@/lib/widget/contacts";
 
 export interface DeleteReceipt {
   fitRequestId: string;
@@ -44,6 +45,8 @@ export async function deleteEverything(
 
   // 4. Rows, then close the request so neither link works again.
   const deletedRows = await deps.repos.deleteRecipientData(fitRequestId);
+  // Widget e-mail addresses (A6, ADR-046) live exactly as long as the request.
+  await deleteContactsForRequest(fitRequestId);
   await deps.repos.fitRequests.setStatus(fitRequestId, reason === "expired" ? "expired" : "deleted");
 
   const left = await deps.repos.countForRequest(fitRequestId);

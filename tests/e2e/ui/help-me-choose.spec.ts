@@ -31,11 +31,9 @@ test.describe("help me choose: giver, recipient, report", () => {
       await expect(g.getByTestId("shortlist")).toHaveCount(0);
       await g.locator("label", { has: g.getByTestId("occasion-birthday") }).click();
       await g.locator("label", { has: g.getByTestId("budget-300") }).click();
-      // Chips are labels around visually hidden checkboxes: click the chip, as a person does.
-      for (const c of ["earring", "necklace"]) {
-        await g.locator("label", { has: g.getByTestId(`category-${c}`) }).click();
-        await expect(g.getByTestId(`category-${c}`)).toBeChecked();
-      }
+      // Earrings and necklaces are the default chips; hand items stay opt-in.
+      for (const c of ["earring", "necklace"]) await expect(g.getByTestId(`category-${c}`)).toBeChecked();
+      for (const c of ["ring", "bracelet", "watch"]) await expect(g.getByTestId(`category-${c}`)).not.toBeChecked();
       const created = g.waitForResponse((r) => r.url().endsWith("/api/fit/requests") && r.request().method() === "POST");
       await g.getByTestId("send-fit-request").click();
       const createdBody = JSON.parse((await created).request().postData() ?? "{}");

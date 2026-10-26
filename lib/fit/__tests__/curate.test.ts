@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import type { CatalogSku, JewelryCategory, Metal } from "@/lib/contracts/giftfit";
 import aurum from "@/data/aurum/catalog.json";
-import { type CurateBuckets, type CurateOptions, bucketsOf, coverageValue, curate, eligiblePool, inferGender, silhouetteOf, styleFamilyOf } from "../curate";
+import { type CurateBuckets, type CurateOptions, bucketsOf, coverageValue, curate, eligiblePool, inferGender, inferSide, silhouetteOf, styleFamilyOf } from "../curate";
 import { genderOf } from "../decoys";
 import { eligibleVariants } from "../variants";
 import { fakeRules, makeCatalog, sku, withVariants } from "./fixtures";
@@ -206,6 +206,29 @@ describe("gender presentation (decoy parity rule)", () => {
     const cur = curate(tiny, base({ genderPresentation: "masculine" }));
     expect(cur.reasons).toContain("GENDER_RELAXED");
     expect(cur.ids.slice(0, 2).sort()).toEqual(["m1", "m2"]); // compatible designs first
+  });
+
+  it('"any" presentation keeps one side plus unisex, never a mix (PRESENTATION_INFERRED)', () => {
+    for (let i = 0; i < 12; i++) {
+      const cur = curate(AURUM, base({ seed: `any${i}`, request: { budgetMax: 600, currency: "USD" } }));
+      const gs = new Set(cur.ids.map((id) => genderOf(AURUM.find((s) => s.id === id)!)));
+      expect(gs.has("feminine") && gs.has("masculine"), `seed any${i}`).toBe(false);
+      expect(cur.reasons).toContain("PRESENTATION_INFERRED");
+    }
+    // A pool with more masculine designs picks the masculine side.
+    const menHeavy = [
+      ...Array.from({ length: 7 }, (_, i) => sku(`m${i}`, { attributes: { gender_presentation: "masculine", style: ["minimal", "sport", "classic", "modern"][i % 4] } })),
+      ...Array.from({ length: 3 }, (_, i) => sku(`f${i}`, { attributes: { gender_presentation: "feminine", style: "boho" } })),
+    ];
+    expect(curate(menHeavy, base()).ids.every((id) => id.startsWith("m"))).toBe(true);
+  });
+
+  it("inferSide: majority side, seeded tie-break, undefined when all unisex", () => {
+    expect(inferSide(["feminine", "feminine", "masculine", "unisex"], "s")).toBe("feminine");
+    expect(inferSide(["masculine", "unisex"], "s")).toBe("masculine");
+    expect(inferSide(["unisex", "unisex"], "s")).toBeUndefined();
+    const tie = inferSide(["feminine", "masculine"], "s");
+    expect(inferSide(["feminine", "masculine"], "s")).toBe(tie);
   });
 
   it("inferGender reads a set's presentation", () => {

@@ -29,7 +29,7 @@ export async function POST(req: Request): Promise<Response> {
   const parsed = parseConciergeRequest(body);
   if (!parsed.ok) return giverJson({ error: parsed.error }, { status: 400 });
 
-  const stream = conciergeNdjson(runConcierge(parsed.messages, { signal: req.signal }), req.signal);
+  const stream = conciergeNdjson(runConcierge(parsed.messages, { signal: req.signal, pageContext: parsed.context }), req.signal);
   // NDJSON stream (manifest flag `ndjsonStream`): each line was checked by assertGiverSafe.
   return new Response(stream, {
     status: 200,

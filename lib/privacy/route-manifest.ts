@@ -103,6 +103,17 @@ export const ROUTE_MANIFEST: Record<string, RouteManifestEntry> = {
     allowsProductImages: true,
     ndjsonStream: "streamed chat; each NDJSON event passes assertGiverSafe (lib/concierge/stream.ts)",
   },
+  // A6 embeddable widget (ADR-046): giver-token routes; e-mail addresses are sealed, request-scoped, never returned
+  "app/api/widget/send-card/route.ts": {
+    audience: "giver",
+    owner: "A6",
+    description: "E-mail the gift card for the giver's own Fit Request (giver + recipient token of the same request); per-giver/per-IP e-mail limits; returns sent/logged only",
+  },
+  "app/api/widget/notify/route.ts": {
+    audience: "giver",
+    owner: "A6",
+    description: "Save the giver's e-mail for one 'Fit Report ready' note sent at Done; 10/h per IP; returns saved/ready only",
+  },
   // A5 recipient
   "app/api/recipient/session/route.ts": {
     audience: "recipient",

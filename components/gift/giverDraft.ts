@@ -312,13 +312,19 @@ export function draftFromBrief(
     customMax: preset ? current.customMax : String(Math.round(brief.budgetMax)),
     metalLock: lockIdFor(brief.metalLock),
     shortlist,
-    categories: [...(brief.categories ?? [])],
+    categories: brief.categories?.length ? [...brief.categories] : [...DEFAULT_CATEGORIES],
     styleHints: [...(brief.styleHints ?? [])],
     presentation: brief.genderPresentation ?? "any",
   };
 }
 
 /** Adds or removes a value from a multi-select list (chips). */
+/**
+ * Default "Help me choose" categories (ADR-045 default): earrings and necklaces only. Rings, bracelets
+ * and watches need a hand photo from the recipient, so they stay opt-in.
+ */
+export const DEFAULT_CATEGORIES: readonly JewelryCategory[] = ["earring", "necklace"];
+
 export function toggle<T>(list: readonly T[] | undefined, value: T): T[] {
   const xs = list ?? [];
   return xs.includes(value) ? xs.filter((x) => x !== value) : [...xs, value];

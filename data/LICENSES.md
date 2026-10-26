@@ -67,3 +67,24 @@ Notes
   catalog only *tags* products with those tokens and quotes no source text.
 - Re-create every vector file with `npx tsx scripts/catalog/generate.ts` (deterministic output). The 12 photos are not
   reproducible from code; they are wired into catalog.json by `scripts/catalog/photos.ts`.
+
+## Live2D character (gift-assistant widget mascot, ADR-050)
+
+None of the files below are covered by this repository's MIT license, and none are committed to git.
+They are placed or fetched at build time and served only as part of the running demo.
+
+| Path (git-ignored) | What | Source | License / terms |
+|---|---|---|---|
+| `public/live2d/core/live2dcubismcore.min.js` | Live2D Cubism Core for Web, unmodified | Live2D Inc., Cubism SDK for Web 5-r.5 | Live2D Proprietary Software License Agreement v2.1: https://www.live2d.com/eula/live2d-proprietary-software-license-agreement_en.html |
+| `vendor/CubismWebFramework` (git submodule @ 5-r.5) and `public/live2d/shaders/WebGL/*` (copied from it) | Live2D Cubism Web Framework 5-r.5 | https://github.com/Live2D/CubismWebFramework | Live2D Open Software License Agreement v1.4: https://www.live2d.com/eula/live2d-open-software-license-agreement_en.html |
+| `public/live2d/models/Mark/**` (no sound files) | "Mark-kun" Live2D Original Character sample model | https://github.com/Live2D/CubismWebSamples @ 5-r.5 (Samples/Resources/Mark), sha256-verified by scripts/fetch-live2d-model.mjs | Free Material License Agreement v1.6 (https://www.live2d.com/eula/live2d-free-material-license-agreement_en.html) and Terms of Use for Live2D Cubism Sample Data v1.7 (https://www.live2d.com/eula/live2d-sample-model-terms_en.html) |
+
+This content uses sample data owned and copyrighted by Live2D Inc. The sample data are utilized in accordance with terms and conditions set by Live2D Inc. This content itself is created at the author's sole discretion.
+
+Use is under Live2D's General User / Small-Scale Enterprise exemption (PSLA §2.2, FMLA §2.1.3.1), on the
+basis that the publisher's latest annual sales (group level) are below JPY 10,000,000. If that stops being
+true, Live2D must be notified and a Publication License Agreement concluded, or the character removed.
+Live2D and Cubism are trademarks or registered trademarks of Live2D Inc. GiftFit is not made, certified
+or endorsed by Live2D Inc.
+
+The fallback SVG gift-box mascot (`components/widget/character/Mascot.tsx`) is original artwork made for GiftFit (MIT).

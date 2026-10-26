@@ -72,6 +72,9 @@ __pycache__/
 # Flow originals (wired copies live in public/catalog/aurum/photo/)
 /data/aurum/photo-inbox/*.jpg
 /data/aurum/photo-inbox/variants/*.jpg
+
+# Live2D Cubism Core and models (proprietary, never committed; ADR-050)
+/public/live2d/
 # Internal agent notes and research
 MASTER_PLAN.md
 STATUS.md

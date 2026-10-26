@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>About · Lumen &amp; Co.</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header><a href="/">Lumen &amp; Co.</a><nav><a href="/">Jewelry</a><a href="/about">About</a></nav></header>
+    <p class="banner">Fictional demo shop on its own origin. It knows nothing about GiftFit except one script tag. Products and photos come from the GiftFit Aurum demo catalog.</p>
+    <main>
+      <h1>About this demo</h1>
+      <p>Lumen &amp; Co. is a fictional shop served from its own origin to show that one script tag adds the GiftFit gift assistant to any store: a floating character, a chat with the Gift Concierge, and a private try-on link for the person you're shopping for.</p>
+      <p>This page has no product, so the assistant offers general help instead of “Gift this?”.</p>
+    </main>
+    <footer>Lumen &amp; Co. is not a real store. No orders are taken.</footer>
+    <script>
+      ["giftfit:sent", "giftfit:close"].forEach(function (type) {
+        window.addEventListener(type, function () {
+          var el = document.getElementById("events");
+          if (el) el.textContent += type + " ";
+        });
+      });
+    </script>
+    <!-- The only GiftFit integration on this site: -->
+    <script src="{{GIFTFIT_ORIGIN}}/giftfit.js" data-store="aurum" data-langs="en,vi" async></script>
+  </body>
+</html>

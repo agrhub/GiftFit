@@ -1,0 +1,24 @@
+/* Lumen & Co. — a fictional demo shop for GiftFit (owner: A6). Deliberately its own look. */
+* { box-sizing: border-box; }
+body { margin: 0; font: 16px/1.55 "Helvetica Neue", Arial, sans-serif; color: #1d2733; background: #f4f6f8; }
+a { color: inherit; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 24px; background: #12324a; color: #fff; }
+header a { text-decoration: none; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+header nav a { font-weight: 400; letter-spacing: 0; text-transform: none; margin-left: 16px; opacity: .85; }
+.banner { padding: 8px 24px; background: #fff8e1; border-bottom: 1px solid #f0d98a; font-size: 13px; }
+main { max-width: 1040px; margin: 0 auto; padding: 32px 16px 96px; }
+.grid { display: grid; gap: 24px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.card { display: block; background: #fff; border: 1px solid #dde3e8; border-radius: 4px; overflow: hidden; text-decoration: none; }
+.card img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: #fff; }
+.card div { padding: 12px 16px 16px; }
+.pdp { display: grid; gap: 40px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start; }
+.pdp img { width: 100%; aspect-ratio: 1; object-fit: cover; background: #fff; border: 1px solid #dde3e8; }
+h1 { font: 400 34px/1.15 Georgia, serif; margin: 0 0 8px; }
+.price { font-size: 22px; font-weight: 700; margin: 8px 0 16px; }
+/* Hostile-ish button styles: the widget lives in a shadow root + iframe and must not change. */
+button { background: #12324a; color: #fff; border: 0; border-radius: 0; padding: 14px 28px; font: 700 15px/1 "Helvetica Neue", Arial, sans-serif; text-transform: uppercase; letter-spacing: .08em; cursor: pointer; }
+iframe { border: 8px solid red !important; }
+.note { margin-top: 32px; padding: 12px 16px; border: 1px dashed #8a9aa8; background: #fff; font-size: 14px; }
+code { font-size: 13px; word-break: break-all; }
+#events { font: 13px/1.5 ui-monospace, monospace; color: #555; min-height: 1.5em; }
+footer { padding: 24px; text-align: center; font-size: 13px; color: #5d6b78; }

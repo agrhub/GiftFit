@@ -57,7 +57,8 @@ const nextConfig: NextConfig = {
   async headers() {
     const embedAncestors = process.env.GIFTFIT_EMBED_ANCESTORS?.trim() || "*";
     return [
-      { source: "/((?!embed(?:/|$)).*)", headers: [{ key: "Content-Security-Policy", value: "frame-ancestors 'self'" }, { key: "X-Frame-Options", value: "SAMEORIGIN" }] },
+      // /w (A6 widget frame) gets its frame-ancestors at request time in middleware.ts (GIFTFIT_WIDGET_ORIGINS).
+      { source: "/((?!embed(?:/|$)|w(?:/|$)).*)", headers: [{ key: "Content-Security-Policy", value: "frame-ancestors 'self'" }, { key: "X-Frame-Options", value: "SAMEORIGIN" }] },
       { source: "/embed/:path*", headers: [{ key: "Content-Security-Policy", value: `frame-ancestors ${embedAncestors}` }] },
       { source: "/embed", headers: [{ key: "Content-Security-Policy", value: `frame-ancestors ${embedAncestors}` }] },
     ];

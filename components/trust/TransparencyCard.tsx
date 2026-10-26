@@ -75,6 +75,7 @@ export function RecipientTransparencyCard({ hasHandPhoto = false, expiresAt, cla
             "Your photo is kept for at most 1 hour, only so you can try other metals. It is deleted when you tap Done. “Delete my photo now” removes your selfie, hand photo and every try-on image right away; your picks are kept until Done. If nothing comes in another metal, your photo is deleted as soon as your try-ons are made.",
             "Your try-on images are shown only to you, through links that stop working within 15 minutes, and are deleted within 1 hour.",
             "We keep estimates only: undertone (warm, neutral or cool) and face shape, plus the pieces you heart.",
+            "If this link reached you by email, we keep your address, sealed, only until the link expires, to know where this one card went. It is never shown to the person choosing your gift or to the store, and it is deleted with everything else.",
             expiry ? `Everything is deleted when this link expires (${expiry}), or sooner if you tap Delete everything.` : "Everything is deleted when this link expires after 72 hours, or sooner if you tap Delete everything.",
           ],
         },
@@ -132,6 +133,7 @@ export function GiverTransparencyCard({ expiresAt, className }: GiverTransparenc
             "Undertone and face shape in the reasons are AI estimates, which they can correct.",
             expiry ? `Your link expires on ${expiry}.` : "Your link expires 72 hours after you send it.",
             "They can delete everything at any time; the report then disappears too.",
+            "Email addresses you give us (theirs for the gift card, yours for the “report ready” note) are used only for this gift, never shown to anyone, and deleted when the link expires (72 hours) at the latest.",
           ],
         },
       ]}

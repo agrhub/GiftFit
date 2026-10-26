@@ -107,7 +107,7 @@ describe("Help me choose drafts (ADR-045)", () => {
   it("draftFromBrief fills mode, budget (preset or custom), lock, categories, hints and presentation", () => {
     const d = draftFromBrief({ mode: "help_me_choose", occasion: "wedding", budgetMax: 600, currency: "USD", categories: ["necklace"], styleHints: ["classic"], genderPresentation: "feminine", metalLock: ["white_gold"] }, help());
     expect(d).toMatchObject({ mode: "help_me_choose", occasion: "wedding", budgetPreset: "600", metalLock: "white_gold", categories: ["necklace"], styleHints: ["classic"], presentation: "feminine" });
-    expect(draftFromBrief({ mode: "help_me_choose", occasion: "birthday", budgetMax: 275, currency: "USD" }, help())).toMatchObject({ budgetPreset: "custom", customMax: "275", presentation: "any", categories: [] });
+    expect(draftFromBrief({ mode: "help_me_choose", occasion: "birthday", budgetMax: 275, currency: "USD" }, help())).toMatchObject({ budgetPreset: "custom", customMax: "275", presentation: "any", categories: ["earring", "necklace"] });
     const a = { id: "a", slug: "a", title: "A", price: 100, currency: "USD", image: "/a.png", category: "ring" as const };
     const ideas = draftFromBrief({ mode: "i_have_ideas", occasion: "birthday", budgetMax: 300, currency: "USD", shortlistIds: ["a", "missing"] }, help(), [a]);
     expect(ideas.mode).toBe("i_have_ideas");

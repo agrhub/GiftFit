@@ -17,9 +17,10 @@ import { defaultConciergeCatalog, type ConciergeCatalog } from "./catalog";
 import { detectLang, fallbackAnswer, isOffTopic, refusalText } from "./fallback";
 import { GroundingLedger, ProseScrubber, scrubProse } from "./grounding";
 import { loadFixtures, pickFixture, FixtureClient, type ConciergeFixture } from "./mock";
+import { pageContextNote } from "./context";
 import { CONCIERGE_SYSTEM_PROMPT } from "./prompt";
 import { CONCIERGE_TOOLS, isConciergeTool, runConciergeTool } from "./tools";
-import { CONCIERGE_LIMITS, type ConciergeChatMessage, type ConciergeDegradeReason, type ConciergeEvent, type ConciergeSource, type ConciergeSuggestion } from "./types";
+import { CONCIERGE_LIMITS, type ConciergeChatMessage, type ConciergeDegradeReason, type ConciergePageContext, type ConciergeEvent, type ConciergeSource, type ConciergeSuggestion } from "./types";
 
 type Env = Record<string, string | undefined>;
 
@@ -52,6 +53,8 @@ export interface ConciergeDeps {
   /** Observes every completed Claude turn (recording script, cost reports). */
   onTurn?: (message: Anthropic.Message) => void;
   signal?: AbortSignal;
+  /** Store page context from the embeddable widget (A6): becomes a labelled, uncached system data note. */
+  pageContext?: ConciergePageContext;
 }
 
 /** "mock" when CONCIERGE_MOCK=1, or no key unless CONCIERGE_MOCK=0 (then the degraded fallback answers). */
@@ -156,6 +159,9 @@ export async function* runConcierge(input: readonly ConciergeChatMessage[], deps
 
     yield { type: "start", source };
 
+    const note = pageContextNote(deps.pageContext, catalog);
+    // The cached prefix (tools + frozen system prompt) is unchanged; the page note follows it uncached.
+    const system: Anthropic.TextBlockParam[] = note ? [...SYSTEM, { type: "text", text: note }] : SYSTEM;
     const ledger = new GroundingLedger();
     const convo: Anthropic.MessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
     let draft: { brief: GiftBrief; suggestions: ConciergeSuggestion[] } | undefined;
@@ -166,7 +172,7 @@ export async function* runConcierge(input: readonly ConciergeChatMessage[], deps
       const params: Anthropic.MessageCreateParamsNonStreaming = {
         model,
         max_tokens: CONCIERGE_MAX_TOKENS,
-        system: SYSTEM,
+        system,
         tools: CONCIERGE_TOOLS,
         // The final allowed call must answer in prose.
         tool_choice: last ? { type: "none" } : { type: "auto" },
@@ -179,7 +185,7 @@ export async function* runConcierge(input: readonly ConciergeChatMessage[], deps
 
       let reservation: Extract<SpendDecision, { ok: true }> | null = null;
       if (spend) {
-        const decision = await spend({ model, inputTokens: estimateInputTokens(convo), maxTokens: CONCIERGE_MAX_TOKENS });
+        const decision = await spend({ model, inputTokens: estimateInputTokens(convo) + Math.ceil((note?.length ?? 0) / 3), maxTokens: CONCIERGE_MAX_TOKENS });
         if (!decision.ok) {
           console.warn("[concierge] Claude spend refused:", decision.reason);
           if (draft) break;

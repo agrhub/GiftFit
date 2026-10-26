@@ -33,6 +33,7 @@ import {
   BUDGET_PRESETS,
   type BudgetPresetId,
   CATEGORY_OPTIONS,
+  DEFAULT_CATEGORIES,
   type GiftPiece,
   type GiverDraft,
   MAX_SHORTLIST,
@@ -91,7 +92,7 @@ const emptyDraft = (
   metalLock: "any",
   customMax: "",
   shortlist: initialPieces.slice(0, MAX_SHORTLIST),
-  categories: [],
+  categories: [...DEFAULT_CATEGORIES],
   styleHints: [],
   presentation: "any",
 });

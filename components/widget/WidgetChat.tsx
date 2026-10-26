@@ -1,0 +1,206 @@
+"use client";
+/**
+ * The widget's Concierge conversation (owner: A6). State and streaming come from A7's
+ * useConciergeChat (same /api/concierge NDJSON contract as ConciergePanel); this file is the compact,
+ * translated UI. The page context (product facts only) rides along with every message.
+ */
+import Image from "next/image";
+import { useEffect, useId, useRef, useState } from "react";
+import type { GiftBrief } from "@/lib/contracts/api";
+import { CONCIERGE_LIMITS, type ConciergePageContext } from "@/lib/concierge/types";
+import { formatMoney, type Locale, type MessageKey } from "@/lib/i18n";
+import { useConciergeChat, type ConciergeTurn, type ConciergeTurnError } from "@/components/gift/concierge/useConciergeChat";
+import type { CharacterState } from "./CharacterSlot";
+
+export interface WidgetChatProps {
+  locale: Locale;
+  tr: (key: MessageKey, vars?: Record<string, string | number>) => string;
+  context?: ConciergePageContext;
+  /** Title of the matched product (quick replies "Gift this piece" / "Help me choose"). */
+  productTitle?: string;
+  onBrief(brief: GiftBrief, suggestionTitles: string[]): void;
+  /** The shopper's first message (UI language detection). */
+  onFirstMessage?(text: string): void;
+  /** Character state + mouth amplitude while replies stream. */
+  onActivity?(state: CharacterState, mouth: number): void;
+  fetchImpl?: typeof fetch;
+}
+
+function errorKey(err: ConciergeTurnError): MessageKey {
+  return err.kind === "rate_limited" ? "chat.errorRate" : err.kind === "too_long" ? "chat.errorTooLong" : "chat.errorGeneric";
+}
+
+export function WidgetChat({ locale, tr, context, productTitle, onBrief, onFirstMessage, onActivity, fetchImpl }: WidgetChatProps) {
+  const ids = { input: useId(), hint: useId() };
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const logRef = useRef<HTMLDivElement>(null);
+  const [draft, setDraft] = useState("");
+  const { turns, busy, send, stop } = useConciergeChat({ fetchImpl, context, onSettled: () => inputRef.current?.focus() });
+  const activity = useRef(onActivity);
+  useEffect(() => {
+    activity.current = onActivity;
+  }, [onActivity]);
+
+  useEffect(() => {
+    const el = logRef.current;
+    if (el && typeof el.scrollTo === "function") el.scrollTo({ top: el.scrollHeight });
+  }, [turns]);
+
+  // Character: thinking until the first words arrive, then talking with a text-driven mouth.
+  const last = turns[turns.length - 1];
+  const lastLen = last?.role === "assistant" ? last.text.length : 0;
+  useEffect(() => {
+    if (!busy) {
+      activity.current?.("idle", 0);
+      return;
+    }
+    if (lastLen === 0) {
+      activity.current?.("thinking", 0);
+      return;
+    }
+    activity.current?.("talking", 0.35 + ((lastLen * 7) % 10) / 15);
+    const t = setTimeout(() => activity.current?.("talking", 0.1), 140);
+    return () => clearTimeout(t);
+  }, [busy, lastLen]);
+
+  const submit = (raw: string) => {
+    const text = raw.trim();
+    if (!text || busy) return;
+    if (turns.length === 0) onFirstMessage?.(text);
+    setDraft("");
+    void send(text);
+  };
+
+  const renderTurn = (t: ConciergeTurn) => {
+    if (t.role === "user")
+      return (
+        <div key={t.id} className="ml-8 self-end rounded-2xl rounded-br-sm bg-ink px-3 py-2 text-sm whitespace-pre-wrap text-ivory">
+          <span className="sr-only">{tr("chat.you")}: </span>
+          {t.text}
+        </div>
+      );
+    const final = t.final;
+    return (
+      <article key={t.id} aria-label={tr("chat.assistant")} className="mr-4 flex flex-col gap-2 self-start rounded-2xl rounded-bl-sm border border-line bg-white px-3 py-2 text-sm text-ink">
+        <p className="whitespace-pre-wrap">
+          <span className="sr-only">{tr("chat.assistant")}: </span>
+          {t.text || (t.pending ? <span className="text-muted">{tr("chat.thinking")}</span> : t.stopped ? tr("chat.stopped") : null)}
+        </p>
+        {t.tools.length > 0 && (
+          <details className="text-xs text-muted">
+            <summary className="cursor-pointer rounded py-1 hover:text-ink">{tr("chat.howSearched", { count: t.tools.length })}</summary>
+            <ol className="mt-1 list-decimal space-y-0.5 pl-5">
+              {t.tools.map((x, i) => (
+                <li key={i}>{x.summary}</li>
+              ))}
+            </ol>
+          </details>
+        )}
+        {final?.degraded && <p className="rounded-lg bg-blush px-3 py-2 text-xs text-rose">{tr("chat.quickMode")}</p>}
+        {final && final.suggestions.length > 0 && (
+          <ul aria-label={tr("chat.suggested")} className="flex flex-col gap-2">
+            {final.suggestions.map((s) => (
+              <li key={s.catalogId} className="flex gap-3 rounded-xl border border-line p-2">
+                {s.image && <Image src={s.image} alt="" width={56} height={56} className="h-14 w-14 shrink-0 object-contain" />}
+                <div className="min-w-0">
+                  <p className="font-display text-base leading-tight">{s.title}</p>
+                  <p className="text-xs text-muted">
+                    {tr(`category.${s.category}` as MessageKey)} · {tr("chat.from", { price: formatMoney(locale, s.fromPrice, s.currency) })}
+                  </p>
+                  <p className="mt-1 text-xs text-ink-soft">{s.reason}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {final?.brief && (
+          <div className="rounded-xl border border-gold/60 bg-cream/60 p-3">
+            <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-gold-deep uppercase">{tr("chat.draftBrief")}</p>
+            <p className="text-sm text-ink">
+              {tr(`occasion.${final.brief.occasion}` as MessageKey)} · {tr("brief.budgetValue", { price: formatMoney(locale, final.brief.budgetMax, final.brief.currency) })}
+            </p>
+            <button
+              type="button"
+              data-testid="widget-use-brief"
+              onClick={() => onBrief(final.brief!, final.suggestions.map((s) => s.title))}
+              className="mt-2 min-h-11 w-full rounded-full bg-ink px-5 text-sm font-medium text-ivory hover:bg-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              {tr("chat.useBrief")}
+            </button>
+          </div>
+        )}
+        {t.error && (
+          <p role="alert" className="text-sm text-rose">
+            {tr(errorKey(t.error), { max: CONCIERGE_LIMITS.maxMessageChars })}
+          </p>
+        )}
+      </article>
+    );
+  };
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col" onKeyDown={(e) => e.key === "Escape" && busy && (e.stopPropagation(), stop())}>
+      <div ref={logRef} role="log" aria-live="polite" aria-relevant="additions text" aria-busy={busy} aria-label={tr("chat.log")} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-ivory p-3">
+        <p className="mr-4 self-start rounded-2xl rounded-bl-sm border border-line bg-white px-3 py-2 text-sm text-ink" data-testid="widget-intro">
+          {productTitle ? tr("chat.introPdp", { title: productTitle }) : tr("chat.intro")}
+        </p>
+        {turns.length === 0 && productTitle && (
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => submit(tr("chat.giftThisMessage", { title: productTitle }))} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm text-ink hover:bg-ink hover:text-ivory">
+              {tr("chat.giftThis")}
+            </button>
+            <button type="button" onClick={() => submit(tr("chat.helpChooseMessage"))} className="min-h-11 rounded-full border border-line-strong bg-white px-4 text-sm text-ink-soft hover:border-ink">
+              {tr("chat.helpChoose")}
+            </button>
+          </div>
+        )}
+        {turns.map(renderTurn)}
+      </div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit(draft);
+        }}
+        className="flex items-end gap-2 border-t border-line bg-white p-3"
+      >
+        <div className="min-w-0 flex-1">
+          <label htmlFor={ids.input} className="sr-only">
+            {tr("chat.inputLabel")}
+          </label>
+          <textarea
+            id={ids.input}
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onFocus={() => !busy && activity.current?.("listening", 0)}
+            onBlur={() => !busy && activity.current?.("idle", 0)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                submit(draft);
+              }
+            }}
+            rows={2}
+            maxLength={CONCIERGE_LIMITS.maxMessageChars}
+            aria-describedby={ids.hint}
+            placeholder={tr("chat.placeholder")}
+            lang={locale}
+            className="w-full resize-none rounded-xl border border-line-strong bg-white px-3 py-2 text-base text-ink placeholder:text-muted focus-visible:outline-2 focus-visible:outline-ink"
+          />
+          <p id={ids.hint} className="text-[11px] leading-4 text-muted">
+            {tr("chat.hint")}
+          </p>
+        </div>
+        {busy ? (
+          <button type="button" onClick={stop} className="mb-5 min-h-11 rounded-full border border-ink px-4 text-sm font-medium text-ink">
+            {tr("chat.stop")}
+          </button>
+        ) : (
+          <button type="submit" disabled={!draft.trim()} className="mb-5 min-h-11 rounded-full bg-ink px-5 text-sm font-medium text-ivory hover:bg-ink-soft disabled:opacity-50">
+            {tr("chat.send")}
+          </button>
+        )}
+      </form>
+    </div>
+  );
+}

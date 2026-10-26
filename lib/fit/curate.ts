@@ -59,7 +59,7 @@ export const CURATE_WEIGHTS = {
 
 export const CATEGORY_ORDER: readonly JewelryCategory[] = ["earring", "necklace", "ring", "bracelet", "watch"];
 
-export type CurateReasonCode = "GENDER_RELAXED" | "INSUFFICIENT_CATALOG" | "EXTENDED_FOR_COVERAGE";
+export type CurateReasonCode = "GENDER_RELAXED" | "INSUFFICIENT_CATALOG" | "EXTENDED_FOR_COVERAGE" | "PRESENTATION_INFERRED";
 
 export interface CurateBrief {
   occasion: Occasion;
@@ -219,6 +219,15 @@ export function allowedGenders(g: GenderPresentation | undefined): Set<GenderPre
   return compatibleGenders({ attributes: { gender_presentation: g } } as CatalogSku, []);
 }
 
+/** The presentation side with more designs (feminine vs masculine; unisex fits both); undefined if neither. */
+export function inferSide(genders: readonly GenderPresentation[], seed: string): GenderPresentation | undefined {
+  const fem = genders.filter((g) => g === "feminine").length;
+  const masc = genders.filter((g) => g === "masculine").length;
+  if (fem === 0 && masc === 0) return undefined;
+  if (fem !== masc) return fem > masc ? "feminine" : "masculine";
+  return seededKey(`${seed}:side`, "presentation") < 0.5 ? "feminine" : "masculine";
+}
+
 /** Price fit in [0, 1]: 1 at 75% of the cap, falling on a log scale (0 at 4× away). */
 export function priceFit(price: number, cap: number): number {
   if (!(price > 0) || !(cap > 0)) return 0;
@@ -263,7 +272,11 @@ export function curate(catalog: readonly CatalogSku[], opts: CurateOptions): Cur
   };
 
   const base = eligiblePool(catalog, opts.request, namedCats);
-  const allowed = allowedGenders(opts.genderPresentation);
+  // "Any" presentation still never mixes: keep one side plus unisex (ADR-045 default). The side is the
+  // one with more eligible designs; a tie is broken by the request seed.
+  const side = opts.genderPresentation ?? inferSide(base.map((c) => genderOf(c.sku)), opts.seed);
+  if (!opts.genderPresentation && side) reasons.add("PRESENTATION_INFERRED");
+  const allowed = allowedGenders(side);
   const toCand = ({ sku, variant }: { sku: CatalogSku; variant: MetalVariant }): Candidate => ({
     sku,
     variant,

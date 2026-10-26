@@ -50,8 +50,10 @@ describe("GiverPanel: Help me choose (default, ADR-045)", () => {
     fireEvent.click(screen.getByTestId("occasion-birthday"));
     fireEvent.click(screen.getByTestId("budget-300"));
     fireEvent.click(screen.getByTestId("lock-gold"));
-    fireEvent.click(screen.getByTestId("category-earring"));
-    fireEvent.click(screen.getByTestId("category-necklace"));
+    // Earrings and necklaces are pre-selected (hand items are opt-in).
+    expect((screen.getByTestId("category-earring") as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByTestId("category-necklace") as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByTestId("category-ring") as HTMLInputElement).checked).toBe(false);
     fireEvent.click(screen.getByTestId("style-minimal"));
     fireEvent.click(screen.getByTestId("presentation-feminine"));
     fireEvent.click(screen.getByTestId("send-fit-request"));
