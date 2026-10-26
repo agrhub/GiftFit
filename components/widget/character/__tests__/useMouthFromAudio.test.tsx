@@ -120,6 +120,17 @@ describe("useMouthFromAudio", () => {
     expect(ctx.close).not.toHaveBeenCalled();
   });
 
+  it("reads an AnalyserNode the voice player owns (P8.3) without creating or closing a context", () => {
+    const analyser = new FakeAnalyser() as unknown as AnalyserNode;
+    amplitude = 0.25;
+    const { result, unmount } = renderHook(() => useMouthFromAudio(analyser));
+    for (let t = 16; t < 400; t += 16) act(() => flush(t));
+    expect(result.current).toBeGreaterThan(0.5);
+    expect(contexts).toHaveLength(0);
+    unmount();
+    expect((analyser as unknown as FakeAnalyser).disconnect).not.toHaveBeenCalled();
+  });
+
   it("resets to 0 when the source goes away", () => {
     amplitude = 0.3;
     const { result, rerender } = renderHook(({ a }) => useMouthFromAudio(a), { initialProps: { a: stream() as MediaStream | null } });

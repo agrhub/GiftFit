@@ -76,7 +76,8 @@ describe("route-audience manifest", () => {
       const sources = giverSources(file);
       const combined = sources.map((s) => s.source).join(String.fromCharCode(10));
       // ndjsonStream routes (A7) may build their one streaming Response: each line passes assertGiverSafe.
-      const violations = giverSourceViolations(combined).filter((v) => !(entry.ndjsonStream && v.startsWith("builds a raw Response")));
+      // audioResponse routes (A13 voice TTS) may build their one audio Response; JSON still uses giverJson.
+      const violations = giverSourceViolations(combined).filter((v) => !((entry.ndjsonStream || entry.audioResponse) && v.startsWith("builds a raw Response")));
       const guardMissing = violations.filter((v) => v.includes("giverJson"));
       const hard = violations.filter((v) => !v.includes("giverJson"));
       expect(hard, `${file} (+ ${sources.slice(1).map((s) => s.file).join(", ")})`).toEqual([]);

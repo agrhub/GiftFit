@@ -532,7 +532,10 @@
     var frame = d.createElement("iframe");
     frame.src = widgetSrc();
     frame.title = "Gift assistant";
-    frame.setAttribute("allow", "clipboard-write; web-share");
+    // Voice (P8.3): push-to-talk needs the microphone delegated to our frame (the browser still asks
+    // the shopper); autoplay lets a spoken reply start after the mic gesture. A store that pastes the
+    // iframe by hand needs the same allow list, and must not send `Permissions-Policy: microphone=()`.
+    frame.setAttribute("allow", "microphone; autoplay; clipboard-write; web-share");
     frame.setAttribute("allowtransparency", "true");
     frame.setAttribute("data-testid", "giftfit-widget-frame");
     root.appendChild(style);

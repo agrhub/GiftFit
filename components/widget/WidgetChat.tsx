@@ -3,6 +3,8 @@
  * The widget's Concierge conversation (owner: A6). State and streaming come from A7's
  * useConciergeChat (same /api/concierge NDJSON contract as ConciergePanel); this file is the compact,
  * translated UI. The page context (product facts only) rides along with every message.
+ * Voice (A4, P8.3): an optional push-to-talk mic next to Send; the transcript is sent as the
+ * shopper's message (marked "said by voice"), and each finished reply is handed to `voice.onReply`.
  */
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
@@ -11,6 +13,20 @@ import { CONCIERGE_LIMITS, type ConciergePageContext } from "@/lib/concierge/typ
 import { formatMoney, type Locale, type MessageKey } from "@/lib/i18n";
 import { useConciergeChat, type ConciergeTurn, type ConciergeTurnError } from "@/components/gift/concierge/useConciergeChat";
 import type { CharacterState } from "./CharacterSlot";
+import { MicButton, type MicPhase } from "./voice/MicButton";
+import { micSupported } from "./voice/recorder";
+
+export interface WidgetChatVoice {
+  /** Language of the transcription request (the widget's UI language). */
+  lang: Locale;
+  sessionId: string;
+  onMicStart(): void;
+  onMicPhase(p: MicPhase): void;
+  /** A reply finished streaming (not stopped, no error): speak it if voice is on. */
+  onReply(text: string): void;
+  /** The shopper sent a new message: stop any speech. */
+  onSend(): void;
+}
 
 export interface WidgetChatProps {
   locale: Locale;
@@ -24,13 +40,14 @@ export interface WidgetChatProps {
   /** Character state + mouth amplitude while replies stream. */
   onActivity?(state: CharacterState, mouth: number): void;
   fetchImpl?: typeof fetch;
+  voice?: WidgetChatVoice;
 }
 
 function errorKey(err: ConciergeTurnError): MessageKey {
   return err.kind === "rate_limited" ? "chat.errorRate" : err.kind === "too_long" ? "chat.errorTooLong" : "chat.errorGeneric";
 }
 
-export function WidgetChat({ locale, tr, context, productTitle, onBrief, onFirstMessage, onActivity, fetchImpl }: WidgetChatProps) {
+export function WidgetChat({ locale, tr, context, productTitle, onBrief, onFirstMessage, onActivity, fetchImpl, voice }: WidgetChatProps) {
   const ids = { input: useId(), hint: useId() };
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
@@ -40,11 +57,29 @@ export function WidgetChat({ locale, tr, context, productTitle, onBrief, onFirst
   useEffect(() => {
     activity.current = onActivity;
   }, [onActivity]);
+  const voiceRef = useRef(voice);
+  useEffect(() => {
+    voiceRef.current = voice;
+  }, [voice]);
+  // Mic support is known only in the browser (after hydration).
+  const [canRecord, setCanRecord] = useState(false);
+  useEffect(() => setCanRecord(micSupported()), []);
+  /** Indexes of user turns that came from the mic. */
+  const [voiceTurns, setVoiceTurns] = useState<ReadonlySet<number>>(new Set());
 
   useEffect(() => {
     const el = logRef.current;
     if (el && typeof el.scrollTo === "function") el.scrollTo({ top: el.scrollHeight });
   }, [turns]);
+
+  // Spoken replies: hand each finished reply to the voice layer once.
+  const spokenFor = useRef(0);
+  useEffect(() => {
+    const t = turns[turns.length - 1];
+    if (busy || !t || t.role !== "assistant" || t.pending || t.stopped || t.error || spokenFor.current === t.id) return;
+    spokenFor.current = t.id;
+    if (t.text.trim()) voiceRef.current?.onReply(t.text);
+  }, [busy, turns]);
 
   // Character: thinking until the first words arrive, then talking with a text-driven mouth.
   const last = turns[turns.length - 1];
@@ -63,18 +98,21 @@ export function WidgetChat({ locale, tr, context, productTitle, onBrief, onFirst
     return () => clearTimeout(t);
   }, [busy, lastLen]);
 
-  const submit = (raw: string) => {
+  const submit = (raw: string, viaVoice = false) => {
     const text = raw.trim();
     if (!text || busy) return;
     if (turns.length === 0) onFirstMessage?.(text);
+    voiceRef.current?.onSend();
+    if (viaVoice) setVoiceTurns((s) => new Set(s).add(turns.length));
     setDraft("");
     void send(text);
   };
 
-  const renderTurn = (t: ConciergeTurn) => {
+  const renderTurn = (t: ConciergeTurn, i: number) => {
     if (t.role === "user")
       return (
-        <div key={t.id} className="ml-8 self-end rounded-2xl rounded-br-sm bg-ink px-3 py-2 text-sm whitespace-pre-wrap text-ivory">
+        <div key={t.id} className="ml-8 self-end rounded-2xl rounded-br-sm bg-ink px-3 py-2 text-sm whitespace-pre-wrap text-ivory" data-testid={voiceTurns.has(i) ? "widget-voice-turn" : undefined}>
+          {voiceTurns.has(i) && <span className="mb-0.5 block text-[10px] tracking-wide text-ivory/70 uppercase">{tr("voice.heard")}</span>}
           <span className="sr-only">{tr("chat.you")}: </span>
           {t.text}
         </div>
@@ -191,6 +229,18 @@ export function WidgetChat({ locale, tr, context, productTitle, onBrief, onFirst
             {tr("chat.hint")}
           </p>
         </div>
+        {voice && canRecord && (
+          <MicButton
+            tr={tr}
+            lang={voice.lang}
+            sessionId={voice.sessionId}
+            disabled={busy}
+            fetchImpl={fetchImpl}
+            onStart={voice.onMicStart}
+            onPhase={voice.onMicPhase}
+            onTranscript={(text) => submit(text, true)}
+          />
+        )}
         {busy ? (
           <button type="button" onClick={stop} className="mb-5 min-h-11 rounded-full border border-ink px-4 text-sm font-medium text-ink">
             {tr("chat.stop")}

@@ -11,6 +11,8 @@
  *   swatch         8 / hour          (only when the call can reach YouCam; the 4-per-request cap stays)
  *   concierge     20 / hour, 60 / 24 h (Gift Concierge messages, A7; mock and fallback answers count too)
  *   widget_notify 10 / hour          (widget "tell me when the report is ready" e-mail addresses, A6)
+ *   voice_stt     20 / hour, 60 / 24 h (widget push-to-talk clips → Speech-to-Text, A13; mock counts too)
+ *   voice_tts     40 / hour, 150 / 24 h (widget spoken replies → Google TTS, A13; mock counts too)
  *
  * Over a limit: 429 {"error":"rate_limited"} with Retry-After, before any YouCam call.
  * Enabled everywhere except under NODE_ENV=test (unit tests force it on with setRateLimitOverride),
@@ -23,7 +25,7 @@ import { privacyState } from "./global-state";
 import { giverJson } from "./giver-guard";
 import { FirestoreRateLimitStore } from "./rate-limit-firestore";
 
-export type RateScope = "demo_seed" | "fit_requests" | "capture" | "swatch" | "concierge" | "widget_notify";
+export type RateScope = "demo_seed" | "fit_requests" | "capture" | "swatch" | "concierge" | "widget_notify" | "voice_stt" | "voice_tts";
 
 const HOUR = 60 * 60 * 1000;
 export const RATE_LIMITS: Record<RateScope, ReadonlyArray<{ limit: number; windowMs: number }>> = {
@@ -39,6 +41,15 @@ export const RATE_LIMITS: Record<RateScope, ReadonlyArray<{ limit: number; windo
     { limit: 60, windowMs: 24 * HOUR },
   ],
   widget_notify: [{ limit: 10, windowMs: HOUR }],
+  // A13 voice (ADR-052): per-IP backstop under the per-session (12 each) and daily caps in lib/voice/caps.ts.
+  voice_stt: [
+    { limit: 20, windowMs: HOUR },
+    { limit: 60, windowMs: 24 * HOUR },
+  ],
+  voice_tts: [
+    { limit: 40, windowMs: HOUR },
+    { limit: 150, windowMs: 24 * HOUR },
+  ],
 };
 
 /** Bound on remembered keys; beyond it, keys with no hit inside their longest window are dropped. */

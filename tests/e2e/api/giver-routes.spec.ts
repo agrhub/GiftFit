@@ -21,6 +21,9 @@ const COVERED_GIVER_ROUTES = [
   // A6 widget (ADR-046); the full UI flow is in tests/e2e/plugin/widget.spec.ts.
   "app/api/widget/send-card/route.ts",
   "app/api/widget/notify/route.ts",
+  // A13 voice (ADR-052/053), VOICE_MOCK=1 in the webServer env; the UI flow is in tests/e2e/plugin/voice.spec.ts.
+  "app/api/voice/stt/route.ts",
+  "app/api/voice/tts/route.ts",
 ];
 
 async function expectNoLeaks(res: APIResponse): Promise<unknown> {
@@ -172,4 +175,24 @@ test("POST /api/widget/send-card and /api/widget/notify: own request only, bare 
   const unknown = await request.post("/api/widget/notify", { headers, data: { giverToken: "C".repeat(43), email: "giver@example.com", lang: "en" } });
   expect(unknown.status()).toBe(404);
   expect(await expectNoLeaks(unknown)).toEqual({ error: "not_found" });
+});
+
+test("POST /api/voice/tts (mock) returns labelled audio only; /api/voice/stt refuses bad input with bare codes", async ({ request }) => {
+  const session = "8b0a6b3e-3c1f-4f8e-9d2a-1f4c5e6a7b8c";
+  const tts = await request.post("/api/voice/tts", { headers: { "x-voice-session": session }, data: { text: "Here are three ideas for her birthday.", lang: "en" } });
+  expect(tts.status()).toBe(200);
+  expect(tts.headers()["content-type"]).toMatch(/^audio\//);
+  expect(tts.headers()["x-voice-engine"]).toBe("mock");
+  expect((await tts.body()).byteLength).toBeGreaterThan(1000);
+  // No session header → bare code; nothing echoed back.
+  const noSession = await request.post("/api/voice/tts", { data: { text: "hello", lang: "en" } });
+  expect(noSession.status()).toBe(400);
+  expect(await expectNoLeaks(noSession)).toEqual({ error: "bad_session" });
+  const tooLong = await request.post("/api/voice/tts", { headers: { "x-voice-session": session }, data: { text: "x".repeat(401), lang: "en" } });
+  expect(tooLong.status()).toBe(400);
+  expect(await expectNoLeaks(tooLong)).toEqual({ error: "text_too_long" });
+  // Not audio at all → bad_audio; the body is never echoed.
+  const stt = await request.post("/api/voice/stt", { headers: { "x-voice-session": session, "x-voice-lang": "en", "content-type": "audio/webm" }, data: Buffer.from("not really audio") });
+  expect(stt.status()).toBe(400);
+  expect(await expectNoLeaks(stt)).toEqual({ error: "bad_audio" });
 });

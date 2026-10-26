@@ -34,6 +34,9 @@ const SERVER_EXTERNALS = [
   // GCP-native state (A11): Firestore + Cloud Storage via ADC; nodemailer for lib/email.
   "@google-cloud/firestore",
   "@google-cloud/storage",
+  // Voice (A13, ADR-052): Speech-to-Text V2 and Text-to-Speech via ADC (gRPC; loaded on first use).
+  "@google-cloud/speech",
+  "@google-cloud/text-to-speech",
   "nodemailer",
   "pgvector",
   "robots-parser",
@@ -61,6 +64,12 @@ const nextConfig: NextConfig = {
       { source: "/((?!embed(?:/|$)|w(?:/|$)).*)", headers: [{ key: "Content-Security-Policy", value: "frame-ancestors 'self'" }, { key: "X-Frame-Options", value: "SAMEORIGIN" }] },
       { source: "/embed/:path*", headers: [{ key: "Content-Security-Policy", value: `frame-ancestors ${embedAncestors}` }] },
       { source: "/embed", headers: [{ key: "Content-Security-Policy", value: `frame-ancestors ${embedAncestors}` }] },
+      // In-browser voice assets (A13, ADR-052): Supertonic 3 weights and the onnxruntime-web runtime live
+      // under version-pinned folders (public/voice/supertonic/<rev8>/, public/voice/ort/<version>/), so
+      // they never change in place. Same-origin fetches from the /w iframe: no CORS headers.
+      { source: "/voice/:dir(supertonic|ort)/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }, { key: "X-Content-Type-Options", value: "nosniff" }] },
+      { source: "/voice/ort/:version/:name(.*\\.wasm)", headers: [{ key: "Content-Type", value: "application/wasm" }] },
+      { source: "/voice/ort/:version/:name(.*\\.mjs)", headers: [{ key: "Content-Type", value: "text/javascript; charset=utf-8" }] },
     ];
   },
   // The seeded judge demo (ADR-038) reads committed AI-model fixtures from disk at runtime; make sure

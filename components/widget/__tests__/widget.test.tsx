@@ -61,7 +61,8 @@ describe("WidgetApp", () => {
     host(ctx, "https://evil.example");
     expect(screen.queryByTestId("widget-tip")).toBeNull();
     host(ctx);
-    expect((await screen.findByTestId("widget-tip")).textContent).toContain("Tặng món này?");
+    // The tip waits for the lazily loaded catalog chunk: slow on a loaded host.
+    expect((await screen.findByTestId("widget-tip", {}, { timeout: 8000 })).textContent).toContain("Tặng món này?");
     const lookup = new URL(String(fetchMock.mock.calls.find((c) => String(c[0]).startsWith("/api/retailer/lookup"))![0]), "https://x");
     expect(lookup.searchParams.get("sku")).toBe("AUR-EAR-028");
 

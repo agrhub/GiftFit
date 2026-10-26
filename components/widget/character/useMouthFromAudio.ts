@@ -5,8 +5,11 @@ import { frameRms, rmsToLevel, smoothMouth } from "./mouth";
 
 /**
  * Web Audio lip-sync source for the mascot (owner: A4; fed by P8.3 TTS). Returns a smoothed 0..1
- * mouth amplitude from an <audio>/<video> element or a MediaStream; 0 when `audio` is null or Web
- * Audio is unavailable. The rAF loop stops on unmount (and browsers pause it in hidden tabs).
+ * mouth amplitude from an <audio>/<video> element, a MediaStream, or an AnalyserNode the caller
+ * already owns (the voice player's graph: source → analyser → speakers); 0 when `audio` is null or
+ * Web Audio is unavailable. The rAF loop stops on unmount (and browsers pause it in hidden tabs).
+ *
+ * AnalyserNode: read only; the caller keeps the graph and its context.
  *
  * MediaStream: the hook owns its AudioContext (analyser only, not routed to the speakers, so no
  * echo) and closes it on cleanup.
@@ -23,6 +26,12 @@ function audioContextCtor(): Ctor | undefined {
   if (typeof window === "undefined") return undefined;
   const w = window as unknown as { AudioContext?: Ctor; webkitAudioContext?: Ctor };
   return w.AudioContext ?? w.webkitAudioContext;
+}
+
+type Source = HTMLMediaElement | MediaStream | AnalyserNode;
+
+function isAnalyser(a: Source): a is AnalyserNode {
+  return typeof (a as AnalyserNode).getFloatTimeDomainData === "function";
 }
 
 function isStream(a: HTMLMediaElement | MediaStream): a is MediaStream {
@@ -52,26 +61,41 @@ function connect(audio: HTMLMediaElement | MediaStream, Ctx: Ctor): { ctx: Audio
   }
 }
 
-export function useMouthFromAudio(audio: HTMLMediaElement | MediaStream | null): number {
+export function useMouthFromAudio(audio: Source | null): number {
   const [level, setLevel] = useState(0);
 
   useEffect(() => {
-    const Ctx = audioContextCtor();
-    if (!audio || !Ctx) return;
-    const graph = connect(audio, Ctx);
-    if (!graph) return;
-    const { ctx, source, owns } = graph;
-
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 1024;
-    source.connect(analyser);
-    const buf = new Float32Array(analyser.fftSize);
-
-    const resume = () => void ctx.resume().catch(() => {});
-    if (!owns) {
-      (audio as HTMLMediaElement).addEventListener("play", resume);
-      if (!(audio as HTMLMediaElement).paused) resume();
+    if (!audio) return;
+    let analyser: AnalyserNode;
+    let cleanup: () => void;
+    if (isAnalyser(audio)) {
+      analyser = audio;
+      cleanup = () => {};
+    } else {
+      const Ctx = audioContextCtor();
+      if (!Ctx) return;
+      const graph = connect(audio, Ctx);
+      if (!graph) return;
+      const { ctx, source, owns } = graph;
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      source.connect(analyser);
+      const resume = () => void ctx.resume().catch(() => {});
+      if (!owns) {
+        (audio as HTMLMediaElement).addEventListener("play", resume);
+        if (!(audio as HTMLMediaElement).paused) resume();
+      }
+      cleanup = () => {
+        try {
+          source.disconnect(analyser);
+        } catch {
+          /* already disconnected */
+        }
+        if (owns) void ctx.close().catch(() => {});
+        else (audio as HTMLMediaElement).removeEventListener("play", resume);
+      };
     }
+    const buf = new Float32Array(analyser.fftSize);
 
     let raf = 0;
     let cur = 0;
@@ -93,13 +117,7 @@ export function useMouthFromAudio(audio: HTMLMediaElement | MediaStream | null):
 
     return () => {
       cancelAnimationFrame(raf);
-      try {
-        source.disconnect(analyser);
-      } catch {
-        /* already disconnected */
-      }
-      if (owns) void ctx.close().catch(() => {});
-      else (audio as HTMLMediaElement).removeEventListener("play", resume);
+      cleanup();
       setLevel(0);
     };
   }, [audio]);

@@ -39,6 +39,12 @@ export interface RouteManifestEntry {
    * required in its sources, and its route tests scan every streamed event). The value says why.
    */
   ndjsonStream?: string;
+  /**
+   * A giver route whose success response is audio bytes (A13 voice TTS): the one raw `new Response(bytes)`
+   * is allowed because the audio is synthesized from shopper-facing reply text only; JSON (errors) still
+   * goes through giverJson. The value says why.
+   */
+  audioResponse?: string;
 }
 
 export const ROUTE_MANIFEST: Record<string, RouteManifestEntry> = {
@@ -113,6 +119,18 @@ export const ROUTE_MANIFEST: Record<string, RouteManifestEntry> = {
     audience: "giver",
     owner: "A6",
     description: "Save the giver's e-mail for one 'Fit Report ready' note sent at Done; 10/h per IP; returns saved/ready only",
+  },
+  // A13 voice (ADR-052): shopper-facing, no recipient data; audio/text never logged or stored
+  "app/api/voice/stt/route.ts": {
+    audience: "giver",
+    owner: "A13",
+    description: "Push-to-talk clip (≤ 15 s, ≤ 1 MiB) → transcript via Speech-to-Text V2 chirp_3 (us); 20/h, 60/day per IP; 12 per widget session; daily audio-seconds cap",
+  },
+  "app/api/voice/tts/route.ts": {
+    audience: "giver",
+    owner: "A13",
+    description: "Reply text (≤ 400 chars, en|vi) → MP3 from Google TTS (or mock WAV); 40/h, 150/day per IP; 12 per widget session; daily character cap",
+    audioResponse: "audio bytes synthesized from the shopper-facing reply text; errors through giverJson",
   },
   // A5 recipient
   "app/api/recipient/session/route.ts": {

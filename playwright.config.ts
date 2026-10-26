@@ -61,6 +61,8 @@ export default defineConfig({
           DATABASE_URL: "",
           BLOB_READ_WRITE_TOKEN: "",
           INGEST_FIXTURE: "1",
+          // Voice (P8.3): canned transcript + tone WAV, never a Google call.
+          VOICE_MOCK: "1",
           GIFTFIT_URL_SIGNING_SECRET: signingSecret,
           CRON_SECRET: process.env.E2E_CRON_SECRET,
           FIT_DECOY_SECRET: randomBytes(32).toString("hex"),

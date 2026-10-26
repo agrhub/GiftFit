@@ -22,6 +22,8 @@ const eslintConfig = [
       "vendor/**",
       // Live2D Core and model files (git-ignored, unmodified third-party, ADR-050)
       "public/live2d/**",
+      // In-browser voice assets: onnxruntime-web runtime and Supertonic 3 weights (git-ignored, unmodified third-party, A13)
+      "public/voice/**",
     ],
   },
 ];

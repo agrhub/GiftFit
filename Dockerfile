@@ -24,6 +24,18 @@ ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
     NEXT_TELEMETRY_DISABLED=1 \
     GIFTFIT_SKIP_BUILD_CHECKS=${SKIP_BUILD_CHECKS}
 COPY --from=deps /app/node_modules ./node_modules
+# In-browser voice assets (A13, ADR-052), served from public/voice/ by the runtime image: the
+# onnxruntime-web runtime copied from node_modules, and the Supertonic 3 weights fetched from the pinned
+# Hugging Face revision and verified against the sha256 manifest in the script (Open RAIL-M; never in
+# the repo or the upload: .dockerignore/.gcloudignore exclude public/voice). Its own layer, before the
+# source copy, so code changes do not refetch ~380 MiB when the build cache is available.
+# FETCH_VOICE_ASSETS=0 skips it (the widget then has no in-browser voice and uses the server voice).
+ARG FETCH_VOICE_ASSETS=1
+COPY scripts/fetch-supertonic.mjs scripts/copy-ort-web.mjs ./scripts/
+RUN if [ "$FETCH_VOICE_ASSETS" = "1" ]; then \
+      node scripts/copy-ort-web.mjs && node scripts/fetch-supertonic.mjs \
+      && node scripts/copy-ort-web.mjs --check && node scripts/fetch-supertonic.mjs --check; \
+    fi
 COPY . .
 RUN npx next build \
  && test -f .next/standalone/server.js \
@@ -43,6 +55,7 @@ ENV NODE_ENV=production \
 COPY --from=build --chown=node:node /app/.next/standalone ./
 # Next does not copy these two into the standalone folder.
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
+# public/ includes public/voice/ (onnxruntime-web runtime + Supertonic 3 weights, about 465 MiB) when fetched above.
 COPY --from=build --chown=node:node /app/public ./public
 # Files read from disk at runtime. File tracing already includes them (next.config.ts); copying
 # them explicitly means a tracing change can never drop the judge demo or the ingest snapshots.
