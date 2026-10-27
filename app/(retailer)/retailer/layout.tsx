@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Wordmark } from "@/components/store/StoreHeader";
+import { demoStoreUrl } from "@/lib/site/config";
 
 export const metadata: Metadata = {
   title: { default: "Retailer Console", template: "%s · Retailer Console" },
@@ -16,8 +16,8 @@ export default function RetailerLayout({ children }: { children: React.ReactNode
       <header className="border-b border-line bg-ivory">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-4">
-            <Link href="/" aria-label="Aurum Jewelry storefront">
-              <Wordmark className="scale-90" />
+            <Link href="/" className="font-display text-2xl tracking-[0.12em] text-ink">
+              GiftFit
             </Link>
             <span aria-hidden="true" className="h-8 w-px bg-line-strong" />
             <span className="text-sm text-ink-soft">
@@ -28,13 +28,13 @@ export default function RetailerLayout({ children }: { children: React.ReactNode
             <ul className="flex flex-wrap gap-5 text-sm text-ink-soft">
               <li>
                 <Link href="/" className="hover:text-ink">
-                  Storefront
+                  GiftFit home
                 </Link>
               </li>
               <li>
-                <Link href="/plugin-demo/halo-drop-earrings" className="hover:text-ink">
-                  Script tag demo
-                </Link>
+                <a href={`${demoStoreUrl()}/p/halo-drop-earrings`} className="hover:text-ink">
+                  Demo store
+                </a>
               </li>
             </ul>
           </nav>

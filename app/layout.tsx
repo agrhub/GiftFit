@@ -32,11 +32,11 @@ const sans = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Aurum Jewelry · Gift it right with GiftFit",
-    template: "%s · Aurum Jewelry",
+    default: "GiftFit · The gift assistant for any store",
+    template: "%s · GiftFit",
   },
   description:
-    "Aurum Jewelry is a fictional demo boutique for GiftFit: let the person you're shopping for try pieces on privately, then buy the one that fits. The surprise stays a surprise.",
+    "GiftFit lets the person you're shopping for try jewelry on privately with an AI preview, then you buy the one that fits. The surprise stays a surprise.",
   applicationName: "GiftFit",
 };
 

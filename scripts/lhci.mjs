@@ -4,7 +4,7 @@
  *
  * Starts `next start` in hermetic mock mode (same env as playwright.config.ts), seeds one Fit
  * Request through POST /api/fit/requests so a real /r/<token> page exists in this process, then
- * runs `lhci collect` (mobile preset, lighthouserc.json) on /, the Halo Drop PDP and that recipient
+ * runs `lhci collect` (mobile preset, lighthouserc.json) on / (GiftFit home), /demo and that recipient
  * page, `lhci assert` (>= 0.9 perf/a11y/best-practices, SEO warn) and prints the median scores.
  *
  * Env: LHCI_RUNS (default 1), LHCI_PORT (3200), CHROME_PATH (default: Playwright's Chromium).
@@ -78,7 +78,7 @@ try {
   });
   if (res.status !== 201) throw new Error(`seed Fit Request failed: ${res.status} ${await res.text()}`);
   const { recipientPath } = await res.json();
-  const urls = ["/", "/p/halo-drop-earrings", recipientPath].map((p) => BASE + p);
+  const urls = ["/", "/demo", recipientPath].map((p) => BASE + p);
 
   const env = { ...process.env, CHROME_PATH: await chromePath() };
   rmSync(".lighthouseci", { recursive: true, force: true });

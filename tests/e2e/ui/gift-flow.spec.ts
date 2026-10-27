@@ -1,7 +1,8 @@
 /**
  * Two-context end-to-end gift flow through the UI (owner: A8), mock mode, production build.
  *
- * Giver (desktop viewport) creates an "I have ideas" Fit Request from the Halo Drop PDP via the Giver Panel.
+ * Giver (desktop viewport) creates an "I have ideas" Fit Request from the Halo Drop PDP of the demo store
+ * (a second origin, P8.2b: the only storefront) via its "Gift it right" button and the Giver Panel overlay.
  * Recipient (Pixel 7 context, separate cookies) opens /r/<token>, consents, uploads the placeholder
  * selfie through the file fallback, hearts 2 items and finishes. Giver opens /g/<token>.
  *
@@ -12,6 +13,7 @@
  *   - a try-on URL the recipient saw does not open with the giver's cookies.
  */
 import { devices, expect, test, type BrowserContext } from "@playwright/test";
+import { startDemoStore, type DemoStore } from "../support/demo-store";
 import { scanGiverResponse, type Leak } from "../support/giver-leaks";
 import { recipientCapture, tryonUrls } from "../support/recipient-ui";
 
@@ -33,29 +35,38 @@ function watchGiver(ctx: BrowserContext): Leak[] {
 
 test.describe("gift flow: giver and recipient in two contexts", () => {
   test.setTimeout(180_000);
+  let store: DemoStore | undefined;
+  test.beforeAll(async ({ baseURL }) => {
+    store = await startDemoStore(Number(process.env.DEMO_STORE_FLOW_PORT ?? 4351), new URL(baseURL!).origin);
+  });
+  test.afterAll(() => store?.stop());
 
   test("giver never receives an image URL, hex value or face attribute", async ({ browser, baseURL }) => {
     const giver = await browser.newContext({ ...devices["Desktop Chrome"], baseURL });
     const recipient = await browser.newContext({ ...devices["Pixel 7"], baseURL });
     const leaks = watchGiver(giver);
     try {
-      // 1. Giver: PDP -> Gift it right -> occasion, budget, a second piece -> send.
+      // 1. Giver: demo-store PDP -> Gift it right (overlay frame on the app origin) -> occasion, budget, a second piece -> send.
       const g = await giver.newPage();
-      await g.goto("/p/halo-drop-earrings");
-      await g.getByTestId("gift-it-right").first().click();
+      await g.goto(`${store!.url}/p/halo-drop-earrings`);
+      await g.locator("giftfit-button").getByRole("button", { name: "Gift it right" }).click();
+      const panel = g.frameLocator("giftfit-overlay iframe");
+      await expect(panel.getByRole("dialog")).toBeVisible({ timeout: 60_000 });
       // "Help me choose" is the default (ADR-045); this flow is the giver's own picks.
-      await g.getByTestId("mode-i_have_ideas").check({ force: true });
-      await g.getByTestId("occasion-anniversary").check({ force: true });
-      await g.getByTestId("budget-300").check({ force: true });
-      await expect(g.getByTestId("shortlist").locator("li")).toHaveCount(1);
-      const add = g.getByTestId("add-to-shortlist").first();
+      await panel.getByTestId("mode-i_have_ideas").check({ force: true });
+      await panel.getByTestId("occasion-anniversary").check({ force: true });
+      await panel.getByTestId("budget-300").check({ force: true });
+      await expect(panel.getByTestId("shortlist").locator("li")).toHaveCount(1);
+      const add = panel.getByTestId("add-to-shortlist").first();
       const second = (await add.getAttribute("aria-label"))!.replace(/^Add (.+) to shortlist$/, "$1");
       await add.click();
-      await expect(g.getByTestId("shortlist-count")).toContainText("2 of");
-      await g.getByTestId("send-fit-request").click();
-      await expect(g.getByTestId("fit-request-sent")).toBeVisible({ timeout: 30_000 });
-      const recipientLink = await g.getByTestId("recipient-link").inputValue();
-      const reportPath = await g.getByTestId("giver-report-link").getAttribute("href");
+      await expect(panel.getByTestId("shortlist-count")).toContainText("2 of");
+      await panel.getByTestId("send-fit-request").click();
+      await expect(panel.getByTestId("fit-request-sent")).toBeVisible({ timeout: 30_000 });
+      const recipientLink = await panel.getByTestId("recipient-link").inputValue();
+      const reportPath = await panel.getByTestId("giver-report-link").getAttribute("href");
+      // The store page itself never sees the links.
+      expect(await g.content()).not.toMatch(/\/r\/[A-Za-z0-9_-]{20,}|\/g\/[A-Za-z0-9_-]{20,}/);
       expect(recipientLink).toMatch(/\/r\/[^/]+$/);
       expect(reportPath).toMatch(/^\/g\/[^/]+$/);
 

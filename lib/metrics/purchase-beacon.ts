@@ -1,6 +1,6 @@
 /**
- * Client-side purchase beacon (owner: A6). Called once by the Aurum demo checkout
- * (components/store/CartView.tsx). The giver's own saved Fit Requests (this browser only,
+ * Client-side purchase beacon (owner: A6). Was called by the old Aurum demo checkout (removed in
+ * P8.2b: the demo store has no cart); kept for a store checkout integration. The giver's own saved Fit Requests (this browser only,
  * components/gift/savedRequests.ts) hold their report links /g/<giverToken>; for each one we tell
  * POST /api/retailer/purchase which catalog ids were just bought. The server keeps only the ones
  * on that request's shortlist. No recipient data is involved and nothing is sent when the giver

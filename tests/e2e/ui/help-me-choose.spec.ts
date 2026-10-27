@@ -1,11 +1,13 @@
 /**
  * "Help me choose" (ADR-045), the Giver Panel's default path, through the UI in mock mode (A3).
- * Giver: PDP → Gift it right → occasion, budget cap, two kinds of piece → send (no shortlist).
+ * Giver: demo-store PDP (second origin, P8.2b) → Gift it right (Giver Panel overlay) → occasion, budget
+ * cap, two kinds of piece → send (no shortlist).
  * Recipient: consent, selfie, 6 curated pieces, hearts two, finishes.
  * Giver: the report shows the taste summary and "Not tried on" picks, with no image elements, no
  * hex, and every JSON response passes the independent leak scanner.
  */
 import { devices, expect, test } from "@playwright/test";
+import { startDemoStore, type DemoStore } from "../support/demo-store";
 import { scanGiverResponse, type Leak } from "../support/giver-leaks";
 import { recipientCapture } from "../support/recipient-ui";
 
@@ -13,6 +15,11 @@ const HEX = /#[0-9a-f]{6}(?:[0-9a-f]{2})?(?![0-9a-z])/i;
 
 test.describe("help me choose: giver, recipient, report", () => {
   test.setTimeout(180_000);
+  let store: DemoStore | undefined;
+  test.beforeAll(async ({ baseURL }) => {
+    store = await startDemoStore(Number(process.env.DEMO_STORE_HMC_PORT ?? 4352), new URL(baseURL!).origin);
+  });
+  test.afterAll(() => store?.stop());
 
   test("curated request → hearts → taste summary and not-tried picks", async ({ browser, baseURL }) => {
     const giver = await browser.newContext({ ...devices["Desktop Chrome"], baseURL });
@@ -25,23 +32,25 @@ test.describe("help me choose: giver, recipient, report", () => {
     });
     try {
       const g = await giver.newPage();
-      await g.goto("/p/halo-drop-earrings");
-      await g.getByTestId("gift-it-right").first().click();
-      await expect(g.getByTestId("mode-help_me_choose")).toBeChecked();
-      await expect(g.getByTestId("shortlist")).toHaveCount(0);
-      await g.locator("label", { has: g.getByTestId("occasion-birthday") }).click();
-      await g.locator("label", { has: g.getByTestId("budget-300") }).click();
+      await g.goto(`${store!.url}/p/halo-drop-earrings`);
+      await g.locator("giftfit-button").getByRole("button", { name: "Gift it right" }).click();
+      const panel = g.frameLocator("giftfit-overlay iframe");
+      await expect(panel.getByRole("dialog")).toBeVisible({ timeout: 60_000 });
+      await expect(panel.getByTestId("mode-help_me_choose")).toBeChecked();
+      await expect(panel.getByTestId("shortlist")).toHaveCount(0);
+      await panel.locator("label", { has: panel.getByTestId("occasion-birthday") }).click();
+      await panel.locator("label", { has: panel.getByTestId("budget-300") }).click();
       // Earrings and necklaces are the default chips; hand items stay opt-in.
-      for (const c of ["earring", "necklace"]) await expect(g.getByTestId(`category-${c}`)).toBeChecked();
-      for (const c of ["ring", "bracelet", "watch"]) await expect(g.getByTestId(`category-${c}`)).not.toBeChecked();
+      for (const c of ["earring", "necklace"]) await expect(panel.getByTestId(`category-${c}`)).toBeChecked();
+      for (const c of ["ring", "bracelet", "watch"]) await expect(panel.getByTestId(`category-${c}`)).not.toBeChecked();
       const created = g.waitForResponse((r) => r.url().endsWith("/api/fit/requests") && r.request().method() === "POST");
-      await g.getByTestId("send-fit-request").click();
+      await panel.getByTestId("send-fit-request").click();
       const createdBody = JSON.parse((await created).request().postData() ?? "{}");
       expect(createdBody).toMatchObject({ mode: "help_me_choose", budgetMax: 300, categories: ["earring", "necklace"] });
-      await expect(g.getByTestId("fit-request-sent")).toBeVisible({ timeout: 30_000 });
-      await expect(g.getByTestId("curated-note")).toContainText("6 pieces picked by GiftFit");
-      const recipientLink = await g.getByTestId("recipient-link").inputValue();
-      const reportPath = await g.getByTestId("giver-report-link").getAttribute("href");
+      await expect(panel.getByTestId("fit-request-sent")).toBeVisible({ timeout: 30_000 });
+      await expect(panel.getByTestId("curated-note")).toContainText("6 pieces picked by GiftFit");
+      const recipientLink = await panel.getByTestId("recipient-link").inputValue();
+      const reportPath = await panel.getByTestId("giver-report-link").getAttribute("href");
 
       const r = await recipient.newPage();
       await r.goto(new URL(recipientLink).pathname);

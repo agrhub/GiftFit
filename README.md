@@ -104,13 +104,15 @@ GiftFit deeply integrates **7 Perfect Corp / YouCam AI APIs**:
 ```
 giftfit/
 ├── app/                           # Next.js 15 App Router
-│   ├── (store)/                   # Aurum Jewelry demo e-commerce store
+│   ├── (site)/                    # GiftFit home (/), /merchants, judge demo (/demo); old store paths 308 to the demo store
+│   ├── (widget)/                  # Gift assistant frame (/w) opened by giftfit.js
 │   ├── (gift)/                    # Giver (/g/[token]) & Recipient (/r/[token]) flows
 │   ├── (retailer)/                # Retailer Console (/retailer) & embed panel
 │   └── api/                       # API route handlers (fit, recipient, retailer, demo)
 ├── components/                    # UI Components
 │   ├── gift/                      # Giver panel, recipient carousel, camera capture, report
-│   ├── store/                     # Product cards, catalog views, shopping bag
+│   ├── store/                     # Aurum catalog view model and formatting helpers
+│   ├── widget/                    # Gift assistant: chat, character, voice, e-card and sharing
 │   └── trust/                     # Privacy cards, transparency disclaimers, purge buttons
 ├── lib/                           # Core Business Logic
 │   ├── contracts/                 # Strict TypeScript schemas & vocabulary
@@ -121,6 +123,7 @@ giftfit/
 ├── db/                            # Drizzle ORM schema, migrations & seed scripts
 ├── fixtures/                      # Mock images & synthetic AI demo profiles
 ├── packages/plugin/               # Embeddable giftfit.js script tag
+├── demo-store/                    # The demo store (separate origin): static pages for every Aurum design
 └── tests/                         # E2E test suites (Playwright) & leak guards
 ```
 
@@ -160,7 +163,13 @@ cp .env.example .env.local
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) to explore the **Aurum Jewelry** storefront.
+Open [http://localhost:3000](http://localhost:3000) for the GiftFit home. The storefront is the separate demo store (one page per Aurum design, each with the one-line snippet):
+
+```bash
+GIFTFIT_ORIGIN=http://localhost:3000 PORT=4320 node demo-store/server.mjs   # http://localhost:4320
+```
+
+Set `GIFTFIT_DEMO_STORE_URL=http://localhost:4320` in `.env.local` so the home page's "Open the demo store" button and the old `/p/…`, `/c/…`, `/cart` paths (308) point there.
 
 ### 4. Judge Instant Demo Mode
 To test the complete recipient journey immediately without spending YouCam credits or uploading a selfie:

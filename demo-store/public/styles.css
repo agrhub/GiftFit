@@ -22,3 +22,4 @@ iframe { border: 8px solid red !important; }
 code { font-size: 13px; word-break: break-all; }
 #events { font: 13px/1.5 ui-monospace, monospace; color: #555; min-height: 1.5em; }
 footer { padding: 24px; text-align: center; font-size: 13px; color: #5d6b78; }
+.cats a { margin-right: 4px; }

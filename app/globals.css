@@ -29,6 +29,27 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
   --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  /*
+   * GiftFit landing, dark (owner: A4, P8.4). Used only inside `.gf-dark` (the landing and /merchants);
+   * the rest of the app keeps the light Aurum palette above. AA contrast on night-950 / night-800:
+   *   fog-100 #eef1f7 (17.4:1 / 15.4:1) · fog-300 #b8c0d0 (10.8:1 / 9.5:1) · fog-400 #8d98ad (6.8:1 / 6.0:1)
+   *   glow-gold #f6cf86 (13.3:1) · glow-violet #aa9cff (8.3:1) · glow-mint #8fe0c2 (12.7:1) · glow-sky #93b4ff (9.6:1)
+   *   glow-rose #f29ab6 (9.4:1); night-950 text on the primary gradient (gold → rose → violet) ≥ 8.3:1.
+   */
+  --color-night-950: #090b11;
+  --color-night-900: #0e121b;
+  --color-night-800: #151a26;
+  --color-night-700: #232b3c;
+  --color-night-600: #36415a;
+  --color-fog-100: #eef1f7;
+  --color-fog-300: #b8c0d0;
+  --color-fog-400: #8d98ad;
+  --color-glow-gold: #f6cf86;
+  --color-glow-rose: #f29ab6;
+  --color-glow-violet: #aa9cff;
+  --color-glow-mint: #8fe0c2;
+  --color-glow-sky: #93b4ff;
 }
 
 :root {
@@ -136,4 +157,131 @@ dialog.gf-sheet[open] .gf-sheet-panel {
 }
 .font-display em {
   font-family: var(--font-cormorant-italic), var(--font-cormorant), Georgia, serif;
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * GiftFit landing (owner: A4, P8.4). Dark mode is scoped: only a `.gf-dark` subtree (the landing at /
+ * and /merchants) is dark; widget, gift and retailer pages are untouched. System font stack (no font
+ * download, full Vietnamese coverage).
+ * ---------------------------------------------------------------------------------------------- */
+.gf-dark {
+  color-scheme: dark;
+  background: var(--color-night-950);
+  color: var(--color-fog-100);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif;
+}
+.gf-dark :focus-visible {
+  outline: 2px solid var(--color-glow-gold);
+  outline-offset: 3px;
+}
+.gf-dark ::selection {
+  background: rgb(170 156 255 / 0.35);
+}
+/* The (site) layout's light header and the page background follow the dark page they sit on. */
+body:has(.gf-dark) {
+  background: var(--color-night-950);
+}
+/* Only the subtree is `color-scheme: dark`, never the root: the widget's iframe (a light document) would
+   otherwise be painted opaque instead of transparent. */
+:root:has(.gf-dark) {
+  scrollbar-color: var(--color-night-600) var(--color-night-950);
+}
+header:has(~ #main .gf-dark) {
+  background: var(--color-night-950);
+  border-color: var(--color-night-700);
+}
+header:has(~ #main .gf-dark) a {
+  color: var(--color-fog-300);
+}
+header:has(~ #main .gf-dark) > div > a:first-child,
+header:has(~ #main .gf-dark) a:hover {
+  color: var(--color-fog-100);
+}
+
+.gf-gradient-text {
+  background: linear-gradient(100deg, var(--color-glow-gold) 0%, var(--color-glow-rose) 40%, var(--color-glow-violet) 75%, var(--color-glow-gold) 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gf-sheen 14s ease-in-out infinite alternate;
+}
+@keyframes gf-sheen {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
+}
+@media (forced-colors: active) {
+  .gf-gradient-text {
+    background: none;
+    color: CanvasText;
+  }
+}
+
+/* Soft colour fields behind the hero; clipped by the hero so they never widen the page. */
+.gf-aura {
+  position: absolute;
+  inset: -20% -10% auto;
+  height: 520px;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 50% at 25% 40%, rgb(246 207 134 / 0.16), transparent 70%),
+    radial-gradient(35% 45% at 70% 30%, rgb(170 156 255 / 0.2), transparent 70%),
+    radial-gradient(30% 40% at 55% 75%, rgb(242 154 182 / 0.12), transparent 70%);
+  filter: blur(8px);
+  animation: gf-drift 18s ease-in-out infinite alternate;
+}
+@keyframes gf-drift {
+  from {
+    transform: translate3d(-2%, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(2%, 3%, 0) scale(1.05);
+  }
+}
+
+.gf-rise {
+  animation: gf-rise 700ms var(--ease-soft) both;
+  animation-delay: var(--gf-delay, 0ms);
+}
+@keyframes gf-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Credits reuse shared components drawn for light pages: lift their text colours on dark. */
+.gf-dark .gf-credits :is(.text-muted, .text-ink-soft) {
+  color: var(--color-fog-400);
+}
+.gf-dark .gf-credits h3 {
+  color: var(--color-fog-300);
+}
+.gf-dark .gf-credits a:hover {
+  color: var(--color-fog-100);
+}
+
+/* Code panels scroll inside their own box, never the page. */
+.gf-code {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-color: var(--color-night-600) transparent;
+  tab-size: 2;
+}
+
+/* prefers-reduced-motion (the media rule above) plus a class the landing sets from matchMedia. */
+.gf-motion-reduce *,
+.gf-motion-reduce *::before,
+.gf-motion-reduce *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
 }

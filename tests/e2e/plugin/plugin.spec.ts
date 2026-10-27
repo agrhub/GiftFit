@@ -9,7 +9,7 @@
  *     "giftfit:sent" event (no token, no id);
  *   - closing the panel removes the overlay;
  *   - a product that is not in the catalog gets no button.
- * Also checks the Aurum demo PDP (/plugin-demo/halo-drop-earrings), same origin.
+ * Also checks that the old same-origin demo PDP (/plugin-demo/<slug>) now 308s to the demo store's page.
  *
  * Needs a project matching plugin/** in playwright.config.ts (A8), e.g.
  *   { name: "plugin", testMatch: "plugin/**\/*.spec.ts", use: { ...devices["Desktop Chrome"] } }
@@ -88,12 +88,8 @@ test("no button when the product is not in the catalog", async ({ page }) => {
   await expect(page.locator("giftfit-button")).toHaveCount(0);
 });
 
-test("Aurum demo PDP gets the button from the script tag alone", async ({ page }) => {
-  await page.goto("/plugin-demo/halo-drop-earrings");
-  await expect(page.getByTestId("plugin-demo-banner")).toBeVisible();
-  await expect(page.locator("[data-giftfit-mount] giftfit-button")).toHaveCount(1, { timeout: 30_000 });
-  // Still there after hydration, and it opens the panel.
-  await page.waitForTimeout(1500);
-  await page.locator("giftfit-button").getByRole("button", { name: "Gift it right" }).click();
-  await expect(page.frameLocator("giftfit-overlay iframe").getByRole("dialog")).toBeVisible({ timeout: 60_000 });
+test("the old /plugin-demo PDP redirects (308) to the demo store's page for that design", async ({ request }) => {
+  const res = await request.get("/plugin-demo/halo-drop-earrings", { maxRedirects: 0 });
+  expect(res.status()).toBe(308);
+  expect(res.headers()["location"]).toMatch(/\/p\/halo-drop-earrings$/);
 });

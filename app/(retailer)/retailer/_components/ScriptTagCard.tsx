@@ -1,6 +1,5 @@
 "use client";
 /** The one-line install (owner: A6): the tag with this deployment's origin, copy, and the demos. */
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Card, HowCalculated } from "./ui";
 
@@ -29,9 +28,10 @@ export function ScriptTagCard({ storeKey, demoSlug }: { storeKey: string; demoSl
         >
           {copied ? "Copied" : "Copy tag"}
         </button>
-        <Link href={`/plugin-demo/${demoSlug}`} className="inline-flex min-h-11 items-center rounded-full bg-ink px-5 text-sm text-ivory hover:bg-ink-soft">
-          See it on an Aurum product page
-        </Link>
+        {/* 308 to the demo store's page for this design (app/(retailer)/plugin-demo/[id]/route.ts). */}
+        <a href={`/plugin-demo/${demoSlug}`} className="inline-flex min-h-11 items-center rounded-full bg-ink px-5 text-sm text-ivory hover:bg-ink-soft">
+          See it on the demo store
+        </a>
       </div>
       <p aria-live="polite" className="sr-only">
         {copied ? "Script tag copied" : ""}

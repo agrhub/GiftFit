@@ -40,7 +40,7 @@ describe("GiverReport", () => {
     // The hearted variant: design + metal + price, and the buy button for that exact variant.
     expect(items[0].textContent).toContain("White gold");
     expect(within(items[0]).getByTestId("report-price").textContent).toBe("$265");
-    expect(screen.getAllByTestId("buy-button")[0].getAttribute("href")).toBe("/cart?add=halo-drop-earrings&metal=white_gold");
+    expect(screen.getAllByTestId("buy-button")[0].getAttribute("href")).toBe("/p/halo-drop-earrings");
     expect(screen.getAllByTestId("buy-button")[0].textContent).toBe("Buy as a gift · White gold · $265");
     // No variant info on a result: falls back to the product's default metal and price.
     expect(items[1].textContent).toContain("Rose gold");

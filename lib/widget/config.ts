@@ -36,12 +36,18 @@ export function widgetOrigins(env: Env = process.env): string[] | "*" {
   return [...new Set(list)];
 }
 
-/** May a page on `origin` host the widget? `self` is GiftFit's own origin (always allowed). */
+/**
+ * May a page on `origin` host the widget? `self` is GiftFit's own origin (the request's), and
+ * APP_BASE_URL's origin is always allowed too, so the GiftFit home page can show the assistant
+ * whatever GIFTFIT_WIDGET_ORIGINS says.
+ */
 export function isWidgetOriginAllowed(origin: string | null | undefined, self?: string | null, env: Env = process.env): boolean {
   if (!origin) return false;
   const o = originOf(origin);
   if (!o || o !== origin) return false;
   if (self && o === self) return true;
+  const appBase = env.APP_BASE_URL?.trim() ? originOf(env.APP_BASE_URL.trim()) : undefined;
+  if (appBase && o === appBase) return true;
   const list = widgetOrigins(env);
   return list === "*" ? true : list.includes(o);
 }
@@ -49,7 +55,9 @@ export function isWidgetOriginAllowed(origin: string | null | undefined, self?: 
 /** The value of `Content-Security-Policy: frame-ancestors …` for /w. */
 export function widgetFrameAncestors(env: Env = process.env): string {
   const list = widgetOrigins(env);
-  return list === "*" ? "*" : ["'self'", ...list].join(" ");
+  if (list === "*") return "*";
+  const appBase = env.APP_BASE_URL?.trim() ? originOf(env.APP_BASE_URL.trim()) : undefined;
+  return ["'self'", ...new Set([...(appBase ? [appBase] : []), ...list])].join(" ");
 }
 
 export function facebookAppId(env: Env = process.env): string | undefined {

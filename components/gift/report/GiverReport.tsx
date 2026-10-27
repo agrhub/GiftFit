@@ -76,9 +76,9 @@ export function NotTriedList({ picks, products }: { picks: GiverReportView["simi
                 <span>{formatPrice(p.price, p.currency)}</span>
               </p>
               {product ? (
-                <Link href={productPath(product)} className="mt-3 inline-flex min-h-11 items-center text-sm text-ink underline decoration-gold underline-offset-4">
+                <a href={productPath(product)} className="mt-3 inline-flex min-h-11 items-center text-sm text-ink underline decoration-gold underline-offset-4">
                   View piece
-                </Link>
+                </a>
               ) : null}
             </li>
           );
@@ -185,10 +185,11 @@ export function ReportItem({ result, product, hearted, wished = false, rank }: {
       {result.caution ? <p className="mt-3 rounded-lg bg-cream px-3 py-2 text-sm text-ink-soft">Worth knowing: {result.caution}</p> : null}
 
       {product ? (
-        <Link href={`/cart?add=${encodeURIComponent(product.slug)}${metal ? `&metal=${metal}` : ""}`} data-testid="buy-button" className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-ink px-6 text-sm font-medium text-ivory transition-colors hover:bg-ink-soft sm:w-auto">
+        // The store's own product page (the demo store, via the /p/<slug> 308): buying happens there.
+        <a href={productPath(product)} data-testid="buy-button" className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-ink px-6 text-sm font-medium text-ivory transition-colors hover:bg-ink-soft sm:w-auto">
           Buy as a gift · {metal ? `${METAL_LABELS[metal]} · ` : ""}
           {formatPrice(price ?? product.price, currency)}
-        </Link>
+        </a>
       ) : null}
     </li>
   );
@@ -309,7 +310,7 @@ export function GiverReport({ token, api: apiProp, products: productsProp, pollM
               : "The link may be mistyped, or they chose to delete everything. That's their call, and nothing about them remains."}
           </p>
           <Link href="/" className="mt-4 inline-flex min-h-11 items-center rounded-full bg-ink px-5 text-sm font-medium text-ivory">
-            Back to the store
+            Back to GiftFit
           </Link>
         </div>
       ) : null}
