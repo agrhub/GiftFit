@@ -345,6 +345,9 @@ function requestToDoc(r: FitRequestRecord): FsData {
     ...(r.categories && r.categories.length ? { categories: [...r.categories] } : {}),
     ...(r.styleHints && r.styleHints.length ? { styleHints: [...r.styleHints] } : {}),
     ...(r.genderPresentation ? { genderPresentation: r.genderPresentation } : {}),
+    // Store-URL preview requests (ADR-055): product display data only (maps, no nested arrays).
+    ...(r.storeName ? { storeName: String(r.storeName).slice(0, 120) } : {}),
+    ...(r.productSnapshot && r.productSnapshot.length ? { productSnapshot: r.productSnapshot.map((p) => ({ catalogId: p.catalogId, title: p.title, price: p.price, currency: p.currency, url: p.url, ...(p.image ? { image: p.image } : {}) })) } : {}),
   };
 }
 
@@ -371,6 +374,8 @@ function requestFromDoc(d: FsData): FitRequestRecord {
   if (Array.isArray(d.categories) && d.categories.length) rec.categories = [...d.categories] as FitRequestRecord["categories"];
   if (Array.isArray(d.styleHints) && d.styleHints.length) rec.styleHints = [...d.styleHints] as FitRequestRecord["styleHints"];
   if (d.genderPresentation === "feminine" || d.genderPresentation === "masculine" || d.genderPresentation === "unisex") rec.genderPresentation = d.genderPresentation;
+  if (typeof d.storeName === "string" && d.storeName) rec.storeName = d.storeName;
+  if (Array.isArray(d.productSnapshot) && d.productSnapshot.length) rec.productSnapshot = (d.productSnapshot as FitRequestRecord["productSnapshot"])!.map((p) => ({ ...p }));
   return rec;
 }
 

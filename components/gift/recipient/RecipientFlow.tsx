@@ -16,6 +16,7 @@ import { RecipientTransparencyCard } from "@/components/trust/TransparencyCard";
 import type { UndertoneValue } from "@/components/trust/UndertoneEstimateCard";
 import { OCCASION_LABELS } from "@/components/store/format";
 import { ApiError, type GiftApi, friendlyError, loadGiftApi } from "../api";
+import { setGiftStoreName, storeNameFor } from "../giftStore";
 import { HandIcon, HeartIcon, ShieldIcon } from "../icons";
 import { AiModelBadge } from "./AiModelBadge";
 import type { RetakeKind } from "./tryOnFailures";
@@ -58,7 +59,7 @@ const UndertoneEstimateCard = dynamic(
 type Step =
   | { kind: "loading" }
   | { kind: "error"; message: string; retry: boolean }
-  | { kind: "expired" }
+  | { kind: "expired"; preview?: boolean }
   | { kind: "consent" }
   | { kind: "declined" }
   | { kind: "selfie"; retake?: RetakeKind }
@@ -104,11 +105,13 @@ function PrivacyDetails({
   hasHandPhoto,
   expiresAt,
   onDeleted,
+  tryOn = true,
 }: {
   token: string;
   hasHandPhoto?: boolean;
   expiresAt?: string;
   onDeleted: () => void;
+  tryOn?: boolean;
 }) {
   return (
     <details className="group mt-8 rounded-2xl border border-line bg-white">
@@ -128,6 +131,7 @@ function PrivacyDetails({
         <RecipientTransparencyCard
           hasHandPhoto={hasHandPhoto}
           expiresAt={expiresAt}
+          tryOn={tryOn}
           className="border-0 p-0 shadow-none"
         />
         <div data-testid="delete-everything">
@@ -198,6 +202,13 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       const client = await api();
       const s = await client.openSession(token);
       setSession(s);
+      // The header names this request's store: a preview's own name, never "Aurum" for a preview.
+      setGiftStoreName(
+        storeNameFor({
+          storeName: s.storeName,
+          preview: s.tryOn === false || Boolean(s.storeName),
+        }),
+      );
       // A reload after capture restores the carousel (GET /api/recipient/capture, fresh signed URLs).
       const resumed =
         s.status === "trying_on" || s.status === "completed"
@@ -207,14 +218,18 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       setStep(
         s.status === "expired"
           ? { kind: "expired" }
-          : s.status === "completed"
-            ? { kind: "done", alreadyDone: true }
-            : s.status === "awaiting_consent"
-              ? { kind: "consent" }
-              : s.status === "awaiting_capture" ||
-                  (s.status === "trying_on" && !resumed)
-                ? { kind: "selfie" }
-                : { kind: "tryon" },
+          : s.previewExpired && s.status !== "completed"
+            ? { kind: "expired", preview: true }
+            : s.status === "completed"
+              ? { kind: "done", alreadyDone: true }
+              : s.status === "awaiting_consent"
+                ? { kind: "consent" }
+                : s.tryOn === false
+                  ? { kind: "tryon" }
+                  : s.status === "awaiting_capture" ||
+                      (s.status === "trying_on" && !resumed)
+                    ? { kind: "selfie" }
+                    : { kind: "tryon" },
       );
     } catch (err) {
       fail(err);
@@ -245,6 +260,8 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
   const needsHand = items.some((i) => i.needsHandPhoto);
   // Seeded judge demo (ADR-038): the recipient is an AI-generated model.
   const isDemo = Boolean(session?.demo || capture?.demo);
+  // Store-URL preview (ADR-055): try-on is off; the recipient hearts pieces from the product photos.
+  const noTryOn = session?.tryOn === false;
   const shownSwatch = (item: CarouselItem) =>
     shown[item.itemId] ?? defaultSwatch(item);
 
@@ -307,7 +324,8 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
         ...s,
         items: s.items?.length ? s.items : (prev?.items ?? []),
       }));
-      setStep({ kind: "selfie" });
+      // Store-URL previews (ADR-055) are hearts-only: no selfie, straight to the pieces.
+      setStep(s.tryOn === false ? { kind: "tryon" } : { kind: "selfie" });
     } catch (err) {
       fail(err);
     } finally {
@@ -494,7 +512,8 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       hearted: hearted.has(heartKey(item.itemId, swatchId)),
       wished: wished.has(item.itemId),
       capNote: capNotes.has(item.itemId),
-      rendersOff: photoDeleted,
+      rendersOff: photoDeleted || noTryOn,
+      noTryOn,
       renderedSwatchIds: (item.swatches ?? [])
         .map((x) => x.swatchId)
         .filter((id) => Boolean(renders[heartKey(item.itemId, id)])),
@@ -515,6 +534,12 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
         }),
       );
       setHeartsSeconds((Date.now() - openedAt.current) / 1000);
+      if (noTryOn) {
+        // No undertone to check without a selfie: finish right away.
+        await (await api()).finish(token);
+        setStep({ kind: "done" });
+        return;
+      }
       setStep({ kind: "undertone" });
     } catch (err) {
       setStepError(friendlyError(err));
@@ -623,7 +648,29 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
         </div>
       ) : null}
 
-      {step.kind === "expired" ? (
+      {step.kind === "expired" && step.preview ? (
+        <div className="pt-10 text-center" data-testid="preview-expired-screen">
+          <h1 ref={headingRef} tabIndex={-1} className={h1}>
+            This preview has expired
+          </h1>
+          <p className="mt-3 text-ink-soft">
+            This gift came from a store preview, which is no longer available,
+            so its pieces can&apos;t be shown.
+          </p>
+          <p className="mt-3 text-ink-soft" lang="vi">
+            Bản xem trước của cửa hàng này đã hết hạn, nên không thể hiển thị
+            các món quà nữa.
+          </p>
+          <PrivacyDetails
+            tryOn={!noTryOn}
+            token={token}
+            expiresAt={session?.expiresAt}
+            onDeleted={onDeleted}
+          />
+        </div>
+      ) : null}
+
+      {step.kind === "expired" && !step.preview ? (
         <div className="pt-10 text-center" data-testid="expired-screen">
           <h1 ref={headingRef} tabIndex={-1} className={h1}>
             This link has expired
@@ -664,6 +711,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
             Go back
           </button>
           <PrivacyDetails
+            tryOn={!noTryOn}
             token={token}
             expiresAt={session?.expiresAt}
             onDeleted={onDeleted}
@@ -682,23 +730,41 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
           aria-busy={step.kind === "loading" ? true : undefined}
         >
           <p className="min-h-4 text-xs font-semibold uppercase tracking-[0.24em] text-gold-deep">
-            {occasion ? `A private try-on · ${occasion}` : "A private try-on"}
+            {noTryOn
+              ? occasion
+                ? `A private gift · ${occasion}`
+                : "A private gift"
+              : occasion
+                ? `A private try-on · ${occasion}`
+                : "A private try-on"}
           </p>
           <h1 ref={headingRef} tabIndex={-1} className={`${h1} mt-3`}>
             Someone who cares about you is choosing a gift.
           </h1>
-          <p className="mt-4 text-base leading-7 text-ink-soft">
-            Try on {items.length || 6} pieces and heart the ones you love.{" "}
-            <strong className="font-semibold text-ink">
-              They will never see your photos.
-            </strong>
-          </p>
-          <p
-            className="mt-2 text-sm leading-6 text-ink-soft"
-            data-testid="photo-retention"
-          >
-            {PHOTO_RETENTION}
-          </p>
+          {noTryOn ? (
+            <p className="mt-4 text-base leading-7 text-ink-soft">
+              Look through {items.length || 6} pieces and heart the ones you
+              love.{" "}
+              <strong className="font-semibold text-ink">
+                No photo is needed.
+              </strong>
+            </p>
+          ) : (
+            <>
+              <p className="mt-4 text-base leading-7 text-ink-soft">
+                Try on {items.length || 6} pieces and heart the ones you love.{" "}
+                <strong className="font-semibold text-ink">
+                  They will never see your photos.
+                </strong>
+              </p>
+              <p
+                className="mt-2 text-sm leading-6 text-ink-soft"
+                data-testid="photo-retention"
+              >
+                {PHOTO_RETENTION}
+              </p>
+            </>
+          )}
           {step.kind === "loading" ? (
             <div
               className="mt-6 space-y-3"
@@ -710,7 +776,19 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
             </div>
           ) : (
             <>
-              <ul className="mt-6 space-y-3 text-sm text-ink-soft">
+              {noTryOn ? (
+                <p
+                  className="mt-6 rounded-xl border border-gold/60 bg-cream px-3 py-2 text-sm text-ink"
+                  data-testid="no-tryon-consent"
+                >
+                  This gift comes from a store preview: try-on isn&apos;t
+                  enabled for previews, so no photo is needed. You&apos;ll just
+                  heart the pieces you like.
+                </p>
+              ) : null}
+              <ul
+                className={`mt-6 space-y-3 text-sm text-ink-soft ${noTryOn ? "hidden" : ""}`}
+              >
                 <li className="flex gap-3 rounded-xl border border-line bg-white p-3">
                   <span className="font-display text-xl text-gold-deep">1</span>{" "}
                   One selfie
@@ -729,6 +807,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
                 </li>
               </ul>
               <PrivacyDetails
+                tryOn={!noTryOn}
                 token={token}
                 expiresAt={session?.expiresAt}
                 onDeleted={onDeleted}
@@ -752,8 +831,9 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
                   No thanks
                 </button>
                 <p className="mt-1 text-center text-[0.7rem] leading-4 text-muted">
-                  By starting, you agree that your selfie is used to estimate
-                  undertone and face shape and to make AI previews.
+                  {noTryOn
+                    ? "By starting, you agree that the pieces you heart are shared with the person choosing your gift."
+                    : "By starting, you agree that your selfie is used to estimate undertone and face shape and to make AI previews."}
                 </p>
               </ActionBar>
             </>
@@ -862,8 +942,13 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
               </p>
             )}
           </div>
-          <p className="mb-4 mt-1 text-sm text-ink-soft">
-            Every image is an AI preview made from your selfie, for you only.
+          <p
+            className="mb-4 mt-1 text-sm text-ink-soft"
+            data-testid={noTryOn ? "no-tryon-note" : undefined}
+          >
+            {noTryOn
+              ? "Try-on isn't enabled for previews. Heart the pieces you like from the store's photos."
+              : "Every image is an AI preview made from your selfie, for you only."}
           </p>
           <TryOnCarousel
             items={items}
@@ -883,6 +968,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
             </p>
           ) : null}
           <PrivacyDetails
+            tryOn={!noTryOn}
             token={token}
             hasHandPhoto={capture?.tryons.some(
               (t) =>
@@ -985,6 +1071,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       {step.kind === "done" ? (
         <DoneScreen
           token={token}
+          noTryOn={noTryOn}
           seconds={heartsSeconds}
           heartCount={step.alreadyDone ? undefined : hearted.size}
           alreadyDone={step.alreadyDone}

@@ -37,8 +37,33 @@ import { useVoice } from "./voice/useVoice";
 import { benchEnabled, VoiceBench } from "./voice/VoiceBench";
 import { AiVoiceLabel, VoiceToggle } from "./voice/VoiceControls";
 
+/** One product of a store-URL preview, as the frame needs it (ADR-055). */
+export interface WidgetPreviewProduct {
+  id: string;
+  title: string;
+  url: string;
+  price: number | null;
+  currency: string | null;
+  image?: string;
+  /** Key-scoped SKU id when the product is giftable through a Fit Request (jewelry with a metal). */
+  skuId?: string;
+}
+
+/** A ready store-URL preview (data-store="preview:<key>") and its owner's widget settings. */
+export interface WidgetPreview {
+  key: string;
+  domain: string;
+  storeName: string;
+  /** Some products are jewelry with a metal: the gift flow (hearts only, no try-on) is available. */
+  giftable: boolean;
+  products: WidgetPreviewProduct[];
+  settings: { character: "mark-kun" | "mascot"; accentColor?: string; greeting?: string };
+}
+
 export interface WidgetAppProps {
   store: string;
+  /** Set for data-store="preview:<key>" (validated on the server: the preview exists and is ready). */
+  preview?: WidgetPreview;
   /** Exact origin of the store page (validated on the server), or null when opened directly. */
   parentOrigin: string | null;
   /** Store default UI language (`data-lang`). */
@@ -68,6 +93,26 @@ async function reportStatus(giverToken: string): Promise<ReportStatus | null> {
   return j.status ?? null;
 }
 
+const norm = (s: string) => s.normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
+const pathOf = (u: string | undefined) => {
+  try {
+    return u ? new URL(u).pathname.replace(/\/+$/, "") : "";
+  } catch {
+    return "";
+  }
+};
+
+/** Matches a page's product to a preview product: SKU = product id, same product URL path, or same title. */
+export function matchPreviewProduct(preview: WidgetPreview, p: PdpSummary): MatchedProduct | null {
+  const path = pathOf(p.url);
+  const found =
+    (p.sku ? preview.products.find((x) => x.id === p.sku) : undefined) ??
+    (path ? preview.products.find((x) => pathOf(x.url) === path || path.endsWith(`/p/${encodeURIComponent(x.id)}`)) : undefined) ??
+    preview.products.find((x) => norm(x.title) === norm(p.title));
+  if (!found) return null;
+  return { id: found.skuId ?? found.id, title: found.title, price: found.price ?? 0, currency: found.currency ?? "USD", image: found.image, giftable: Boolean(found.skuId) };
+}
+
 async function matchProduct(store: string, p: PdpSummary): Promise<MatchedProduct | null> {
   const q = new URLSearchParams({ store });
   if (p.sku) q.set("sku", p.sku);
@@ -93,7 +138,8 @@ export function WidgetApp(props: WidgetAppProps) {
   return <Widget {...props} />;
 }
 
-function Widget({ store, parentOrigin, preferredLang, allowedLangs, baseUrl, facebookAppId }: WidgetAppProps) {
+function Widget({ store, preview, parentOrigin, preferredLang, allowedLangs, baseUrl, facebookAppId }: WidgetAppProps) {
+  const accent = preview?.settings.accentColor;
   const standalone = parentOrigin === null;
   const [open, setOpen] = useState(standalone);
   const [view, setView] = useState<View>("chat");
@@ -143,7 +189,7 @@ function Widget({ store, parentOrigin, preferredLang, allowedLangs, baseUrl, fac
         setProduct(msg.product);
         setMatch(null);
         if (!msg.product) return setPdpTip(false);
-        matchProduct(store, msg.product)
+        (preview ? Promise.resolve(matchPreviewProduct(preview, msg.product)) : matchProduct(store, msg.product))
           .then((m) => {
             setMatch(m);
             setPdpTip(Boolean(m));
@@ -151,7 +197,7 @@ function Widget({ store, parentOrigin, preferredLang, allowedLangs, baseUrl, fac
           .catch(() => setMatch(null));
       }
     },
-    [store],
+    [store, preview],
   );
   const { post } = useHostBridge(parentOrigin, onHostMessage);
 
@@ -203,7 +249,7 @@ function Widget({ store, parentOrigin, preferredLang, allowedLangs, baseUrl, fac
   const showNaturalBanner = voice.on && voice.natural.available && (!voice.natural.dismissed || ["downloading", "loading"].includes(voice.natural.status.kind));
 
   const context: ConciergePageContext | undefined = useMemo(() => {
-    if (match) return { product: { catalogId: match.id, title: match.title, price: match.price, currency: match.currency } };
+    if (match) return { product: { ...(match.giftable !== false ? { catalogId: match.id } : {}), title: match.title, price: match.price, currency: match.currency } };
     if (product) return { product: { title: product.title, ...(product.price ? { price: product.price } : {}), ...(product.currency ? { currency: product.currency } : {}) } };
     return undefined;
   }, [match, product]);
@@ -235,23 +281,23 @@ function Widget({ store, parentOrigin, preferredLang, allowedLangs, baseUrl, fac
   if (!open) {
     return (
       <div className="fixed inset-0 flex items-end justify-end p-2" data-testid="widget-launcher">
-        <CharacterSlot state={character.state} mouth={character.mouth} tip={tip} onActivate={openPanel} reducedMotion={reducedMotion} label={tr("launcher.open")} dismissLabel={tr("tip.dismiss")} />
+        <CharacterSlot state={character.state} mouth={character.mouth} tip={tip} onActivate={openPanel} reducedMotion={reducedMotion} label={tr("launcher.open")} dismissLabel={tr("tip.dismiss")} forceMascot={preview?.settings.character === "mascot"} />
       </div>
     );
   }
 
   return (
     <div role="dialog" aria-modal={!standalone} aria-label={tr("panel.title")} className={`flex flex-col overflow-hidden bg-ivory text-ink ${standalone ? "mx-auto h-dvh max-w-md border-x border-line" : "fixed inset-0 rounded-2xl border border-line shadow-2xl"}`} data-testid="widget-panel">
-      <header className="flex items-center gap-2 border-b border-line bg-white px-3 py-2">
+      <header className="flex items-center gap-2 border-b border-line bg-white px-3 py-2" style={accent ? { borderTop: `4px solid ${accent}` } : undefined} data-accent={accent}>
         <div className="h-14 w-14 shrink-0 overflow-hidden">
           <div className="origin-top-left scale-[0.7]">
             <SpeakingCharacter compact analyser={voice.analyser} state={charState} mouth={charMouth} onActivate={() => setView("chat")} reducedMotion={reducedMotion} label={tr("panel.title")} />
           </div>
         </div>
         <div className="min-w-0 flex-1">
-          <h1 className="font-display text-xl leading-tight">{tr("panel.title")}</h1>
+          <h1 className="font-display text-xl leading-tight">{preview ? preview.storeName : tr("panel.title")}</h1>
           <div className="flex min-w-0 items-center gap-2">
-            <p className="min-w-0 truncate text-xs text-muted">{tr("panel.subtitle")}</p>
+            <p className="min-w-0 truncate text-xs text-muted">{preview ? tr("preview.subtitle", { domain: preview.domain }) : tr("panel.subtitle")}</p>
             {voice.on && <AiVoiceLabel tr={tr} speaking={speaking} engine={voice.state.engine} />}
           </div>
         </div>
@@ -294,6 +340,10 @@ function Widget({ store, parentOrigin, preferredLang, allowedLangs, baseUrl, fac
           tr={tr}
           context={context}
           productTitle={match?.title}
+          store={preview ? store : undefined}
+          greeting={preview?.settings.greeting}
+          accent={accent}
+          giftable={preview ? preview.giftable : true}
           onFirstMessage={(text) => {
             const l = localeFromText(text);
             if (l && allowedLangs.includes(l)) setTextLocale(l);
@@ -308,7 +358,7 @@ function Widget({ store, parentOrigin, preferredLang, allowedLangs, baseUrl, fac
         />
       </div>
       {view === "brief" && brief && (
-        <BriefConfirm locale={locale} tr={tr} brief={brief.brief} match={match} suggestionTitles={brief.titles} busy={creating} error={createError} onCreate={(b) => void create(b)} onBack={() => setView("chat")} />
+        <BriefConfirm locale={locale} tr={tr} brief={brief.brief} match={match?.giftable === false ? null : match} previewKey={preview?.key} suggestionTitles={brief.titles} busy={creating} error={createError} onCreate={(b) => void create(b)} onBack={() => setView("chat")} />
       )}
       {view === "card" && created && <GiftCardStep locale={locale} tr={tr} result={created.result} occasion={created.occasion} baseUrl={baseUrl} facebookAppId={facebookAppId} onNewGift={newGift} />}
       {view === "about" && (

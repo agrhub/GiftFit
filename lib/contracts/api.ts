@@ -75,6 +75,23 @@ export interface CreateFitRequestBody {
   styleHints?: StyleFamily[];
   genderPresentation?: "feminine" | "masculine" | "unisex";
 }
+/**
+ * Display data of one store product, frozen into a Fit Request created from a store-URL preview
+ * (ADR-055, A6), so the giver's Fit Report and the e-card show names, prices and images even after the
+ * 24 h preview is gone. Product data only: the merchant's own product page and image URLs.
+ */
+export interface StoreProductSnapshot {
+  /** The request's catalog id for this design (key-scoped preview SKU id). */
+  catalogId: string;
+  title: string;
+  price: number | null;
+  currency: string | null;
+  /** First https image the store published (shown straight from the store, no Referer). */
+  image?: string;
+  /** The product page on the merchant's site. */
+  url: string;
+}
+
 export interface CreateFitRequestResponse {
   fitRequestId: string;
   /** Secret; shown to the giver once, stored only as a SHA-256 hash. */
@@ -86,6 +103,10 @@ export interface CreateFitRequestResponse {
   expiresAt: string;
   /** Always 6 when the catalog allows (shortlist + decoys). */
   carouselSize: number;
+  /** Store-URL preview requests (ADR-055): display data of the giver's own pieces (never decoys). */
+  products?: StoreProductSnapshot[];
+  /** false for stores without try-on (store-URL previews): the recipient hearts from product photos. */
+  tryOn?: false;
 }
 
 /** POST /api/fit/report — existing route (body `{ giverToken }`), response unchanged. */
@@ -110,6 +131,17 @@ export interface GiverReportStatus {
   tasteSummary?: { text: string; source: "claude" | "template" };
   /** 2–3 catalog designs the recipient did NOT see, matching the taste. The giver may buy these. */
   similarNotTried?: Array<{ catalogId: string; variantId?: string; price: number; currency: string; label: "not tried on" }>;
+  /** Store-URL preview requests (ADR-055): display data for every piece this report names (never decoys). */
+  products?: StoreProductSnapshot[];
+  /** The store preview behind this request was deleted before the report could be made. */
+  previewExpired?: true;
+  /**
+   * false when no try-on happened (store-URL previews, or the recipient never took a photo): there is
+   * no undertone or face-shape estimate, and the report scores hearts + budget/occasion only.
+   */
+  tryOn?: false;
+  /** The store's display name for a store-URL preview request (absent = the Aurum demo store). */
+  storeName?: string;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -150,6 +182,15 @@ export interface RecipientSessionResponse {
   items: CarouselItem[];
   /** Seeded judge demo: the recipient is an AI-generated model; show an "AI-generated model, demo" badge. */
   demo?: boolean;
+  /**
+   * false for a store-URL preview request (ADR-055): no selfie and no try-on; the recipient hearts pieces
+   * from the store's product photos ("Try-on isn't enabled for previews"). Absent = try-on as usual.
+   */
+  tryOn?: false;
+  /** The store preview behind this request is gone: its pieces can no longer be shown (ADR-055). */
+  previewExpired?: true;
+  /** The store's display name for a store-URL preview request (absent = the Aurum demo store). */
+  storeName?: string;
 }
 
 /** POST /api/recipient/consent — body `{ accepted: true }` → RecipientSessionResponse. */

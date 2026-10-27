@@ -15,6 +15,8 @@ import { SWATCH_LABEL, defaultVariant, swatchCap, variantsOf, visibleVariants, t
 import type { PrivacyDeps } from "./deps";
 import { parseRenderRef, tagOf } from "./renders";
 import { isRenderFeature, type FitRequestRecord, type FitRequestStatus } from "./repos/types";
+import { isPreviewStoreId } from "@/lib/widget/preview-key";
+
 
 export const HAND_CATEGORIES: readonly JewelryCategory[] = ["ring", "bracelet", "watch"];
 
@@ -160,5 +162,11 @@ export async function sessionResponse(deps: CarouselDeps, request: FitRequestRec
     expiresAt: request.expiresAt.toISOString(),
     items: items.map(toCarouselItem),
     ...(demo ? { demo: true } : {}),
+    // ADR-055: store-URL previews are hearts-only (no selfie, no try-on).
+    ...(isPreviewStoreId(request.storeId) ? { tryOn: false as const } : {}),
+    // The gift pages' header names the preview's store, never the Aurum demo store (ADR-055).
+    ...(isPreviewStoreId(request.storeId) && request.storeName ? { storeName: request.storeName } : {}),
+    // The preview behind it is gone (ADR-055): its pieces can't be shown any more.
+    ...(isPreviewStoreId(request.storeId) && items.length === 0 ? { previewExpired: true as const } : {}),
   };
 }

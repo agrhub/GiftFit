@@ -40,7 +40,10 @@ export function FitRequestSent({ result, titles, onDone, curated = false }: { re
     try {
       await navigator.share({
         title: "A little gift question",
-        text: `Someone who cares about you is choosing a gift. Try on ${result.carouselSize} pieces and heart the ones you love. They will never see your photos.`,
+        text:
+          result.tryOn === false
+            ? `Someone who cares about you is choosing a gift. Look through ${result.carouselSize} pieces and heart the ones you love.`
+            : `Someone who cares about you is choosing a gift. Try on ${result.carouselSize} pieces and heart the ones you love. They will never see your photos.`,
         url: link,
       });
       setStatus("Shared.");
@@ -64,7 +67,7 @@ export function FitRequestSent({ result, titles, onDone, curated = false }: { re
         </p>
       ) : (
         <ul className="mt-3 flex flex-wrap gap-1.5 text-xs text-ink-soft" aria-label="Your shortlist">
-          {titles.map((t) => (
+          {(result.products?.length ? result.products.map((p) => p.title) : titles).map((t) => (
             <li key={t} className="rounded-full border border-line bg-white px-2.5 py-1">
               {t}
             </li>

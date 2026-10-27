@@ -60,12 +60,16 @@ const COPY = {
       `${recipient ? `Hi ${recipient}, ` : ""}${giver || "Someone"} would like to find the jewelry that suits you best.`,
     giftBody: (giver: string) =>
       `Try a few pieces on with your phone camera and heart the ones you love. ${giver || "The sender"} sees only which pieces suit you, never your photos.`,
+    giftBodyNoTryOn: (giver: string) => `Look through a few pieces from the store and heart the ones you love. No photo is needed; ${giver || "the sender"} sees only which pieces you hearted.`,
     giftMessageLabel: (giver: string) => `A message from ${giver || "the sender"}`,
     giftCta: "Open your gift",
     reportSubject: (recipient: string) => (recipient ? `${recipient}'s Fit Report is ready` : "Your Fit Report is ready"),
     reportIntro: (giver: string, recipient: string) =>
       `${giver ? `Hi ${giver}, ` : ""}${recipient || "Your recipient"} has finished trying on. Your Fit Report shows which pieces suit them best and why.`,
+    reportIntroNoTryOn: (giver: string, recipient: string) =>
+      `${giver ? `Hi ${giver}, ` : ""}${recipient || "Your recipient"} has sent their hearts. Your Fit Report shows which pieces they loved and why.`,
     reportBody: "Their photos are never shared with you; the report contains scores and short reasons only.",
+    reportBodyNoTryOn: "No photo of them was taken; the report contains their hearts, scores and short reasons only.",
     reportCta: "See the Fit Report",
     linkFallback: "If the button does not work, copy this link into your browser:",
   },
@@ -77,12 +81,16 @@ const COPY = {
       `${recipient ? `Chào ${recipient}, ` : ""}${giver || "Một người"} muốn tìm món trang sức hợp với bạn nhất.`,
     giftBody: (giver: string) =>
       `Hãy thử vài món bằng camera điện thoại và thả tim những món bạn thích. ${giver || "Người gửi"} chỉ biết món nào hợp với bạn, không bao giờ thấy ảnh của bạn.`,
+    giftBodyNoTryOn: (giver: string) => `Hãy xem vài món của cửa hàng và thả tim những món bạn thích. Không cần chụp ảnh; ${giver || "người gửi"} chỉ biết bạn đã thả tim món nào.`,
     giftMessageLabel: (giver: string) => `Lời nhắn từ ${giver || "người gửi"}`,
     giftCta: "Mở quà của bạn",
     reportSubject: (recipient: string) => (recipient ? `Fit Report của ${recipient} đã sẵn sàng` : "Fit Report của bạn đã sẵn sàng"),
     reportIntro: (giver: string, recipient: string) =>
       `${giver ? `Chào ${giver}, ` : ""}${recipient || "Người nhận"} đã thử xong. Fit Report cho biết món nào hợp nhất và vì sao.`,
+    reportIntroNoTryOn: (giver: string, recipient: string) =>
+      `${giver ? `Chào ${giver}, ` : ""}${recipient || "Người nhận"} đã thả tim xong. Fit Report cho biết họ thích món nào và vì sao.`,
     reportBody: "Ảnh của người nhận không bao giờ được chia sẻ với bạn; báo cáo chỉ có điểm số và lý do ngắn gọn.",
+    reportBodyNoTryOn: "Không có ảnh nào của người nhận được chụp; báo cáo chỉ có món họ thả tim, điểm số và lý do ngắn gọn.",
     reportCta: "Xem Fit Report",
     linkFallback: "Nếu nút không hoạt động, hãy sao chép liên kết này vào trình duyệt:",
   },
@@ -148,6 +156,8 @@ export interface GiftCardEmailInput {
   message?: string;
   /** The recipient token for {base}/r/{token}. */
   recipientToken: string;
+  /** false for a gift without a try-on (store-URL previews, ADR-055): no "camera" or "photos" copy. */
+  tryOn?: boolean;
   /** Origin for links; default appBaseUrl() (APP_BASE_URL, else localhost). Pass appBaseUrl(req) in routes. */
   baseUrl?: string;
 }
@@ -162,7 +172,7 @@ export function giftCardEmail(input: GiftCardEmailInput): RenderedEmail {
   const url = recipientUrl(input.recipientToken, input.baseUrl ?? appBaseUrl());
   const headline = theme.headline[lang];
   const intro = c.giftIntro(giver, recipient);
-  const body = c.giftBody(giver);
+  const body = input.tryOn === false ? c.giftBodyNoTryOn(giver) : c.giftBody(giver);
 
   const quote = message
     ? `<p style="margin:16px 0 4px 0;font-size:13px;color:#5b5750;">${escapeHtml(c.giftMessageLabel(giver))}</p>
@@ -199,6 +209,8 @@ export interface FitReportReadyEmailInput {
   /** The giver token for {base}/g/{token}. */
   giverToken: string;
   occasion?: Occasion | string | null;
+  /** false for a gift without a try-on (store-URL previews, ADR-055): no "trying on" copy. */
+  tryOn?: boolean;
   baseUrl?: string;
 }
 
@@ -210,11 +222,13 @@ export function fitReportReadyEmail(input: FitReportReadyEmailInput): RenderedEm
   const recipient = cleanName(input.recipientName, MAX_RECIPIENT_NAME);
   const url = giverReportUrl(input.giverToken, input.baseUrl ?? appBaseUrl());
   const subject = sanitizeHeaderText(c.reportSubject(recipient));
-  const intro = c.reportIntro(giver, recipient);
+  const noTryOn = input.tryOn === false;
+  const intro = noTryOn ? c.reportIntroNoTryOn(giver, recipient) : c.reportIntro(giver, recipient);
+  const reportBody = noTryOn ? c.reportBodyNoTryOn : c.reportBody;
   const bodyHtml = `<h1 style="margin:0 0 12px 0;font-size:24px;line-height:1.25;color:${theme.accent};">${escapeHtml(subject)}</h1>
 <p style="margin:0 0 12px 0;">${escapeHtml(intro)}</p>
-<p style="margin:0 0 4px 0;">${escapeHtml(c.reportBody)}</p>`;
-  const text = [subject, "", intro, "", c.reportBody, "", `${c.reportCta}: ${url}`, "", textFooter(lang)].join("\n");
+<p style="margin:0 0 4px 0;">${escapeHtml(reportBody)}</p>`;
+  const text = [subject, "", intro, "", reportBody, "", `${c.reportCta}: ${url}`, "", textFooter(lang)].join("\n");
   return {
     subject,
     html: layout({ lang, accent: theme.accent, tint: theme.tint, preheader: intro, bodyHtml, ctaLabel: c.reportCta, ctaUrl: url }),

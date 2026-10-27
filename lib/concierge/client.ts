@@ -19,6 +19,8 @@ export interface StreamConciergeOptions {
   endpoint?: string;
   /** Page context from the embeddable widget (product facts only). */
   context?: ConciergePageContext;
+  /** "preview:<key>" for a store-URL preview (ADR-055); absent = the Aurum demo catalog. */
+  store?: string;
   fetchImpl?: typeof fetch;
   signal?: AbortSignal;
 }
@@ -68,7 +70,7 @@ export async function* streamConcierge(messages: readonly ConciergeChatMessage[]
   const res = await doFetch(opts.endpoint ?? "/api/concierge", {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" },
-    body: JSON.stringify(opts.context ? { messages, context: opts.context } : { messages }),
+    body: JSON.stringify({ messages, ...(opts.context ? { context: opts.context } : {}), ...(opts.store ? { store: opts.store } : {}) }),
     signal: opts.signal,
   });
   if (!res.ok || !res.body) {

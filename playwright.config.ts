@@ -65,6 +65,8 @@ export default defineConfig({
           VOICE_MOCK: "1",
           // P8.2b: the only storefront is the demo store; tests/e2e/plugin/site.spec.ts serves it here.
           GIFTFIT_DEMO_STORE_URL: "http://127.0.0.1:4340",
+          // A6 (ADR-055): POST /api/preview/seed stores fixture previews (Bearer CRON_SECRET); never set in production.
+          PREVIEW_FIXTURE_SEED: "1",
           GIFTFIT_URL_SIGNING_SECRET: signingSecret,
           CRON_SECRET: process.env.E2E_CRON_SECRET,
           FIT_DECOY_SECRET: randomBytes(32).toString("hex"),

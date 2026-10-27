@@ -55,6 +55,14 @@ export interface GiverReportView {
   tasteSummary?: GiverReportStatus["tasteSummary"];
   /** "help_me_choose": 2–3 similar designs they did not see, labelled "not tried on". */
   similarNotTried: NonNullable<GiverReportStatus["similarNotTried"]>;
+  /** Store-URL preview requests (ADR-055): frozen names, prices, images and merchant links. */
+  products: NonNullable<GiverReportStatus["products"]>;
+  /** The store preview behind the request is gone. */
+  previewExpired: boolean;
+  /** false when no try-on happened (store previews, or no photo): no estimates, no try-on wording. */
+  tryOn: boolean;
+  /** A store-URL preview's display name (absent = the Aurum demo store). */
+  storeName?: string;
 }
 
 /** A heart on one design; `swatchId` is the metal shown (absent only for swatch-less items). */
@@ -187,6 +195,14 @@ export function normalizeReport(raw: GiverReportStatus): GiverReportView {
     similarNotTried: (raw.similarNotTried ?? []).filter(
       (p) => typeof p?.catalogId === "string",
     ),
+    products: (raw.products ?? []).filter(
+      (p) => typeof p?.catalogId === "string" && typeof p?.title === "string",
+    ),
+    previewExpired: raw.previewExpired === true,
+    tryOn: raw.tryOn !== false,
+    ...(typeof raw.storeName === "string" && raw.storeName
+      ? { storeName: raw.storeName }
+      : {}),
   };
 }
 

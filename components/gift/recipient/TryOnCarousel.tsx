@@ -136,7 +136,11 @@ export function TryOnCard({
         ) : null}
         {!showTryOn && !state.loading ? (
           <p className="absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-xl bg-ivory/95 px-3 py-2 text-xs leading-5 text-ink-soft">
-            {state.rendersOff ? (
+            {state.noTryOn ? (
+              <span data-testid="product-photo-note">
+                The store&apos;s product photo.
+              </span>
+            ) : state.rendersOff ? (
               <span data-testid="product-photo-note">
                 Product photo. Your try-on was deleted; your heart is kept.
               </span>

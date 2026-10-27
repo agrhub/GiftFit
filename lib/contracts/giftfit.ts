@@ -195,8 +195,13 @@ export interface FitRequestInput {
 
 export interface FitBreakdown {
   hearts: number;
-  metal: number;
-  style: number;
+  /**
+   * Absent when the factor was not used: a request without a try-on (store-URL previews, or the
+   * recipient never took a photo) has no undertone or face-shape estimate, so only hearts and
+   * budget/occasion are scored (lib/fit/WEIGHTS.md "Without a try-on").
+   */
+  metal?: number;
+  style?: number;
   budgetOccasion: number;
 }
 

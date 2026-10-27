@@ -4,6 +4,10 @@
  * UI-agnostic ConciergeEvents. Server-only.
  *
  *   - Model DEFAULT_CLAUDE_MODEL, thinking only between tools, effort low, max_tokens 600, ≤ 4 calls.
+ *   - Only the reply reaches the shopper: text from a turn that calls a tool (the model narrating its
+ *     plan) is never emitted. Calls that cannot use tools (after the draft, and the last call:
+ *     tool_choice none) stream live; any other turn is held and emitted only if it ends without a tool
+ *     call (a clarifying question). A leading meta sentence is dropped as defence in depth (meta-filter).
  *   - Prompt caching: system prompt + tool definitions (stable prefix) and the growing tool loop.
  *   - Every call: reserveClaudeSpend → call → settle(usage). Spend cap refused, API error, refusal, or
  *     no key with CONCIERGE_MOCK=0 → deterministic fallback, flagged degraded.
@@ -16,6 +20,7 @@ import type { GiftBrief } from "@/lib/contracts/api";
 import { defaultConciergeCatalog, type ConciergeCatalog } from "./catalog";
 import { detectLang, fallbackAnswer, isOffTopic, refusalText } from "./fallback";
 import { GroundingLedger, ProseScrubber, scrubProse } from "./grounding";
+import { LeadingMetaFilter, stripLeadingMeta } from "./meta-filter";
 import { loadFixtures, pickFixture, FixtureClient, type ConciergeFixture } from "./mock";
 import { pageContextNote } from "./context";
 import { CONCIERGE_SYSTEM_PROMPT } from "./prompt";
@@ -55,7 +60,16 @@ export interface ConciergeDeps {
   signal?: AbortSignal;
   /** Store page context from the embeddable widget (A6): becomes a labelled, uncached system data note. */
   pageContext?: ConciergePageContext;
+  /**
+   * false for a store without try-on (store-URL previews, ADR-055): an uncached system note tells the
+   * model the recipient only hearts product photos, and the fallback text never promises a try-on.
+   */
+  tryOn?: boolean;
 }
+
+/** Uncached system note for stores without try-on (after the cached prefix, so the cache still hits). */
+export const NO_TRYON_NOTE =
+  "This store is a GiftFit preview without try-on: the recipient looks at the store's product photos and hearts favourites. No photo of them is taken. Never mention try-ons, AI previews of them, photos, skin tone, undertone or face shape. Speak to the shopper directly; never describe your plan or mention tools.";
 
 /** "mock" when CONCIERGE_MOCK=1, or no key unless CONCIERGE_MOCK=0 (then the degraded fallback answers). */
 export function conciergeMode(env: Env = process.env): "claude" | "mock" | "no_key" {
@@ -108,7 +122,7 @@ export async function* runConcierge(input: readonly ConciergeChatMessage[], deps
   const lang = detectLang(lastUser);
 
   const fallback = function* (reason: ConciergeDegradeReason | undefined, alreadyText: boolean): Generator<ConciergeEvent> {
-    const a = fallbackAnswer(history, catalog);
+    const a = fallbackAnswer(history, catalog, { tryOn: deps.tryOn !== false });
     yield { type: "text", delta: (alreadyText ? "\n\n" : "") + a.text };
     yield {
       type: "final",
@@ -161,21 +175,26 @@ export async function* runConcierge(input: readonly ConciergeChatMessage[], deps
 
     const note = pageContextNote(deps.pageContext, catalog);
     // The cached prefix (tools + frozen system prompt) is unchanged; the page note follows it uncached.
-    const system: Anthropic.TextBlockParam[] = note ? [...SYSTEM, { type: "text", text: note }] : SYSTEM;
+    const system: Anthropic.TextBlockParam[] = [
+      ...SYSTEM,
+      ...(deps.tryOn === false ? [{ type: "text" as const, text: NO_TRYON_NOTE }] : []),
+      ...(note ? [{ type: "text" as const, text: note }] : []),
+    ];
     const ledger = new GroundingLedger();
     const convo: Anthropic.MessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
     let draft: { brief: GiftBrief; suggestions: ConciergeSuggestion[] } | undefined;
     let emittedText = false;
 
     for (let call = 0; call < maxCalls; call++) {
-      const last = call === maxCalls - 1;
+      // After a successful draft only the reply is left, and the last allowed call must answer in prose:
+      // both run without tools, so their text is the reply and streams live.
+      const proseOnly = call === maxCalls - 1 || draft !== undefined;
       const params: Anthropic.MessageCreateParamsNonStreaming = {
         model,
         max_tokens: CONCIERGE_MAX_TOKENS,
         system,
         tools: CONCIERGE_TOOLS,
-        // The final allowed call must answer in prose.
-        tool_choice: last ? { type: "none" } : { type: "auto" },
+        tool_choice: proseOnly ? { type: "none" } : { type: "auto" },
         thinking: { type: "between_tools" },
         output_config: { effort: "low" },
         // Automatic breakpoint on the last block: later iterations of this loop read the earlier ones.
@@ -196,7 +215,11 @@ export async function* runConcierge(input: readonly ConciergeChatMessage[], deps
       }
 
       const scrubber = new ProseScrubber();
+      const meta = new LeadingMetaFilter();
       let turnText = "";
+      // Text of a turn that may still call a tool: held back, and dropped if a tool call follows.
+      let held = "";
+      let toolCalled = false;
       const usageSeen: { value: ClaudeUsage | null } = { value: null };
       let message: Anthropic.Message;
       try {
@@ -204,12 +227,21 @@ export async function* runConcierge(input: readonly ConciergeChatMessage[], deps
         for await (const ev of stream) {
           if (ev.type === "message_start") usageSeen.value = { ...ev.message.usage };
           else if (ev.type === "message_delta" && usageSeen.value) usageSeen.value = { ...usageSeen.value, output_tokens: ev.usage.output_tokens };
-          else if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") {
+          else if (ev.type === "content_block_start" && ev.content_block.type === "tool_use") {
+            toolCalled = true;
+            held = "";
+          } else if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") {
             const safe = scrubber.push(ev.delta.text);
-            if (safe) {
+            if (!safe) continue;
+            if (!proseOnly) {
+              if (!toolCalled) held += safe;
+              continue;
+            }
+            const out = meta.push(safe);
+            if (out) {
               const prefix = !turnText && emittedText ? "\n\n" : "";
-              turnText += safe;
-              yield { type: "text", delta: prefix + safe };
+              turnText += out;
+              yield { type: "text", delta: prefix + out };
             }
           }
         }
@@ -227,10 +259,13 @@ export async function* runConcierge(input: readonly ConciergeChatMessage[], deps
       deps.onTurn?.(message);
 
       const tail = scrubber.flush();
-      if (tail) {
+      const hasToolUse = toolCalled || message.content.some((b) => b.type === "tool_use");
+      // Never emit text from a turn that called a tool; a held turn without one is the reply.
+      const rest = proseOnly ? meta.push(tail) + meta.flush() : hasToolUse ? "" : stripLeadingMeta(held + tail);
+      if (rest) {
         const prefix = !turnText && emittedText ? "\n\n" : "";
-        turnText += tail;
-        yield { type: "text", delta: prefix + tail };
+        turnText += rest;
+        yield { type: "text", delta: prefix + rest };
       }
       if (turnText) emittedText = true;
 
@@ -247,20 +282,15 @@ export async function* runConcierge(input: readonly ConciergeChatMessage[], deps
 
       convo.push({ role: "assistant", content: message.content });
       const results: Anthropic.ToolResultBlockParam[] = [];
-      let createdThisTurn = false;
       for (const use of toolUses) {
         const outcome = isConciergeTool(use.name)
           ? runConciergeTool(use.name, use.input, catalog, ledger)
           : { result: { error: "unknown tool" }, isError: true, summary: "Unknown tool refused" };
         if (isConciergeTool(use.name)) yield { type: "tool", name: use.name, summary: scrubProse(outcome.summary) };
-        if ("draft" in outcome && outcome.draft) {
-          draft = outcome.draft;
-          createdThisTurn = true;
-        }
+        if ("draft" in outcome && outcome.draft) draft = outcome.draft;
         results.push({ type: "tool_result", tool_use_id: use.id, content: JSON.stringify(outcome.result), ...(outcome.isError ? { is_error: true } : {}) });
       }
-      // The reply was written in the same turn as the draft: done, no extra call.
-      if (createdThisTurn && turnText) break;
+      // The next call (after a draft, or the last one) runs without tools and its text is the reply.
       convo.push({ role: "user", content: results });
     }
 

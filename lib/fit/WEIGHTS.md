@@ -49,6 +49,23 @@ budgetOccasion = 15 × (0.6 × b + 0.4 × o)
 
 Breakdown values returned to the giver are the points per factor, rounded to one decimal; the score is the rounded sum of the unrounded points.
 
+### Without a try-on (`FIT_WEIGHTS_NO_TRYON`)
+
+A request without a try-on has **no undertone and no face shape**: store-URL previews (ADR-055, try-on disabled, `storeId` `preview:<key>`), and generally any request whose recipient finished without a photo (no estimate stored). Then the metal ↔ undertone and style ↔ face-shape factors are **dropped, not defaulted** (a "neutral, 0 confidence" default would still produce "recommended for their neutral undertone" text), and the remaining two factors are renormalised to 100 in their published ratio (60 : 15 = 80 : 20):
+
+```
+score = round(hearts + budgetOccasion), clamped to 0..100
+hearts         = 80 × h                       (h as above)
+budgetOccasion = 20 × (0.6 × b + 0.4 × o)     (b, o as above)
+```
+
+| Factor | Points |
+|---|---|
+| **Hearts** | **80** |
+| Budget + occasion | 20 |
+
+The breakdown carries only `hearts` and `budgetOccasion` (`metal`/`style` absent), the report response says `tryOn: false`, and no reason, caution, explanation (template or Claude: separate system prompt, output guard `NO_TRYON_WORDS`) or taste summary mentions undertone, skin, face shape, photos, estimates or a try-on. A metal is shown only as a catalog fact ("in yellow gold"). Example: hearted, within budget, tagged for the occasion → 80 + 20 = **100**; not hearted, within budget, not tagged → 0 + 20 × (0.6 + 0.16) = **15**.
+
 ### How low confidence shrinks the metal factor
 The metal factor is pulled toward its midpoint (5 points) in proportion to `1 − c`. At `c = 1` a recommended metal earns 10 and an acceptable one 7; at the real-world `c = 0.2` (ADR-031) they earn 6 and 5.4, so metals differ by 0.6 points and a heart (60) always decides. When `c < 0.5` the giver sees the caution "Their undertone estimate is low confidence, so treat the metal advice lightly." The recipient's own override counts as `c = 1`.
 

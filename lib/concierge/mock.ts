@@ -59,7 +59,7 @@ function toMessage(f: ConciergeFixture, turn: ConciergeFixture["turns"][number],
   } as unknown as Anthropic.Message;
 }
 
-/** Plays the fixture's turns in order, one per `stream()` call, with text split into small deltas. */
+/** Plays the fixture's turns in order, one per `stream()` call, as real-shaped stream events (text in small deltas). */
 export class FixtureClient implements ConciergeLlm {
   private index = 0;
   constructor(private readonly fixture: ConciergeFixture) {}
@@ -71,11 +71,18 @@ export class FixtureClient implements ConciergeLlm {
     const message = toMessage(f, turn, i);
     async function* events(): AsyncGenerator<Anthropic.MessageStreamEvent> {
       yield { type: "message_start", message: { ...message, content: [] } } as unknown as Anthropic.MessageStreamEvent;
+      // The real event order: each block starts, streams its deltas, stops (text before a tool call included).
       for (const [index, block] of turn.content.entries()) {
-        if (block.type !== "text") continue;
-        for (let p = 0; p < block.text.length; p += 14) {
-          yield { type: "content_block_delta", index, delta: { type: "text_delta", text: block.text.slice(p, p + 14) } } as Anthropic.MessageStreamEvent;
+        if (block.type === "text") {
+          yield { type: "content_block_start", index, content_block: { type: "text", text: "", citations: null } } as unknown as Anthropic.MessageStreamEvent;
+          for (let p = 0; p < block.text.length; p += 14) {
+            yield { type: "content_block_delta", index, delta: { type: "text_delta", text: block.text.slice(p, p + 14) } } as Anthropic.MessageStreamEvent;
+          }
+        } else {
+          yield { type: "content_block_start", index, content_block: { type: "tool_use", id: block.id, name: block.name, input: {} } } as unknown as Anthropic.MessageStreamEvent;
+          yield { type: "content_block_delta", index, delta: { type: "input_json_delta", partial_json: JSON.stringify(block.input) } } as Anthropic.MessageStreamEvent;
         }
+        yield { type: "content_block_stop", index } as Anthropic.MessageStreamEvent;
       }
       yield { type: "message_delta", delta: { stop_reason: turn.stop_reason, stop_sequence: null }, usage: { output_tokens: turn.usage.output_tokens } } as unknown as Anthropic.MessageStreamEvent;
     }

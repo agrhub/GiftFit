@@ -5,8 +5,8 @@
  *
  *   npx tsx scripts/concierge-record.ts --name anniversary-en --match "anniversary,wife" --message "…"
  *
- * The fixture keeps only the model's text and tool calls plus token usage (no thinking signatures,
- * no request ids, no secrets). Review it before committing.
+ * The fixture keeps only the model's tool calls, its reply text (not text from turns that call a tool)
+ * and token usage: no thinking signatures, no request ids, no secrets. Review it before committing.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
@@ -69,7 +69,10 @@ async function main() {
       ledger.usage.push({ name: name!, model: m.model, usage: m.usage });
       saveLedger();
       turns.push({
-        content: m.content.flatMap((b): FixtureBlock[] => (b.type === "text" ? [{ type: "text", text: b.text }] : b.type === "tool_use" ? [{ type: "tool_use", id: b.id, name: b.name, input: b.input }] : [])),
+        // Text in a turn that calls a tool is narration the engine never shows: keep it out of fixtures.
+        content: m.content.flatMap((b): FixtureBlock[] =>
+          b.type === "text" && !m.content.some((x) => x.type === "tool_use") ? [{ type: "text", text: b.text }] : b.type === "tool_use" ? [{ type: "tool_use", id: b.id, name: b.name, input: b.input }] : [],
+        ),
         stop_reason: (m.stop_reason ?? "end_turn") as ConciergeFixture["turns"][number]["stop_reason"],
         usage: {
           input_tokens: m.usage.input_tokens,

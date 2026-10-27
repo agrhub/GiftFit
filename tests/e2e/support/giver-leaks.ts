@@ -23,6 +23,11 @@ export interface Leak {
 export interface ScanOptions {
   /** Root-relative product image prefixes a giver catalog route may return (none for /api/fit/*). */
   allowProductImagePrefixes?: readonly string[];
+  /**
+   * Absolute product image URL prefixes (A6, ADR-055): a store-URL preview's products carry the
+   * store's own image URLs (fixtures use the app's public catalog images by absolute URL).
+   */
+  allowProductImageUrls?: readonly string[];
 }
 
 const HEX_IN_TEXT = /#[0-9a-f]{6}(?:[0-9a-f]{2})?(?![0-9a-z])/i;
@@ -95,6 +100,7 @@ function isImageUrl(s: string, opts: ScanOptions): string | null {
   for (const [re, what] of ALWAYS_IMAGE) if (re.test(s)) return what;
   if (URLISH.test(s) && IMAGE_EXT.test(s)) {
     if (s.startsWith("/") && !s.startsWith("//") && opts.allowProductImagePrefixes?.some((p) => s.startsWith(p))) return null;
+    if (/^https?:\/\//i.test(s) && opts.allowProductImageUrls?.some((p) => s.startsWith(p))) return null;
     return "image URL";
   }
   return null;

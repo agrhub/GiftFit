@@ -37,14 +37,26 @@ export function widgetOrigins(env: Env = process.env): string[] | "*" {
 }
 
 /**
+ * Store-URL previews (ADR-055): for `store=preview:<key>` whose preview is READY, the widget may run on
+ * any https page (the owner's live site, through the bookmarklet), so both the frame-ancestors list and
+ * the parent check also accept any https origin. Normal stores keep the strict allow-list. A preview
+ * that is missing, expired or not ready gets the normal-store policy.
+ */
+export function isAnyHttpsOrigin(origin: string): boolean {
+  const o = originOf(origin);
+  return o === origin && o.startsWith("https://");
+}
+
+/**
  * May a page on `origin` host the widget? `self` is GiftFit's own origin (the request's), and
  * APP_BASE_URL's origin is always allowed too, so the GiftFit home page can show the assistant
  * whatever GIFTFIT_WIDGET_ORIGINS says.
  */
-export function isWidgetOriginAllowed(origin: string | null | undefined, self?: string | null, env: Env = process.env): boolean {
+export function isWidgetOriginAllowed(origin: string | null | undefined, self?: string | null, env: Env = process.env, opts: { previewReady?: boolean } = {}): boolean {
   if (!origin) return false;
   const o = originOf(origin);
   if (!o || o !== origin) return false;
+  if (opts.previewReady && isAnyHttpsOrigin(o)) return true;
   if (self && o === self) return true;
   const appBase = env.APP_BASE_URL?.trim() ? originOf(env.APP_BASE_URL.trim()) : undefined;
   if (appBase && o === appBase) return true;
@@ -53,11 +65,11 @@ export function isWidgetOriginAllowed(origin: string | null | undefined, self?: 
 }
 
 /** The value of `Content-Security-Policy: frame-ancestors …` for /w. */
-export function widgetFrameAncestors(env: Env = process.env): string {
+export function widgetFrameAncestors(env: Env = process.env, opts: { previewReady?: boolean } = {}): string {
   const list = widgetOrigins(env);
   if (list === "*") return "*";
   const appBase = env.APP_BASE_URL?.trim() ? originOf(env.APP_BASE_URL.trim()) : undefined;
-  return ["'self'", ...new Set([...(appBase ? [appBase] : []), ...list])].join(" ");
+  return ["'self'", ...(opts.previewReady ? ["https:"] : []), ...new Set([...(appBase ? [appBase] : []), ...list])].join(" ");
 }
 
 export function facebookAppId(env: Env = process.env): string | undefined {

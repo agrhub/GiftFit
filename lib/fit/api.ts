@@ -7,7 +7,7 @@
  */
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { z } from "zod";
-import { type CreateFitRequestResponse, GIFT_MODES, type GiverReportStatus, STYLE_FAMILIES } from "@/lib/contracts/api";
+import { type CreateFitRequestResponse, GIFT_MODES, type GiverReportStatus, STYLE_FAMILIES, type StoreProductSnapshot } from "@/lib/contracts/api";
 import { type CatalogSku, type FitResult, METALS, OCCASIONS, type RecipientProfile } from "@/lib/contracts/giftfit";
 import { findGiverLeaks, giverJson } from "@/lib/privacy/giver-guard";
 import { fitRequestExpiresAt, newFitRequestTokens } from "@/lib/privacy/tokens";
@@ -21,7 +21,7 @@ import { RETURN_RISK_DEFAULTS, RETURN_RISK_FORMULA, RETURN_RISK_LABEL, RETURN_RI
 import { effectiveUndertone, scoreSkus } from "./score";
 import { type HeartedDesign, type NotTriedPick, type TasteSummary, buildTasteInput, similarNotTried, tasteSummary } from "./taste";
 import { type VariantRequest, defaultVariant, eligibleVariants, swatchCap, variantView, variantsOf, visibleVariants } from "./variants";
-import { FIT_FORMULA, FIT_PARAMS, FIT_WEIGHTS, FIT_WEIGHTS_VERSION } from "./weights";
+import { FIT_FORMULA, FIT_PARAMS, FIT_WEIGHTS, FIT_WEIGHTS_NO_TRYON, FIT_WEIGHTS_VERSION } from "./weights";
 
 export type { CreateFitRequestResponse, GiverReportStatus };
 
@@ -45,6 +45,8 @@ export interface DecoysResponse {
 export interface FitWeightsResponse {
   version: string;
   weights: typeof FIT_WEIGHTS;
+  /** Weights for a request without a try-on (no undertone or face-shape estimate): metal and style dropped. */
+  weightsNoTryOn: typeof FIT_WEIGHTS_NO_TRYON;
   params: typeof FIT_PARAMS;
   formula: readonly string[];
   returnRisk: { formula: string; defaults: ReturnRiskInputs; label: string; sources: readonly string[] };
@@ -60,7 +62,15 @@ export interface FitErrorResponse {
 export type GiverFitResponse = CreateFitRequestResponse | GiverReportStatus | DecoysResponse | FitWeightsResponse | FitErrorResponse;
 
 /** Every giver response goes through A5's guard (fails closed with a 500 on any recipient-data leak). */
-const json = <T extends GiverFitResponse>(body: T, status = 200) => giverJson(body, { status });
+const json = <T extends GiverFitResponse>(body: T, status = 200, allowedImageUrls?: readonly string[]) => giverJson(body, { status, ...(allowedImageUrls?.length ? { allowedImageUrls } : {}) });
+
+/** Snapshot entries for exactly these ids (never decoys), and their merchant image URLs for the guard. */
+function revealed(snapshot: readonly StoreProductSnapshot[] | undefined, ids: Iterable<string>): { products?: StoreProductSnapshot[]; images: string[] } {
+  if (!snapshot?.length) return { images: [] };
+  const want = new Set(ids);
+  const products = snapshot.filter((p) => want.has(p.catalogId));
+  return products.length ? { products, images: products.flatMap((p) => (p.image ? [p.image] : [])) } : { images: [] };
+}
 
 const ReportBody = z.object({ giverToken: z.string().min(16).max(256) });
 const DecoysBody = z.object({ shortlistIds: z.array(z.string().min(1).max(128)).min(1).max(4) });
@@ -179,6 +189,10 @@ async function storeRequest(
 ): Promise<Response> {
   const tokens = newFitRequestTokens();
   const now = deps.now();
+  // Store-URL previews (A6, ADR-055): freeze the pieces' display data so the report outlives the preview.
+  const snapshot = await deps.stores?.snapshot(shape.storeId).catch(() => undefined);
+  const storeName = await deps.stores?.name?.(shape.storeId).catch(() => undefined);
+  const tryOnOff = deps.stores?.tryOnEnabled?.(shape.storeId) === false;
   const created = await deps.repository.createRequest({
     id,
     storeId: shape.storeId ?? null,
@@ -195,9 +209,14 @@ async function storeRequest(
     ...(shape.categories ? { categories: shape.categories } : {}),
     ...(shape.styleHints ? { styleHints: shape.styleHints } : {}),
     ...(shape.genderPresentation ? { genderPresentation: shape.genderPresentation } : {}),
+    ...(snapshot?.length ? { productSnapshot: snapshot } : {}),
+    ...(storeName ? { storeName } : {}),
     createdAt: now,
     expiresAt: fitRequestExpiresAt(now),
   });
+  // Keep a preview alive as long as its gift link (capped by the preview rules); never fails the request.
+  await deps.stores?.afterCreate(shape.storeId, created.expiresAt).catch((err) => console.error("[fit] store hook failed:", (err as Error).name));
+  const own = revealed(snapshot, shape.shortlistIds);
   return json<CreateFitRequestResponse>(
     {
       fitRequestId: created.id,
@@ -206,8 +225,11 @@ async function storeRequest(
       giverReportPath: `/g/${tokens.giverToken}`,
       expiresAt: created.expiresAt.toISOString(),
       carouselSize: shape.shortlistIds.length + shape.decoyIds.length,
+      ...(own.products ? { products: own.products } : {}),
+      ...(tryOnOff ? { tryOn: false as const } : {}),
     },
     201,
+    own.images,
   );
 }
 
@@ -234,8 +256,8 @@ export function recipientLabels(profile: RecipientProfile | null): GiverReportSt
 }
 
 /** Hash of everything a report is computed from; a cached fit_reports row is reused only on a match. */
-function reportFingerprint(request: StoredFitRequest): string {
-  const material = JSON.stringify({ v: FIT_WEIGHTS_VERSION, input: request.input, decoys: request.decoyIds, profile: request.profile, brief: request.brief ?? null });
+function reportFingerprint(request: StoredFitRequest, noTryOn: boolean): string {
+  const material = JSON.stringify({ v: FIT_WEIGHTS_VERSION, input: request.input, decoys: request.decoyIds, profile: request.profile, brief: request.brief ?? null, noTryOn });
   return createHash("sha256").update(material).digest("hex");
 }
 
@@ -244,13 +266,13 @@ function reportFingerprint(request: StoredFitRequest): string {
  * also on lib/privacy's forbidden-key list; while the guard rejects them the (optional) labels are
  * dropped instead of failing the whole report. The same words still appear in the reasons.
  */
-function reportJson(body: GiverReportStatus): Response {
+function reportJson(body: GiverReportStatus, allowedImageUrls?: readonly string[]): Response {
   if (body.recipientLabels && findGiverLeaks({ recipientLabels: body.recipientLabels }).length > 0) {
     const rest: GiverReportStatus = { ...body };
     delete rest.recipientLabels;
-    return json<GiverReportStatus>(rest);
+    return json<GiverReportStatus>(rest, 200, allowedImageUrls);
   }
-  return json<GiverReportStatus>(body);
+  return json<GiverReportStatus>(body, 200, allowedImageUrls);
 }
 
 /** Hearted designs as the metal they were hearted in (else their visible default), for look-alike credit. */
@@ -290,12 +312,12 @@ function heartedDesigns(designs: readonly CatalogSku[], profile: RecipientProfil
  * Taste summary (Claude or template) and 2–3 "not tried on" designs, from the hearts on the curated
  * set. Inputs are catalog attributes and counts only (lib/fit/taste.ts).
  */
-async function helpExtras(request: StoredFitRequest, brief: StoredBrief, profile: RecipientProfile, shown: readonly CatalogSku[], deps: FitDeps): Promise<{ extras: HelpExtras; model?: string }> {
+async function helpExtras(request: StoredFitRequest, brief: StoredBrief, profile: RecipientProfile, shown: readonly CatalogSku[], deps: FitDeps, noTryOn: boolean): Promise<{ extras: HelpExtras; model?: string }> {
   const hearted = heartedDesigns(shown, profile, request.input);
   const wished = shown.filter((d) => (profile.wishOtherMetalSkuIds ?? []).includes(d.id)).length;
   const catalog = await deps.repository.listCatalog(request.storeId);
   const refs = catalog.map((s) => ({ id: s.id, title: s.title }));
-  const taste = await tasteSummary(buildTasteInput(hearted, shown.length, wished), { client: deps.taster ?? null, catalog: refs });
+  const taste = await tasteSummary(buildTasteInput(hearted, shown.length, wished), { client: deps.taster ?? null, catalog: refs, noTryOn });
   const similar = similarNotTried(catalog, hearted, {
     request: request.input,
     shownIds: shown.map((s) => s.id),
@@ -314,32 +336,52 @@ export async function handleReport(req: Request, deps: FitDeps): Promise<Respons
   const request = await deps.repository.findByGiverToken(parsed.data.giverToken);
   if (!request) return json<FitErrorResponse>({ error: "not_found" }, 404);
   const brief: StoredBrief = request.brief ?? { mode: "i_have_ideas" };
-  const meta: Pick<GiverReportStatus, "mode" | "demo"> = { mode: brief.mode, ...(request.demo ? { demo: true } : {}) };
+  // No try-on (ADR-055 previews, or the recipient never took a photo): no undertone or face-shape estimate
+  // exists, so the report drops those factors and never claims one (lib/fit/WEIGHTS.md "Without a try-on").
+  const storeTryOn = deps.stores?.tryOnEnabled?.(request.storeId) !== false;
+  const meta: Pick<GiverReportStatus, "mode" | "demo" | "tryOn" | "storeName"> = {
+    mode: brief.mode,
+    ...(request.demo ? { demo: true } : {}),
+    ...(storeTryOn ? {} : { tryOn: false as const }),
+    ...(request.storeName ? { storeName: request.storeName } : {}),
+  };
   const status = giverStatus(request, deps.now());
   const expiresAt = request.expiresAt.toISOString();
-  if (status !== "completed") return reportJson({ status, expiresAt, ...meta });
+  // Store-URL previews (A6, ADR-055): the preview may be gone (deleted, or a later request outlived it).
+  const storeGone = (await deps.stores?.isGone(request.storeId).catch(() => false)) ?? false;
+  const own = revealed(request.productSnapshot, request.input.shortlistIds);
+  const storeMeta = { ...(own.products ? { products: own.products } : {}), ...(storeGone ? { previewExpired: true as const } : {}) };
+  if (status !== "completed") return reportJson({ status, expiresAt, ...meta, ...storeMeta }, own.images);
   if (!deps.rules) return json<FitErrorResponse>({ error: "fit_rules_not_configured" }, 503);
 
   const profile: RecipientProfile = request.profile ?? { undertoneEstimate: "neutral", undertoneConfidence: 0, faceShape: "Unknown", heartedSkuIds: [] };
-  const fingerprint = reportFingerprint(request);
+  const noTryOn = !storeTryOn || request.captured === false;
+  if (noTryOn) meta.tryOn = false;
+  const fingerprint = reportFingerprint(request, noTryOn);
   const cached = await deps.repository.getReport(request.id);
   const help = brief.mode === "help_me_choose";
   let results: FitResult[];
   let extras: HelpExtras | undefined;
-  if (cached && cached.fingerprint === fingerprint && Array.isArray(cached.items) && (!help || isHelpExtras(cached.extras))) {
+  // A report cached by the engine before the no-try-on fix (it still has a metal factor) is never reused for a
+  // request without a try-on: it would claim an undertone match.
+  const staleNoTryOn = noTryOn && Array.isArray(cached?.items) && (cached.items as FitResult[]).some((r) => r.breakdown?.metal !== undefined);
+  if (cached && !staleNoTryOn && (cached.fingerprint === fingerprint || storeGone) && Array.isArray(cached.items) && (!help || isHelpExtras(cached.extras))) {
     results = cached.items as FitResult[];
     if (help) extras = cached.extras as HelpExtras;
+  } else if (storeGone) {
+    // The pieces can't be scored without the preview's catalog: say so instead of an empty report.
+    return reportJson({ status, expiresAt, ...meta, ...storeMeta }, own.images);
   } else {
     const shortlist = await deps.repository.getSkus(request.input.shortlistIds);
     const decoys = await deps.repository.getSkus(request.decoyIds);
     const cap = swatchCap(shortlist, decoys, request.input);
     const hearted = heartedViews(await deps.repository.getSkus(profile.heartedSkuIds), profile, request.input, cap);
-    const scored = scoreSkus(profile, shortlist, request.input, deps.rules, { heartedSkus: hearted, swatchCap: cap }).map((s) => ({
+    const scored = scoreSkus(profile, shortlist, request.input, deps.rules, { heartedSkus: hearted, swatchCap: cap, noTryOn }).map((s) => ({
       ...s,
       category: shortlist.find((k) => k.id === s.skuId)!.category,
     }));
     const catalog = (await deps.repository.listCatalog(request.storeId)).map((s) => ({ id: s.id, title: s.title }));
-    const [explained, extra] = await Promise.all([explainFit(scored, { client: deps.explainer, catalog }), help ? helpExtras(request, brief, profile, shortlist, deps) : undefined]);
+    const [explained, extra] = await Promise.all([explainFit(scored, { client: deps.explainer, catalog, noTryOn }), help ? helpExtras(request, brief, profile, shortlist, deps, noTryOn) : undefined]);
     results = explained.results;
     extras = extra?.extras;
     await deps.repository.saveReport(request.id, {
@@ -353,18 +395,22 @@ export async function handleReport(req: Request, deps: FitDeps): Promise<Respons
   const hearts = new Set(profile.heartedSkuIds);
   const wishes = new Set(profile.wishOtherMetalSkuIds ?? []);
   const otherMetalWishes = request.input.shortlistIds.filter((id) => wishes.has(id));
+  const named = revealed(request.productSnapshot, [...request.input.shortlistIds, ...results.map((r) => r.skuId), ...(extras?.similarNotTried ?? []).map((p) => p.catalogId)]);
   return reportJson({
     status,
     expiresAt,
+    ...(named.products ? { products: named.products } : {}),
+    ...(storeGone ? { previewExpired: true as const } : {}),
     results,
-    recipientLabels: recipientLabels(request.profile),
+    // Estimate labels only exist after a try-on.
+    recipientLabels: noTryOn ? undefined : recipientLabels(request.profile),
     // Hearts on the shortlist only: a hearted decoy is never revealed as a decoy.
     heartedShortlistIds: request.input.shortlistIds.filter((id) => hearts.has(id)),
     // Wishes on the shortlist only, like hearts.
     ...(otherMetalWishes.length > 0 ? { otherMetalWishes } : {}),
     ...meta,
     ...(extras ? { tasteSummary: extras.tasteSummary, ...(extras.similarNotTried.length > 0 ? { similarNotTried: extras.similarNotTried } : {}) } : {}),
-  });
+  }, named.images);
 }
 
 // ------------------------------------------------------------------ POST /api/fit/decoys, GET /api/fit/weights
@@ -385,6 +431,7 @@ export function handleWeights(): Response {
   return json<FitWeightsResponse>({
     version: FIT_WEIGHTS_VERSION,
     weights: FIT_WEIGHTS,
+    weightsNoTryOn: FIT_WEIGHTS_NO_TRYON,
     params: FIT_PARAMS,
     formula: FIT_FORMULA,
     returnRisk: { formula: RETURN_RISK_FORMULA, defaults: RETURN_RISK_DEFAULTS, label: RETURN_RISK_LABEL, sources: RETURN_RISK_SOURCES },

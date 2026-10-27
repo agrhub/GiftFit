@@ -27,6 +27,7 @@ vi.mock("../recipient/CaptureStep", () => ({
 }));
 
 import { RecipientFlow } from "../recipient/RecipientFlow";
+import { GiftHeader } from "../GiftHeader";
 
 afterEach(cleanup);
 const TOKEN = "r".repeat(43);
@@ -392,5 +393,75 @@ describe("RecipientFlow", () => {
     render(<RecipientFlow token={TOKEN} api={asApi(api("trying_on", capture))} />);
     await screen.findAllByTestId("carousel-item");
     expect(screen.queryAllByTestId("ai-model-badge")).toHaveLength(0);
+  });
+});
+
+describe("RecipientFlow for a store-URL preview (A6, ADR-055)", () => {
+  it("hearts only: no selfie step, the no-try-on note, and Send finishes without the undertone check", async () => {
+    const a = api();
+    a.openSession.mockResolvedValue({ ...session("awaiting_consent"), tryOn: false });
+    a.consent.mockResolvedValue({ ...session("consented" as RecipientSessionResponse["status"]), status: "awaiting_capture", tryOn: false });
+    render(<RecipientFlow token={TOKEN} api={asApi(a)} />);
+    expect(await screen.findByTestId("no-tryon-consent")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("consent-accept"));
+    await screen.findByTestId("tryon-screen");
+    expect(screen.queryByText("fake selfie")).toBeNull();
+    expect(screen.getByTestId("no-tryon-note").textContent).toContain("Try-on isn't enabled for previews");
+    fireEvent.click(screen.getAllByRole("button", { name: /^Heart Halo Drop Earrings/ })[0]);
+    fireEvent.click(screen.getByTestId("send-hearts"));
+    await waitFor(() => expect(a.finish).toHaveBeenCalledTimes(1));
+    expect(a.saveHearts).toHaveBeenCalledTimes(1);
+    expect(a.capture).not.toHaveBeenCalled();
+    expect(a.trySwatch).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("undertone-screen")).toBeNull();
+  });
+
+  it("no try-on copy anywhere for a preview: intro, card notes, done screen; the header names the store", async () => {
+    const a = api();
+    a.openSession.mockResolvedValue({ ...session("awaiting_consent"), tryOn: false, storeName: "gorjana" });
+    a.consent.mockResolvedValue({ ...session("consented" as RecipientSessionResponse["status"]), status: "awaiting_capture", tryOn: false, storeName: "gorjana" });
+    render(
+      <>
+        <GiftHeader />
+        <RecipientFlow token={TOKEN} api={asApi(a)} />
+      </>,
+    );
+    const consent = await screen.findByTestId("consent-screen");
+    expect(consent.textContent).toMatch(/A private gift/);
+    expect(consent.textContent).toMatch(/Look through \d+ pieces/);
+    expect(consent.textContent).not.toMatch(/Try on \d+ pieces|try-on ·|They will never see your photos/);
+    expect(screen.queryByTestId("photo-retention")).toBeNull();
+    expect((await screen.findByTestId("gift-header-store")).textContent).toBe("for gorjana");
+    fireEvent.click(screen.getByTestId("consent-accept"));
+    await screen.findByTestId("tryon-screen");
+    for (const note of screen.queryAllByTestId("product-photo-note")) expect(note.textContent).not.toMatch(/try-on/i);
+    fireEvent.click(screen.getAllByRole("button", { name: /^Heart Halo Drop Earrings/ })[0]);
+    fireEvent.click(screen.getByTestId("send-hearts"));
+    const done = await screen.findByTestId("done-screen");
+    expect(done.textContent).toMatch(/Your hearts are sent/);
+    expect(done.textContent).not.toMatch(/photos are deleted|fit scores, never your photos/);
+  });
+
+  it("an Aurum link's header names the Aurum store", async () => {
+    const a = api();
+    a.openSession.mockResolvedValue(session("awaiting_consent"));
+    render(
+      <>
+        <GiftHeader />
+        <RecipientFlow token={TOKEN} api={asApi(a)} />
+      </>,
+    );
+    expect((await screen.findByTestId("gift-header-store")).textContent).toBe("for Aurum Jewelry");
+  });
+});
+
+describe("RecipientFlow when the store preview is gone (A6, ADR-055)", () => {
+  it("shows the expired-preview screen instead of an empty carousel", async () => {
+    const a = api();
+    a.openSession.mockResolvedValue({ ...session("awaiting_consent"), items: [], tryOn: false, previewExpired: true });
+    render(<RecipientFlow token={TOKEN} api={asApi(a)} />);
+    const screenEl = await screen.findByTestId("preview-expired-screen");
+    expect(screenEl.textContent).toContain("This preview has expired");
+    expect(screen.queryByTestId("consent-accept")).toBeNull();
   });
 });

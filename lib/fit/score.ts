@@ -28,7 +28,7 @@ import {
   styleLabel,
 } from "./labels";
 import { variantView, variantsOf, visibleVariants } from "./variants";
-import { FIT_MAX, FIT_PARAMS, FIT_WEIGHTS } from "./weights";
+import { FIT_MAX, FIT_PARAMS, FIT_WEIGHTS, FIT_WEIGHTS_NO_TRYON } from "./weights";
 
 export type FitFactor = "hearts" | "metal" | "confidence" | "style" | "budget" | "occasion";
 export type SignalPolarity = "positive" | "neutral" | "negative";
@@ -58,9 +58,17 @@ export interface FitContext {
   heartedSkus?: readonly CatalogSku[];
   /** Swatch-leveling cap of this Fit Request (variants.ts swatchCap): only visible variants are scored. */
   swatchCap?: number;
+  /**
+   * No try-on happened (store-URL previews, or the recipient never took a photo): there is no undertone
+   * and no face shape, so the metal and style factors are DROPPED (not defaulted) and hearts +
+   * budget/occasion are renormalised (FIT_WEIGHTS_NO_TRYON). No text mentions undertone, face shape or try-on.
+   */
+  noTryOn?: boolean;
 }
 
 export const GENERIC_CAUTION = "AI try-on preview: undertone and face shape are estimates, not a sizing guarantee.";
+/** The generic caution for a request without a try-on: no try-on, undertone or face-shape claims. */
+export const GENERIC_CAUTION_NO_TRYON = "Scored from their hearts, your budget and the occasion. Check the size before you buy.";
 
 const clamp01 = (x: number) => (Number.isFinite(x) ? Math.min(1, Math.max(0, x)) : 0);
 const clampWeight = (w: number) => (Number.isFinite(w) ? Math.min(1, Math.max(-1, w)) : 0);
@@ -97,7 +105,7 @@ function heartsFactor(profile: RecipientProfile | null, sku: CatalogSku, ctx: Fi
   if (!profile) return { h: 0 };
   const level = variantHeartLevel(profile, sku.id, ref ?? { variantId: `${sku.id}:${sku.attributes.metal}`, designVariantIds: [] });
   if (level.kind === "hearted") {
-    return { h: 1, signal: { factor: "hearts", polarity: "positive", label: "hearted", text: "They hearted this piece during their try-on." } };
+    return { h: 1, signal: { factor: "hearts", polarity: "positive", label: "hearted", text: ctx.noTryOn ? "They hearted this piece." : "They hearted this piece during their try-on." } };
   }
   if (level.kind === "other_metal") {
     return {
@@ -123,9 +131,17 @@ function heartsFactor(profile: RecipientProfile | null, sku: CatalogSku, ctx: Fi
     };
   }
   if (!anyHearts(profile)) {
-    return { h: 0, signal: { factor: "hearts", polarity: "neutral", label: "no pieces hearted", text: "They did not heart any piece, so this score rests on styling rules." } };
+    return {
+      h: 0,
+      signal: {
+        factor: "hearts",
+        polarity: "neutral",
+        label: "no pieces hearted",
+        text: ctx.noTryOn ? "They did not heart any piece, so this score rests on your budget and the occasion." : "They did not heart any piece, so this score rests on styling rules.",
+      },
+    };
   }
-  return { h: 0, signal: { factor: "hearts", polarity: "negative", label: "not hearted", text: "They did not heart this piece during their try-on." } };
+  return { h: 0, signal: { factor: "hearts", polarity: "negative", label: "not hearted", text: ctx.noTryOn ? "They did not heart this piece." : "They did not heart this piece during their try-on." } };
 }
 
 function polarityOf(strength: RuleStrength): SignalPolarity | null {
@@ -218,16 +234,17 @@ function occasionFactor(sku: CatalogSku, request: FitRequestInput) {
 
 const CAUTION_ORDER: FitFactor[] = ["hearts", "confidence", "metal", "style", "budget", "occasion"];
 
-function pickReasons(signals: FitSignal[], sku: CatalogSku, request: FitRequestInput): { reasons: string[]; caution: string } {
+function pickReasons(signals: FitSignal[], sku: CatalogSku, request: FitRequestInput, noTryOn = false): { reasons: string[]; caution: string } {
+  const generic = noTryOn ? GENERIC_CAUTION_NO_TRYON : GENERIC_CAUTION;
   const positives = signals.filter((s) => s.polarity === "positive").sort((a, b) => b.points - a.points);
   const neutrals = signals.filter((s) => s.polarity === "neutral" && s.factor !== "hearts");
   const reasons = [...positives, ...neutrals].slice(0, 2).map((s) => s.text);
   if (reasons.length < 2) reasons.push(`On your ${CATEGORY_LABEL[sku.category]} shortlist for ${OCCASION_LABEL[request.occasion]}.`);
-  if (reasons.length < 2) reasons.push(GENERIC_CAUTION);
+  if (reasons.length < 2) reasons.push(generic);
   const byOrder = (pol: SignalPolarity) =>
     CAUTION_ORDER.map((f) => signals.find((s) => s.factor === f && s.polarity === pol)).find(Boolean);
   const caution = byOrder("negative") ?? signals.find((s) => s.polarity === "neutral" && (s.factor === "metal" || s.factor === "style"));
-  const cautionText = caution && !reasons.includes(caution.text) ? caution.text : GENERIC_CAUTION;
+  const cautionText = caution && !reasons.includes(caution.text) ? caution.text : generic;
   return { reasons, caution: cautionText };
 }
 
@@ -273,10 +290,11 @@ export function scoreView(
   ref?: VariantRef,
 ): ScoredSku {
   const hearts = heartsFactor(profile, sku, ctx, ref);
-  const metal = metalFactor(profile, sku, rules);
-  const style = styleFactor(profile, sku, rules);
   const budget = budgetFactor(sku, request);
   const occasion = occasionFactor(sku, request);
+  if (ctx.noTryOn) return scoreWithoutTryOn(sku, request, hearts, budget, occasion);
+  const metal = metalFactor(profile, sku, rules);
+  const style = styleFactor(profile, sku, rules);
 
   const W = FIT_WEIGHTS;
   const pts = {
@@ -313,6 +331,41 @@ export function scoreView(
   };
 }
 
+/**
+ * No try-on (FitContext.noTryOn): hearts and budget/occasion only, renormalised to 100
+ * (FIT_WEIGHTS_NO_TRYON). The breakdown carries only the factors used; no metal or style signal exists,
+ * so no reason, caution or explanation input can mention undertone, face shape or a try-on.
+ */
+function scoreWithoutTryOn(
+  sku: CatalogSku,
+  request: FitRequestInput,
+  hearts: ReturnType<typeof heartsFactor>,
+  budget: ReturnType<typeof budgetFactor>,
+  occasion: ReturnType<typeof occasionFactor>,
+): ScoredSku {
+  const W = FIT_WEIGHTS_NO_TRYON;
+  const pts = {
+    hearts: W.hearts * hearts.h,
+    budget: W.budgetOccasion * FIT_PARAMS.budgetShare * budget.b,
+    occasion: W.budgetOccasion * (1 - FIT_PARAMS.budgetShare) * occasion.o,
+  };
+  const raw = pts.hearts + pts.budget + pts.occasion;
+  const signals: FitSignal[] = [];
+  if (hearts.signal) signals.push({ ...hearts.signal, points: pts.hearts });
+  signals.push({ ...budget.signal, points: pts.budget });
+  signals.push({ ...occasion.signal, points: pts.occasion });
+  const { reasons, caution } = pickReasons(signals, sku, request, true);
+  return {
+    skuId: sku.id,
+    score: Math.round(Math.min(FIT_MAX, Math.max(0, raw))),
+    breakdown: { hearts: round1(pts.hearts), budgetOccasion: round1(pts.budget + pts.occasion) },
+    reasons,
+    caution,
+    signals,
+    raw,
+  };
+}
+
 /** Scores every SKU, highest first (stable on ties). */
 export function scoreSkus(
   profile: RecipientProfile | null,
@@ -332,7 +385,13 @@ export function toFitResult(s: FitResult): FitResult {
   const out: FitResult = {
     skuId: s.skuId,
     score: s.score,
-    breakdown: { hearts: s.breakdown.hearts, metal: s.breakdown.metal, style: s.breakdown.style, budgetOccasion: s.breakdown.budgetOccasion },
+    // Only the factors that were used (no metal/style without a try-on).
+    breakdown: {
+      hearts: s.breakdown.hearts,
+      ...(s.breakdown.metal !== undefined ? { metal: s.breakdown.metal } : {}),
+      ...(s.breakdown.style !== undefined ? { style: s.breakdown.style } : {}),
+      budgetOccasion: s.breakdown.budgetOccasion,
+    },
     reasons: [...s.reasons],
   };
   if (s.caution) out.caution = s.caution;

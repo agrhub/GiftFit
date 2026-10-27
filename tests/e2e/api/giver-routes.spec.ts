@@ -24,6 +24,9 @@ const COVERED_GIVER_ROUTES = [
   // A13 voice (ADR-052/053), VOICE_MOCK=1 in the webServer env; the UI flow is in tests/e2e/plugin/voice.spec.ts.
   "app/api/voice/stt/route.ts",
   "app/api/voice/tts/route.ts",
+  // A10 store-URL preview (ADR-055); crawls themselves are unit-tested (no network in e2e).
+  "app/api/preview/route.ts",
+  "app/api/preview/[key]/route.ts",
 ];
 
 async function expectNoLeaks(res: APIResponse): Promise<unknown> {
@@ -195,4 +198,36 @@ test("POST /api/voice/tts (mock) returns labelled audio only; /api/voice/stt ref
   const stt = await request.post("/api/voice/stt", { headers: { "x-voice-session": session, "x-voice-lang": "en", "content-type": "audio/webm" }, data: Buffer.from("not really audio") });
   expect(stt.status()).toBe(400);
   expect(await expectNoLeaks(stt)).toEqual({ error: "bad_audio" });
+});
+
+test("POST /api/preview and GET /api/preview/<key>: SSRF refusals with bare codes, status without products or URLs", async ({ request }) => {
+  const headers = { "X-Forwarded-For": "203.0.113.48" };
+  for (const [data, error] of [
+    [{}, "invalid_url"],
+    [{ url: "http://shop.example" }, "blocked_url"],
+    [{ url: "https://127.0.0.1/" }, "blocked_url"],
+    [{ url: "https://169.254.169.254/latest/meta-data" }, "blocked_url"],
+    [{ url: "https://shop.example:8443/" }, "blocked_url"],
+  ] as const) {
+    const res = await request.post("/api/preview", { headers, data });
+    expect(res.status(), JSON.stringify(data)).toBe(400);
+    const text = await res.text();
+    expect(JSON.parse(text)).toEqual({ error });
+    expect(text).not.toMatch(/\d+\.\d+\.\d+\.\d+/);
+  }
+  const unknown = await request.get(`/api/preview/${"Z".repeat(22)}`, { headers });
+  expect(unknown.status()).toBe(404);
+  expect(await expectNoLeaks(unknown)).toEqual({ error: "not_found" });
+
+  // A ready fixture preview (A6's e2e seed; nothing crawled): counts only, no products, no URLs.
+  const seeded = await request.post("/api/preview/seed", { headers: { ...headers, Authorization: `Bearer ${process.env.E2E_CRON_SECRET}` }, data: { kind: "jewelry" } });
+  expect(seeded.status()).toBe(201);
+  const { key } = (await seeded.json()) as { key: string };
+  const status = await request.get(`/api/preview/${key}`, { headers });
+  expect(status.status()).toBe(200);
+  const body = (await expectNoLeaks(status)) as Record<string, unknown>;
+  expect(body).toMatchObject({ state: "ready", domain: "lumen-jewelry.example", productCount: 10 });
+  expect(JSON.stringify(body)).not.toMatch(/https?:\/\/|"products"/);
+  // Without the secret the seed route does not exist.
+  expect((await request.post("/api/preview/seed", { headers, data: {} })).status()).toBe(404);
 });

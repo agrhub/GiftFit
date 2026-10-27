@@ -230,3 +230,24 @@ describe("Firestore adapters", () => {
     expect(await lim.take({ giverKey: "g1", ipKey: "ip" }, t + H)).toEqual({ ok: true });
   });
 });
+
+describe("e-mails for a store-URL preview request (no try-on, ADR-055)", () => {
+  async function previewRequest() {
+    const tokens = newFitRequestTokens();
+    const request = await stack.repos.fitRequests.create({ storeId: "preview:abcdefghijklmnop", giverTokenHash: tokens.giverTokenHash, recipientTokenHash: tokens.recipientTokenHash, occasion: "birthday", budgetMin: null, budgetMax: 300, currency: "USD", shortlistIds: ["a", "b"], decoyIds: [] });
+    return { request, ...tokens };
+  }
+
+  it("the gift card and the report-ready note never mention a camera or trying on", async () => {
+    const r = await previewRequest();
+    expect((await handleSendCard(post("/api/widget/send-card", card(r, { lang: "en" })), deps)).status).toBe(200);
+    await handleNotifyMe(post("/api/widget/notify", { giverToken: r.giverToken, email: "nam@example.com", lang: "en" }), deps);
+    expect(await notifyGiverReportReady(r.request, new Request("https://giftfit.example/api/recipient/done", { method: "POST" }), deps)).toBe(1);
+    expect(outbox).toHaveLength(2);
+    for (const m of outbox) {
+      expect(m.text).not.toMatch(/camera|try a few pieces on|trying on/i);
+      expect(m.html).not.toMatch(/camera|try a few pieces on|trying on/i);
+    }
+    expect(outbox[1].text).toMatch(/has sent their hearts/);
+  });
+});

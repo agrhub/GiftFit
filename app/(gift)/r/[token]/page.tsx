@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { RecipientFlow } from "@/components/gift/recipient/RecipientFlow";
 
-export const metadata: Metadata = { title: "A private try-on" };
+// Neutral title: store-URL preview gifts (ADR-055) have no try-on.
+export const metadata: Metadata = { title: "A private gift" };
 
 export default async function RecipientPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;

@@ -18,6 +18,7 @@ import { expiryFromKey } from "./photo-store";
 import { fixtureRenderRef, parseInputKey, parseRenderRef, tagOf } from "./renders";
 import { isRenderFeature, type FitRequestRecord, type RecipientProfileRecord, type TryOnRecord } from "./repos/types";
 import { signTryOnUrl } from "./signed-url";
+import { isPreviewStoreId } from "@/lib/widget/preview-key";
 
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 const PHOTO_TYPES = ["image/jpeg", "image/png"] as const;
@@ -116,6 +117,8 @@ export interface CaptureFlowInput {
 
 export async function captureFlow(deps: PrivacyDeps, input: CaptureFlowInput): Promise<CaptureResponse> {
   const { request } = input;
+  // ADR-055 (A6): store-URL previews are hearts-only; never a YouCam call for them.
+  if (isPreviewStoreId(request.storeId)) throw new FlowError(409, "tryon_disabled_preview");
   if (request.status === "created" || request.status === "opened") throw new FlowError(409, "consent_required");
   if (request.status === "completed") throw new FlowError(409, "already_completed");
   // The seeded judge demo is pre-captured from fixtures: a real capture would spend units.
@@ -285,6 +288,7 @@ export interface SwatchFlowInput {
  */
 export async function swatchFlow(deps: PrivacyDeps, input: SwatchFlowInput): Promise<SwatchResponse> {
   const { request } = input;
+  if (isPreviewStoreId(request.storeId)) throw new FlowError(409, "tryon_disabled_preview");
   if (request.status === "completed") throw new FlowError(409, "already_completed");
   if (request.status !== "tried_on") throw new FlowError(409, "not_captured");
   const b = input.body as { itemId?: unknown; swatchId?: unknown } | null;

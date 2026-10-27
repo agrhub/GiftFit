@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { MemoryDailyCounterStore } from "@/lib/store/daily-counter";
 import { reserveClaudeSpend } from "@/lib/anthropic/budget";
 import { defaultConciergeCatalog, searchCatalog } from "../catalog";
-import { capHistory, collectConcierge, CONCIERGE_MAX_CALLS, conciergeMode, type ConciergeLlm, type Reserve } from "../engine";
+import { capHistory, collectConcierge, CONCIERGE_MAX_CALLS, conciergeMode, NO_TRYON_NOTE, type ConciergeLlm, type Reserve } from "../engine";
 import { loadFixtures } from "../mock";
 import { scripted, text, tool, turn } from "./helpers";
 
@@ -25,7 +25,7 @@ function happyScript() {
     llm: scripted([
       turn([text("Let me look at earrings under $300."), tool("t1", "search_catalog", { category: ["earring"], maxPrice: 300 })]),
       turn([
-        text(`Here are two lovely picks, like ${a.title} (id ${a.id}).`),
+        text(`The user wants earrings, so I'll draft the brief with ${a.title}.`),
         tool("t2", "create_fit_request", {
           brief: { mode: "help_me_choose", occasion: "anniversary", budgetMax: 300, currency: "USD", categories: ["earring"], styleHints: ["minimal"], genderPresentation: "feminine", selfie: "data:image/png;base64,AAAA" },
           suggestions: [
@@ -36,20 +36,24 @@ function happyScript() {
           ],
         }),
       ]),
+      turn([text(`Here are two lovely picks for your anniversary, like ${a.title} (id ${a.id}). Review the brief and tap "Use this brief".`)]),
     ]),
   };
 }
 
 describe("runConcierge: Claude path (scripted model)", () => {
-  it("streams text and tool transcript, then a grounded draft brief; stops after the draft turn", async () => {
+  it("streams only the reply and the tool transcript (never the narration before a tool call), then a grounded draft brief", async () => {
     const { llm, rows } = happyScript();
     const { reserve, settle } = okReserve();
     const { events, text: prose, final } = await collectConcierge(user("Anniversary gift for my wife, earrings, under $300, she likes minimal"), { llm, reserve });
     expect(events[0]).toEqual({ type: "start", source: "claude" });
     expect(events.filter((e) => e.type === "tool").map((e) => (e as { name: string }).name)).toEqual(["search_catalog", "create_fit_request"]);
-    expect(llm.calls).toHaveLength(2); // reply written with the draft: no third call
-    expect(reserve).toHaveBeenCalledTimes(2);
-    expect(settle).toHaveBeenCalledTimes(2);
+    expect(llm.calls).toHaveLength(3); // search, draft, then the reply without tools
+    expect(llm.calls.map((c) => c.tool_choice)).toEqual([{ type: "auto" }, { type: "auto" }, { type: "none" }]);
+    expect(reserve).toHaveBeenCalledTimes(3);
+    expect(settle).toHaveBeenCalledTimes(3);
+    expect(prose).not.toMatch(/Let me look|The user|I'll draft/);
+    expect(prose.startsWith("Here are two lovely picks")).toBe(true);
     expect(final?.degraded).toBe(false);
     expect(final?.brief).toEqual({ mode: "help_me_choose", occasion: "anniversary", budgetMax: 300, currency: "USD", categories: ["earring"], styleHints: ["minimal"], genderPresentation: "feminine" });
     expect(JSON.stringify(final)).not.toContain("selfie");
@@ -206,5 +210,116 @@ describe("capHistory", () => {
     expect(out[0].role).toBe("user");
     expect(out.reduce((n, m) => n + m.content.length, 0)).toBeLessThanOrEqual(6000);
     expect(out.at(-1)?.content).toBe(msgs.at(-1)?.content);
+  });
+});
+
+describe("stores without try-on (store-URL previews, ADR-055)", () => {
+  it("adds the uncached no-try-on note after the cached system prompt", async () => {
+    const { llm } = happyScript();
+    await collectConcierge(user("Anniversary earrings under $300"), { llm, reserve: okReserve().reserve, tryOn: false });
+    const system = llm.calls[0].system as Array<{ text: string; cache_control?: unknown }>;
+    expect(system[0].cache_control).toEqual({ type: "ephemeral" });
+    expect(system[1].text).toBe(NO_TRYON_NOTE);
+    expect(system[1].cache_control).toBeUndefined();
+    const { llm: plain } = happyScript();
+    await collectConcierge(user("Anniversary earrings under $300"), { llm: plain, reserve: okReserve().reserve });
+    expect((plain.calls[0].system as Array<{ text: string }>).map((s) => s.text)).not.toContain(NO_TRYON_NOTE);
+  });
+
+  it("the fallback answer never promises a try-on", async () => {
+    const { text: prose } = await collectConcierge(user("Birthday earrings for my sister under $300"), { env: { CONCIERGE_MOCK: "0" }, tryOn: false });
+    expect(prose).not.toMatch(/try on|try-on/i);
+    expect(prose).toMatch(/look through and heart/);
+  });
+});
+
+describe("narration never reaches the shopper (regression: pre-tool text streamed as the reply)", () => {
+  const textEvents = (events: Array<{ type: string }>) => events.filter((e): e is { type: "text"; delta: string } => e.type === "text");
+
+  it("pre-tool narration + tool_use + final text → only the final text, streamed live in several deltas", async () => {
+    const { rows } = searchCatalog(catalog, { category: ["necklace"], maxPrice: 200 });
+    const llm = scripted([
+      turn([text("The user wants help choosing, so I'll search for delicate gold earrings and necklaces."), tool("t1", "search_catalog", { category: ["necklace"], maxPrice: 200 })]),
+      turn([text("I'll draft the brief now."), tool("t2", "create_fit_request", { brief: { mode: "help_me_choose", occasion: "birthday", budgetMax: 200, currency: "USD", categories: ["necklace"] }, suggestions: [{ catalogId: rows[0].id, reason: "Delicate." }] })]),
+      turn([text(`Here is a delicate idea for her birthday: the ${rows[0].title}. Review the brief and tap "Use this brief".`)]),
+    ]);
+    const { events, text: prose, final } = await collectConcierge(user("birthday necklace for my sister under $200"), { llm, reserve: okReserve().reserve });
+    const texts = textEvents(events);
+    expect(texts.length).toBeGreaterThan(3); // live, not one burst
+    expect(prose).toBe(`Here is a delicate idea for her birthday: the ${rows[0].title}. Review the brief and tap "Use this brief".`);
+    expect(prose).not.toMatch(/The user|I'll search|I'll draft/);
+    // the transcript is untouched
+    expect(events.filter((e) => e.type === "tool").map((e) => (e as { name: string }).name)).toEqual(["search_catalog", "create_fit_request"]);
+    // text events come only after the last tool event
+    const lastTool = events.map((e) => e.type).lastIndexOf("tool");
+    expect(events.findIndex((e) => e.type === "text")).toBeGreaterThan(lastTool);
+    expect(final?.brief).toMatchObject({ occasion: "birthday", budgetMax: 200 });
+  });
+
+  it("multi-turn tool loop: narration in every tool turn is dropped; the reply after the last tool is kept", async () => {
+    const llm = scripted([
+      turn([text("Let me check the budget first."), tool("t1", "check_budget_and_metals", { budgetMax: 150 })]),
+      turn([text("Searching the catalog for rings."), tool("t2", "search_catalog", { category: ["ring"], maxPrice: 150 })]),
+      turn([text("Now I'll look at one more option."), tool("t3", "fit_preview", { ids: ["dca42809-a2e1-5b50-8339-240170c69845"] })]),
+      turn([text("These rings fit your $150 budget nicely.")]),
+    ]);
+    const { text: prose, events } = await collectConcierge(user("a ring gift under $150"), { llm, reserve: okReserve().reserve });
+    expect(prose).toBe("These rings fit your $150 budget nicely.");
+    expect(events.filter((e) => e.type === "tool")).toHaveLength(3);
+    expect(llm.calls.at(-1)?.tool_choice).toEqual({ type: "none" });
+  });
+
+  it("drops text even when the stream never announces the tool block (decided from the final message)", async () => {
+    const message = (content: unknown[], stop_reason: string) =>
+      ({ id: "m", type: "message", role: "assistant", model: "x", content, stop_reason, stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }) as never;
+    const turns = [
+      message([{ type: "text", text: "The user wants rings." }, { type: "tool_use", id: "t1", name: "search_catalog", input: { category: ["ring"] } }], "tool_use"),
+      message([{ type: "text", text: "Two rings stand out for you." }], "end_turn"),
+    ];
+    let i = 0;
+    const llm: ConciergeLlm = {
+      stream() {
+        const m = turns[i++] as unknown as { content: Array<{ type: string; text?: string }> };
+        return {
+          async *[Symbol.asyncIterator]() {
+            for (const b of m.content) if (b.type === "text") yield { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: b.text } } as never;
+          },
+          finalMessage: async () => m as never,
+        };
+      },
+    };
+    const { text: prose } = await collectConcierge(user("a ring gift"), { llm, reserve: okReserve().reserve });
+    expect(prose).toBe("Two rings stand out for you.");
+  });
+
+  it("a clarifying question (no tool call) is shown, minus a leading meta sentence", async () => {
+    const llm = scripted([turn([text("The user didn't give a budget. What budget do you have in mind?")])]);
+    const { text: prose, final } = await collectConcierge(user("a gift for my mum"), { llm, reserve: okReserve().reserve });
+    expect(prose).toBe("What budget do you have in mind?");
+    expect(final?.brief).toBeUndefined();
+  });
+
+  it("a meta opener in the streamed final reply is dropped; a normal reply is untouched", async () => {
+    const draftTurns = () => [
+      turn([tool("t1", "search_catalog", { maxPrice: 300 })]),
+      turn([tool("t2", "create_fit_request", { brief: { mode: "help_me_choose", occasion: "anniversary", budgetMax: 300, currency: "USD" } })]),
+    ];
+    const meta = scripted([...draftTurns(), turn([text("I'll search one more time to be sure. Your brief is ready: up to $300 for your anniversary.")])]);
+    expect((await collectConcierge(user("anniversary $300"), { llm: meta, reserve: okReserve().reserve })).text).toBe("Your brief is ready: up to $300 for your anniversary.");
+    const normal = scripted([...draftTurns(), turn([text("Lovely choice! I've drafted a brief up to $300. Let me know if you'd like changes.")])]);
+    expect((await collectConcierge(user("anniversary $300"), { llm: normal, reserve: okReserve().reserve })).text).toBe("Lovely choice! I've drafted a brief up to $300. Let me know if you'd like changes.");
+  });
+
+  it("all-meta reply falls back to the template closing line", async () => {
+    const llm = scripted([turn([text("The user wants a gift.")])]);
+    const { text: prose } = await collectConcierge(user("a gift"), { llm, reserve: okReserve().reserve });
+    expect(prose).toMatch(/Who is the gift for/);
+  });
+
+  it.each(loadFixtures().map((f) => [f.name, f] as const))("fixture %s has no text in tool turns and its replay shows no narration", async (_n, f) => {
+    for (const t of f.turns) if (t.content.some((b) => b.type === "tool_use")) expect(t.content.filter((b) => b.type === "text")).toEqual([]);
+    const { text: prose } = await collectConcierge(f.messages, { env: { CONCIERGE_MOCK: "1" } });
+    expect(prose.trim().length).toBeGreaterThan(20);
+    expect(prose).not.toMatch(/\b(the user|the shopper|I'll search|let me|search_catalog|create_fit_request)\b|người dùng/i);
   });
 });

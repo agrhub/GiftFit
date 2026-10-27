@@ -7,7 +7,7 @@
  * per-request home for their task id and cache key, and both are needed to delete the
  * YouCam task and purge the result cache. `isRenderFeature` separates them from try-ons.
  */
-import type { GiftMode, StyleFamily } from "@/lib/contracts/api";
+import type { GiftMode, StoreProductSnapshot, StyleFamily } from "@/lib/contracts/api";
 import type { FaceShape, JewelryCategory, Metal, Undertone } from "@/lib/contracts/giftfit";
 
 export const FIT_REQUEST_STATUSES = ["created", "opened", "consented", "tried_on", "completed", "expired", "deleted"] as const;
@@ -51,6 +51,16 @@ export interface FitRequestRecord {
   categories?: JewelryCategory[] | null;
   styleHints?: StyleFamily[] | null;
   genderPresentation?: "feminine" | "masculine" | "unisex" | null;
+  /**
+   * Store-URL preview requests (ADR-055): display data of the preview's pieces, frozen at creation so the
+   * giver's report outlives the 24 h preview. Memory and Firestore keep it; Drizzle drops it (no column).
+   */
+  productSnapshot?: StoreProductSnapshot[] | null;
+  /**
+   * Store-URL preview requests (ADR-055): the store's display name at creation ("gorjana"), for the gift
+   * pages' header after the preview is gone. Memory and Firestore keep it; Drizzle drops it (no column).
+   */
+  storeName?: string | null;
 }
 
 export type NewFitRequest = Omit<FitRequestRecord, "id" | "status" | "createdAt" | "expiresAt"> &

@@ -3,7 +3,7 @@
  *   - only catalog ids that a tool returned in THIS request may appear in a brief or a suggestion;
  *   - every suggestion has ≥ 1 metal variant within the budget cap and metal lock, and its prices
  *     come from the catalog (the model never supplies a price);
- *   - prose never carries ids, SKU codes, URLs or hex values (stripped while streaming);
+ *   - prose never carries ids, SKU codes, URLs, hex values or Markdown bold markers (stripped while streaming);
  *   - briefs are validated against the shared contract (GiftBrief) and the store's currency.
  */
 import { z } from "zod";
@@ -43,9 +43,11 @@ const PROSE_PATTERNS: RegExp[] = [
   /\b(?:data|blob):\S+/gi,
   // hex colours
   /#[0-9a-f]{6}(?:[0-9a-f]{2})?\b/gi,
+  // Markdown bold markers: the chat shows plain text, so "**Halo Drop**" would show its asterisks
+  /\*\*|__/g,
 ];
 
-/** Removes ids, SKU codes, URLs and hex values from prose. */
+/** Removes ids, SKU codes, URLs, hex values and Markdown bold markers from prose. */
 export function scrubProse(text: string): string {
   let out = text;
   for (const re of PROSE_PATTERNS) out = out.replace(re, "");

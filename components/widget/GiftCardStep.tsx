@@ -12,7 +12,7 @@
  */
 import { useEffect, useId, useMemo, useState } from "react";
 import type { CreateFitRequestResponse } from "@/lib/contracts/api";
-import { LOCALES, t as translate, type Locale, type MessageKey } from "@/lib/i18n";
+import { formatMoney, LOCALES, t as translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { cardTheme, cleanMessage, cleanName, MAX_CARD_MESSAGE, MAX_GIVER_NAME, shareLinks } from "@/lib/widget/share";
 import { QrCode } from "@/components/gift/QrCode";
 
@@ -169,12 +169,32 @@ export function GiftCardStep({ locale, tr, result, occasion, baseUrl, facebookAp
               {cleanMsg}
             </blockquote>
           )}
-          <p className="mt-3 text-xs text-ink-soft">{ct("card.body")}</p>
+          <p className="mt-3 text-xs text-ink-soft">{ct(result.tryOn === false ? "card.bodyNoTryOn" : "card.body")}</p>
           <span className="mt-3 inline-block rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: theme.accent }}>
             {ct("card.cta")}
           </span>
         </div>
       </figure>
+
+      {result.products?.length ? (
+        // Store-URL previews (ADR-055): the giver's pieces from the frozen snapshot (merchant images, no Referer).
+        <ul aria-label={tr("card.pieces")} className="flex flex-col gap-2" data-testid="widget-card-pieces">
+          {result.products.map((p) => (
+            <li key={p.catalogId} className="flex items-center gap-3 rounded-xl border border-line bg-white p-2">
+              {p.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.image} alt="" width={48} height={48} loading="lazy" referrerPolicy="no-referrer" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
+              ) : null}
+              <div className="min-w-0">
+                <a href={p.url} target="_blank" rel="noopener noreferrer nofollow" className="block truncate text-sm text-ink underline-offset-2 hover:underline">
+                  {p.title}
+                </a>
+                {p.price !== null && p.currency ? <p className="text-xs text-muted">{formatMoney(locale, p.price, p.currency)}</p> : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       <section aria-label={tr("share.heading")} className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold text-ink">{tr("share.heading")}</h3>

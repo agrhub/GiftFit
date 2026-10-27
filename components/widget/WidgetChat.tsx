@@ -41,18 +41,33 @@ export interface WidgetChatProps {
   onActivity?(state: CharacterState, mouth: number): void;
   fetchImpl?: typeof fetch;
   voice?: WidgetChatVoice;
+  /** "preview:<key>" for a store-URL preview (ADR-055): the Concierge grounds on that catalog. */
+  store?: string;
+  /** The preview owner's greeting (Admin v0), shown instead of the default intro. */
+  greeting?: string;
+  /** The preview owner's accent colour for the Send button. */
+  accent?: string;
+  /** false for a non-jewelry preview: product suggestions only, no gift brief. */
+  giftable?: boolean;
+}
+
+/** Store images on a preview are the merchant's own URLs: plain <img>, no Referer, never proxied. */
+function ProductImage({ src, size = 56 }: { src: string; size?: number }) {
+  if (src.startsWith("/")) return <Image src={src} alt="" width={size} height={size} className="h-14 w-14 shrink-0 object-contain" />;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt="" width={size} height={size} loading="lazy" referrerPolicy="no-referrer" className="h-14 w-14 shrink-0 rounded object-cover" />;
 }
 
 function errorKey(err: ConciergeTurnError): MessageKey {
   return err.kind === "rate_limited" ? "chat.errorRate" : err.kind === "too_long" ? "chat.errorTooLong" : "chat.errorGeneric";
 }
 
-export function WidgetChat({ locale, tr, context, productTitle, onBrief, onFirstMessage, onActivity, fetchImpl, voice }: WidgetChatProps) {
+export function WidgetChat({ locale, tr, context, productTitle, onBrief, onFirstMessage, onActivity, fetchImpl, voice, store, greeting, accent, giftable = true }: WidgetChatProps) {
   const ids = { input: useId(), hint: useId() };
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState("");
-  const { turns, busy, send, stop } = useConciergeChat({ fetchImpl, context, onSettled: () => inputRef.current?.focus() });
+  const { turns, busy, send, stop } = useConciergeChat({ fetchImpl, context, store, onSettled: () => inputRef.current?.focus() });
   const activity = useRef(onActivity);
   useEffect(() => {
     activity.current = onActivity;
@@ -139,7 +154,7 @@ export function WidgetChat({ locale, tr, context, productTitle, onBrief, onFirst
           <ul aria-label={tr("chat.suggested")} className="flex flex-col gap-2">
             {final.suggestions.map((s) => (
               <li key={s.catalogId} className="flex gap-3 rounded-xl border border-line p-2">
-                {s.image && <Image src={s.image} alt="" width={56} height={56} className="h-14 w-14 shrink-0 object-contain" />}
+                {s.image && <ProductImage src={s.image} />}
                 <div className="min-w-0">
                   <p className="font-display text-base leading-tight">{s.title}</p>
                   <p className="text-xs text-muted">
@@ -151,6 +166,24 @@ export function WidgetChat({ locale, tr, context, productTitle, onBrief, onFirst
             ))}
           </ul>
         )}
+        {final?.products && final.products.length > 0 && (
+          <ul aria-label={tr("chat.suggested")} className="flex flex-col gap-2" data-testid="widget-product-suggestions">
+            {final.products.map((p) => (
+              <li key={p.productId} className="flex gap-3 rounded-xl border border-line p-2">
+                {p.image && <ProductImage src={p.image} />}
+                <div className="min-w-0">
+                  <p className="font-display text-base leading-tight">{p.title}</p>
+                  {p.price !== null && p.currency && <p className="text-xs text-muted">{formatMoney(locale, p.price, p.currency)}</p>}
+                  <p className="mt-1 text-xs text-ink-soft">{p.reason}</p>
+                  <a href={p.url} target="_blank" rel="noopener noreferrer nofollow" className="mt-1 inline-block text-xs text-ink underline underline-offset-2">
+                    {tr("chat.viewProduct")}
+                  </a>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {final && !giftable && !final.brief && t.id === turns[turns.length - 1]?.id && <p className="text-[11px] text-muted">{tr("preview.suggestOnly")}</p>}
         {final?.brief && (
           <div className="rounded-xl border border-gold/60 bg-cream/60 p-3">
             <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-gold-deep uppercase">{tr("chat.draftBrief")}</p>
@@ -180,9 +213,9 @@ export function WidgetChat({ locale, tr, context, productTitle, onBrief, onFirst
     <div className="flex min-h-0 flex-1 flex-col" onKeyDown={(e) => e.key === "Escape" && busy && (e.stopPropagation(), stop())}>
       <div ref={logRef} role="log" aria-live="polite" aria-relevant="additions text" aria-busy={busy} aria-label={tr("chat.log")} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-ivory p-3">
         <p className="mr-4 self-start rounded-2xl rounded-bl-sm border border-line bg-white px-3 py-2 text-sm text-ink" data-testid="widget-intro">
-          {productTitle ? tr("chat.introPdp", { title: productTitle }) : tr("chat.intro")}
+          {productTitle ? tr("chat.introPdp", { title: productTitle }) : (greeting ?? tr("chat.intro"))}
         </p>
-        {turns.length === 0 && productTitle && (
+        {turns.length === 0 && productTitle && giftable && (
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => submit(tr("chat.giftThisMessage", { title: productTitle }))} className="min-h-11 rounded-full border border-ink bg-white px-4 text-sm text-ink hover:bg-ink hover:text-ivory">
               {tr("chat.giftThis")}
@@ -246,7 +279,7 @@ export function WidgetChat({ locale, tr, context, productTitle, onBrief, onFirst
             {tr("chat.stop")}
           </button>
         ) : (
-          <button type="submit" disabled={!draft.trim()} className="mb-5 min-h-11 rounded-full bg-ink px-5 text-sm font-medium text-ivory hover:bg-ink-soft disabled:opacity-50">
+          <button type="submit" disabled={!draft.trim()} style={accent ? { backgroundColor: accent } : undefined} className="mb-5 min-h-11 rounded-full bg-ink px-5 text-sm font-medium text-ivory hover:bg-ink-soft disabled:opacity-50">
             {tr("chat.send")}
           </button>
         )}

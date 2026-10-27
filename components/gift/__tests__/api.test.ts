@@ -27,7 +27,8 @@ describe("httpGiftApi", () => {
   });
 
   it("normalizes a GiverReportStatus", () => {
-    expect(normalizeReport({ status: "waiting", expiresAt: "x" })).toEqual({ state: "waiting", expiresAt: "x", results: [], labels: {}, heartedIds: [], otherMetalWishes: [], demo: false, mode: "i_have_ideas", similarNotTried: [] });
+    expect(normalizeReport({ status: "waiting", expiresAt: "x" })).toEqual({ state: "waiting", expiresAt: "x", results: [], labels: {}, heartedIds: [], otherMetalWishes: [], demo: false, mode: "i_have_ideas", similarNotTried: [], products: [], previewExpired: false, tryOn: true });
+    expect(normalizeReport({ status: "waiting", expiresAt: "x", tryOn: false, storeName: "gorjana" })).toMatchObject({ tryOn: false, storeName: "gorjana" });
   });
 
   it("normalizes the Help me choose extras (ADR-045)", () => {

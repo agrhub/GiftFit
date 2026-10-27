@@ -10,7 +10,8 @@ import { parseLangList, translator, detectLocale } from "@/lib/i18n";
 import { facebookAppId, isWidgetOriginAllowed } from "@/lib/widget/config";
 import { exactOrigin } from "@/lib/widget/protocol";
 import { findStore } from "@/lib/metrics/catalog";
-import { WidgetApp } from "@/components/widget/WidgetApp";
+import { loadPreviewStore, previewKeyOf } from "@/lib/widget/preview";
+import { WidgetApp, type WidgetPreview } from "@/components/widget/WidgetApp";
 
 export const dynamic = "force-dynamic";
 
@@ -26,16 +27,37 @@ async function selfOrigin(): Promise<string | null> {
 
 export default async function WidgetPage({ searchParams }: { searchParams: Search }) {
   const q = await searchParams;
-  const store = findStore(q.store ?? "aurum");
-  const allowedLangs = parseLangList(q.langs);
-  const preferredLang = typeof q.lang === "string" ? q.lang.slice(0, 12) : undefined;
+  // ADR-055: data-store="preview:<key>" = a READY store-URL preview; its owner's settings win over data-lang(s).
+  const previewKey = previewKeyOf(q.store);
+  const previewView = previewKey ? await loadPreviewStore(previewKey).catch(() => null) : null;
+  const store = previewKey ? null : findStore(q.store ?? "aurum");
+  const allowedLangs = previewView ? previewView.settings.languages : parseLangList(q.langs);
+  const preferredLang = previewView ? previewView.settings.defaultLanguage : typeof q.lang === "string" ? q.lang.slice(0, 12) : undefined;
+  const preview: WidgetPreview | undefined = previewView
+    ? {
+        key: previewView.key,
+        domain: previewView.domain,
+        storeName: previewView.storeName,
+        giftable: previewView.skus.length > 0,
+        products: previewView.products.map((p) => ({
+          id: p.id,
+          title: p.title,
+          url: p.url,
+          price: p.price,
+          currency: p.currency,
+          ...(p.images[0] ? { image: p.images[0] } : {}),
+          ...(previewView.skuIdByProduct[p.id] ? { skuId: previewView.skuIdByProduct[p.id] } : {}),
+        })),
+        settings: { character: previewView.settings.character, ...(previewView.settings.accentColor ? { accentColor: previewView.settings.accentColor } : {}), ...(previewView.settings.greeting ? { greeting: previewView.settings.greeting } : {}) },
+      }
+    : undefined;
   const base = appBaseUrl(null);
   const self = await selfOrigin();
 
   let parentOrigin: string | null = null;
   if (q.parent !== undefined) {
     parentOrigin = exactOrigin(q.parent);
-    if (!store || !parentOrigin || !isWidgetOriginAllowed(parentOrigin, self ?? base)) {
+    if ((!store && !preview) || !parentOrigin || !isWidgetOriginAllowed(parentOrigin, self ?? base, process.env, { previewReady: Boolean(preview) })) {
       const tr = translator(detectLocale({ preferred: preferredLang, allowed: allowedLangs }));
       return (
         <p role="alert" className="m-2 rounded-xl border border-line bg-white p-3 text-sm text-ink" data-testid="widget-not-allowed">
@@ -44,5 +66,13 @@ export default async function WidgetPage({ searchParams }: { searchParams: Searc
       );
     }
   }
-  return <WidgetApp store={store?.key ?? "aurum"} parentOrigin={parentOrigin} preferredLang={preferredLang} allowedLangs={allowedLangs} baseUrl={process.env.APP_BASE_URL?.trim() ? base : (self ?? base)} facebookAppId={facebookAppId()} />;
+  if (previewKey && !preview) {
+    const tr = translator(detectLocale({ preferred: preferredLang, allowed: allowedLangs }));
+    return (
+      <p role="alert" className="m-2 rounded-xl border border-line bg-white p-3 text-sm text-ink" data-testid="widget-not-allowed">
+        {tr("panel.notAllowed")}
+      </p>
+    );
+  }
+  return <WidgetApp store={preview ? `preview:${preview.key}` : (store?.key ?? "aurum")} preview={preview} parentOrigin={parentOrigin} preferredLang={preferredLang} allowedLangs={allowedLangs} baseUrl={process.env.APP_BASE_URL?.trim() ? base : (self ?? base)} facebookAppId={facebookAppId()} />;
 }

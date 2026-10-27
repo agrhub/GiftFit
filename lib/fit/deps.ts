@@ -11,9 +11,31 @@ import aurumCatalog from "@/data/aurum/catalog.json";
 import { type ExplainClient, createExplainClient } from "./explain";
 import { type TasteClient, createTasteClient } from "./taste";
 import { getPrivacyDeps } from "@/lib/privacy/runtime";
+import type { StoreProductSnapshot } from "@/lib/contracts/api";
+import { PreviewAwareCatalog } from "@/lib/widget/preview";
+import { previewStoreHooks } from "@/lib/widget/preview-snapshot";
 import { type FitRepository, PrivacyFitRepository, StaticCatalog } from "./repository";
 
+/**
+ * Hooks for requests made from a store other than the Aurum catalog (A6, ADR-055: store-URL previews).
+ * All optional: Aurum requests never call them.
+ */
+export interface StoreHooks {
+  /** Product display data to freeze into the request (undefined = none). */
+  snapshot(storeId: string | undefined): Promise<StoreProductSnapshot[] | undefined>;
+  /** After the request is stored (previews: keep the preview alive as long as the request, capped). */
+  afterCreate(storeId: string | undefined, requestExpiresAt: Date): Promise<void>;
+  /** The store behind the request is gone (previews: deleted or expired). */
+  isGone(storeId: string | undefined): Promise<boolean>;
+  /** The store's display name, frozen into the request (previews: "gorjana"); undefined = the Aurum demo store. */
+  name?(storeId: string | undefined): Promise<string | undefined>;
+  /** false when the store has no try-on (previews): no photo, no undertone or face-shape estimate. */
+  tryOnEnabled?(storeId: string | undefined): boolean;
+}
+
 export interface FitDeps {
+  /** Store-URL preview hooks (A6); absent in unit tests = plain Aurum behaviour. */
+  stores?: StoreHooks;
   repository: FitRepository;
   rules: JewelryRules | null;
   explainer: ExplainClient | null;
@@ -31,8 +53,11 @@ function buildDefaults(): FitDeps {
   return {
     // Requests live only in lib/privacy (ADR-021); SKUs come from the Aurum demo catalog, so decoys and
     // reports work on a fresh deploy without a DB (ADR-020).
-    repository: new PrivacyFitRepository(async () => (await getPrivacyDeps()).repos, new StaticCatalog(aurumCatalog as unknown as CatalogSku[])),
+    // A6 (ADR-055): key-scoped preview-store SKUs ("<key>~pv-…", storeId "preview:<key>") resolve from the
+    // preview repo; every other id from the Aurum catalog.
+    repository: new PrivacyFitRepository(async () => (await getPrivacyDeps()).repos, new PreviewAwareCatalog(new StaticCatalog(aurumCatalog as unknown as CatalogSku[]))),
     rules: jewelryRules,
+    stores: previewStoreHooks,
     explainer: createExplainClient(),
     taster: createTasteClient(),
     decoySecret: process.env.FIT_DECOY_SECRET || randomBytes(32).toString("hex"),

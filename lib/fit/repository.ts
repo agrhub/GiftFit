@@ -6,6 +6,7 @@
  * catalog source (the Aurum JSON by default, ADR-020). There is never a second copy of a request.
  * `InMemoryFitRepository` stays as a self-contained helper for unit tests.
  */
+import type { StoreProductSnapshot } from "@/lib/contracts/api";
 import type { GiftMode, StyleFamily } from "@/lib/contracts/api";
 import type { CatalogSku, FaceShape, FitRequestInput, JewelryCategory, Metal, Occasion, RecipientProfile, Undertone } from "@/lib/contracts/giftfit";
 import { OCCASIONS } from "@/lib/contracts/giftfit";
@@ -39,6 +40,16 @@ export interface StoredFitRequest {
   brief?: StoredBrief;
   /** Seeded judge demo (AI-generated model). */
   demo?: boolean;
+  /** Store-URL preview requests (ADR-055): frozen product display data. */
+  productSnapshot?: StoreProductSnapshot[];
+  /** Store-URL preview requests (ADR-055): the store's display name at creation. */
+  storeName?: string;
+  /**
+   * Whether the recipient's capture produced estimates (undertone, face shape). false = no try-on (store
+   * previews never capture; or the recipient finished without a photo): the report drops the metal and
+   * style factors. Absent (test fixtures) = decide from the profile.
+   */
+  captured?: boolean;
 }
 
 /**
@@ -195,6 +206,9 @@ export class PrivacyFitRepository implements FitRepository {
       profile: toRecipientProfile(row, parseHeartRows(hearts, variantIndex(catalog))),
       brief: briefOf(rec),
       ...(rec.demo ? { demo: true } : {}),
+      ...(rec.productSnapshot?.length ? { productSnapshot: rec.productSnapshot } : {}),
+      ...(rec.storeName ? { storeName: rec.storeName } : {}),
+      captured: Boolean(row?.undertoneEstimate),
     };
   }
 

@@ -15,7 +15,7 @@
 import { DEFAULT_CLAUDE_MODEL } from "@/lib/anthropic/budget";
 import type { FitResult, JewelryCategory } from "@/lib/contracts/giftfit";
 import { ClaudeSpendRefused, type MessagesLike, type ReserveFn, anthropicFromEnv, callClaudeJson } from "./claude";
-import { GENERIC_CAUTION, type ScoredSku, toFitResult } from "./score";
+import { GENERIC_CAUTION, GENERIC_CAUTION_NO_TRYON, type ScoredSku, toFitResult } from "./score";
 
 export const EXPLAIN_MODEL = DEFAULT_CLAUDE_MODEL;
 export const MAX_WORDS = 20;
@@ -30,6 +30,12 @@ export interface ExplainItem {
 }
 
 export interface ExplainRequest {
+  /**
+   * false when no try-on happened (store previews, or no photo taken): the items carry only hearts and
+   * budget/occasion signals, the no-try-on system prompt is used and outputs may not mention undertone,
+   * face shape or a try-on.
+   */
+  tryOn?: false;
   items: ExplainItem[];
 }
 
@@ -66,7 +72,9 @@ export interface ExplainIssue {
     | "leak_biometric"
     | "leak_photo"
     | "leak_url"
-    | "foreign_reference";
+    | "foreign_reference"
+    /** A request without a try-on: the text mentions undertone, skin, face shape, a try-on or estimates. */
+    | "leak_tryon";
   detail?: string;
 }
 
@@ -82,7 +90,7 @@ export interface ExplainResult {
 const UNSAFE_INPUT = [/#[0-9a-f]{3,8}\b/i, /https?:\/\//i, /\bwww\./i, /\b[Lab]\*/, /\bdata:image/i, /\.(png|jpe?g|webp|gif)\b/i];
 
 /** Builds the model input from scored SKUs. Throws if any label could carry recipient data. */
-export function buildExplainInput(scored: readonly (ScoredSku & { category: JewelryCategory })[]): ExplainRequest {
+export function buildExplainInput(scored: readonly (ScoredSku & { category: JewelryCategory })[], opts: { noTryOn?: boolean } = {}): ExplainRequest {
   const items = scored.map((s) => ({
     skuId: s.skuId,
     score: s.score,
@@ -94,6 +102,12 @@ export function buildExplainInput(scored: readonly (ScoredSku & { category: Jewe
     for (const label of it.signals) {
       if (UNSAFE_INPUT.some((re) => re.test(label))) throw new Error(`explain input label is not giver-safe: ${label}`);
     }
+  }
+  if (opts.noTryOn) {
+    for (const it of items) {
+      for (const label of it.signals) if (NO_TRYON_WORDS.test(label)) throw new Error(`explain input label mentions a try-on: ${label}`);
+    }
+    return { tryOn: false, items };
   }
   return { items };
 }
@@ -132,6 +146,22 @@ export const EXPLAIN_SYSTEM = [
   "If a signal says 'not hearted' or 'low-confidence', use it as the caution. Otherwise caution that the try-on is an AI preview.",
 ].join(" ");
 
+/** System prompt for a request without a try-on: no undertone, face shape or try-on exists to talk about. */
+export const EXPLAIN_SYSTEM_NO_TRYON = [
+  "You write short Fit Report notes for someone choosing a jewelry gift for another person.",
+  "For every item in the input, write two reasons and one caution, each at most 20 words, in plain English.",
+  "Use only the facts in that item's `signals` and `score`. Refer to the item as 'this piece'; never name products, brands or ids.",
+  "The recipient only looked at the store's product photos and hearted favourites: there was no try-on, no photo of them and no estimate of their undertone, skin or face shape.",
+  "Never mention try-ons, previews, photos, selfies, undertone, skin, complexion, face shape or estimates. A metal is a fact about the piece, never a recommendation for them.",
+  "Refer to the recipient as 'they' (gender-neutral). If a signal says 'not hearted', use it as the caution; otherwise caution to check the size before buying.",
+].join(" ");
+
+/**
+ * Words that must never appear in giver-facing text for a request without a try-on (reasons, cautions,
+ * explanations, taste summary). Also the guard test's word list.
+ */
+export const NO_TRYON_WORDS = /\b(undertones?|skin|complexion|face[- ]?shapes?|faces?|facial|try[- ]?ons?|tried (it |them )?on|trying on|selfies?|photos?|estimates?d?|low[- ]confidence)\b/i;
+
 // ---------------------------------------------------------------- Anthropic client
 
 /** Output budget: ~150 tokens per item (three ≤ 20-word strings plus JSON), no extended thinking. */
@@ -154,7 +184,7 @@ export class AnthropicExplainClient implements ExplainClient {
   async explain(request: ExplainRequest, schema: Record<string, unknown>): Promise<unknown> {
     const out = await callClaudeJson(
       this.client,
-      { system: EXPLAIN_SYSTEM, user: JSON.stringify(request), schema, maxTokens: explainMaxTokens(request.items.length) },
+      { system: request.tryOn === false ? EXPLAIN_SYSTEM_NO_TRYON : EXPLAIN_SYSTEM, user: JSON.stringify(request), schema, maxTokens: explainMaxTokens(request.items.length) },
       { model: this.model, reserve: this.opts.reserve },
     );
     return out.data;
@@ -189,6 +219,8 @@ export interface ValidationContext {
   allowedIds: readonly string[];
   /** Every catalog id and title known to the server, to catch references to other products. */
   catalog?: readonly { id: string; title: string }[];
+  /** No try-on happened: reject any mention of undertone, face shape, skin, photos or a try-on. */
+  noTryOn?: boolean;
 }
 
 /** Returns the issues for one text; empty when the text is safe, grounded and short enough. */
@@ -197,6 +229,7 @@ export function checkText(text: unknown, skuId: string, ctx: ValidationContext):
   const codes = new Set<ExplainIssue["code"]>();
   if (wordCount(text) > MAX_WORDS) codes.add("too_long");
   for (const { code, re } of LEAKS) if (re.test(text)) codes.add(code);
+  if (ctx.noTryOn && NO_TRYON_WORDS.test(text)) codes.add("leak_tryon");
   const lower = text.toLowerCase();
   for (const id of ctx.allowedIds) if (id !== skuId && id.length >= 3 && lower.includes(id.toLowerCase())) codes.add("foreign_reference");
   for (const c of ctx.catalog ?? []) {
@@ -222,7 +255,7 @@ export function validateExplanation(
 ): { results: FitResult[]; issues: ExplainIssue[]; repaired: boolean } {
   const issues: ExplainIssue[] = [];
   const allowedIds = scored.map((s) => s.skuId);
-  const vctx: ValidationContext = { allowedIds, catalog: ctx.catalog };
+  const vctx: ValidationContext = { allowedIds, catalog: ctx.catalog, noTryOn: ctx.noTryOn };
   const items = (raw as { items?: unknown })?.items;
   const byId = new Map<string, Record<string, unknown>>();
   if (!Array.isArray(items)) {
@@ -250,7 +283,7 @@ export function validateExplanation(
       if (Array.isArray(items)) issues.push({ skuId: s.skuId, code: "missing_sku" });
       return base;
     }
-    const fallback = { reason1: base.reasons[0], reason2: base.reasons[1], caution: base.caution ?? GENERIC_CAUTION };
+    const fallback = { reason1: base.reasons[0], reason2: base.reasons[1], caution: base.caution ?? (ctx.noTryOn ? GENERIC_CAUTION_NO_TRYON : GENERIC_CAUTION) };
     const out: Record<"reason1" | "reason2" | "caution", string> = { ...fallback };
     for (const field of ["reason1", "reason2", "caution"] as const) {
       const codes = checkText(rec[field], s.skuId, vctx);
@@ -273,11 +306,11 @@ export function templateExplanation(scored: readonly ScoredSku[]): FitResult[] {
  */
 export async function explainFit(
   scored: readonly (ScoredSku & { category: JewelryCategory })[],
-  { client, catalog }: { client: ExplainClient | null; catalog?: readonly { id: string; title: string }[] },
+  { client, catalog, noTryOn = false }: { client: ExplainClient | null; catalog?: readonly { id: string; title: string }[]; noTryOn?: boolean },
 ): Promise<ExplainResult> {
   if (!client) return { results: templateExplanation(scored), source: "template", issues: [{ code: "no_client" }] };
   if (scored.length === 0) return { results: [], source: "template", issues: [] };
-  const input = buildExplainInput(scored);
+  const input = buildExplainInput(scored, { noTryOn });
   let raw: unknown;
   try {
     raw = await client.explain(input, explainSchema(input.items.map((i) => i.skuId)));
@@ -289,7 +322,7 @@ export async function explainFit(
       issues: [err instanceof ClaudeSpendRefused ? { code: "spend_cap", detail: err.reason } : { code: "client_error", detail: (err as Error).message.slice(0, 200) }],
     };
   }
-  const v = validateExplanation(raw, scored, { catalog });
+  const v = validateExplanation(raw, scored, { catalog, noTryOn });
   const usable = !v.issues.some((i) => i.code === "bad_shape");
   return {
     results: v.results,

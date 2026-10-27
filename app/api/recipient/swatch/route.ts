@@ -8,6 +8,7 @@ import { FlowError, flowErrorResponse, swatchFlow } from "@/lib/privacy/recipien
 import { takeRateFor } from "@/lib/privacy/rate-limit";
 import { getPrivacyDeps } from "@/lib/privacy/runtime";
 import { recipientError, recipientJson, resolveRecipientSession } from "@/lib/privacy/session";
+import { isPreviewStoreId } from "@/lib/widget/preview-key";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +18,8 @@ export async function POST(req: Request): Promise<Response> {
   const deps = await getPrivacyDeps();
   const session = await resolveRecipientSession(req, deps);
   if (!session.ok) return recipientError(session.status, session.error);
+  // ADR-055: try-on is off for store-URL previews (no YouCam call, no render).
+  if (isPreviewStoreId(session.request.storeId)) return recipientError(409, "tryon_disabled_preview");
   if (!deps.capturePorts) return recipientError(503, "capture_not_configured");
   let body: unknown;
   try {

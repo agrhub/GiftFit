@@ -18,9 +18,9 @@ const Context = z
   .optional()
   // A malformed context is dropped, never a reason to refuse the chat.
   .catch(undefined);
-const Body = z.object({ messages: z.array(Message).min(1).max(100), context: Context });
+const Body = z.object({ messages: z.array(Message).min(1).max(100), context: Context, store: z.string().max(40).optional() });
 
-export type ParsedConciergeRequest = { ok: true; messages: ConciergeChatMessage[]; context?: ConciergePageContext } | { ok: false; error: "invalid_request" | "message_too_long" };
+export type ParsedConciergeRequest = { ok: true; messages: ConciergeChatMessage[]; context?: ConciergePageContext; store?: string } | { ok: false; error: "invalid_request" | "message_too_long" };
 
 /**
  * Accepts {messages:[{role,content}]} ending with a non-empty user message. A message over 1500 chars is
@@ -34,5 +34,5 @@ export function parseConciergeRequest(body: unknown): ParsedConciergeRequest {
   if (last.role !== "user" || last.content.length === 0) return { ok: false, error: "invalid_request" };
   if (messages.some((m) => m.content.length > CONCIERGE_LIMITS.maxMessageChars)) return { ok: false, error: "message_too_long" };
   const context = p.data.context?.product ? { product: p.data.context.product } : undefined;
-  return { ok: true, messages: messages.filter((m) => m.content.length > 0), ...(context ? { context } : {}) };
+  return { ok: true, messages: messages.filter((m) => m.content.length > 0), ...(context ? { context } : {}), ...(p.data.store ? { store: p.data.store } : {}) };
 }

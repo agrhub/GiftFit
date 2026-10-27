@@ -91,6 +91,28 @@ export const ROUTE_MANIFEST: Record<string, RouteManifestEntry> = {
     owner: "A10",
     description: "Ingest job status: tier, progress, SKU count",
   },
+  // A10 store-URL preview (ADR-055): public, SSRF-guarded crawl of public product data; JSON through giverJson
+  "app/api/preview/route.ts": {
+    audience: "giver",
+    owner: "A10",
+    description: "Start a store-URL preview from a public https URL (SSRF-guarded async crawl); returns key, preview/status paths and a one-time owner link; 10/h, 5/day per IP, 100/day global",
+  },
+  "app/api/preview/[key]/route.ts": {
+    audience: "giver",
+    owner: "A10",
+    description: "Preview crawl status: state, domain, store name, product count, refusal/failure reason (no products, no URLs)",
+  },
+  "app/api/preview/seed/route.ts": {
+    audience: "internal",
+    owner: "A6",
+    description: "e2e only: stores a fixture store-URL preview (fictional .example store, nothing crawled); 404 unless PREVIEW_FIXTURE_SEED=1 and Bearer CRON_SECRET",
+  },
+  // A6 Admin v0 for store-URL previews (ADR-055): preview OWNER only (token → HttpOnly cookie), no recipient data
+  "app/api/preview/[key]/session/route.ts": {
+    audience: "retailer",
+    owner: "A6",
+    description: "Preview owner: turns the one-time owner token (#t= link fragment) into the HttpOnly, SameSite=Strict Admin v0 cookie for /admin/<key>; 204 or 403, never echoes the token",
+  },
   // A6 retailer (aggregates and product data only; responses pass assertGiverSafe)
   "app/api/retailer/lookup/route.ts": { audience: "retailer", owner: "A6", description: "Public catalog lookup for the script tag (CORS): is this PDP's product in the store's catalog" },
   "app/api/retailer/purchase/route.ts": { audience: "retailer", owner: "A6", description: "Record a gift purchase of shortlisted pieces against the giver's Fit Request (no recipient data)" },

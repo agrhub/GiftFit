@@ -13,6 +13,9 @@
  *   widget_notify 10 / hour          (widget "tell me when the report is ready" e-mail addresses, A6)
  *   voice_stt     20 / hour, 60 / 24 h (widget push-to-talk clips → Speech-to-Text, A13; mock counts too)
  *   voice_tts     40 / hour, 150 / 24 h (widget spoken replies → Google TTS, A13; mock counts too)
+ *   preview       10 / hour          (store-URL preview attempts, A10; valid or not. The 5/IP/day and
+ *                                     100/day caps on started previews are durable counters, lib/preview/caps.ts)
+ *   preview_status 600 / hour        (preview status polls, A10; in-memory only: a cheap read, no Firestore write)
  *
  * Over a limit: 429 {"error":"rate_limited"} with Retry-After, before any YouCam call.
  * Enabled everywhere except under NODE_ENV=test (unit tests force it on with setRateLimitOverride),
@@ -25,7 +28,7 @@ import { privacyState } from "./global-state";
 import { giverJson } from "./giver-guard";
 import { FirestoreRateLimitStore } from "./rate-limit-firestore";
 
-export type RateScope = "demo_seed" | "fit_requests" | "capture" | "swatch" | "concierge" | "widget_notify" | "voice_stt" | "voice_tts";
+export type RateScope = "demo_seed" | "fit_requests" | "capture" | "swatch" | "concierge" | "widget_notify" | "voice_stt" | "voice_tts" | "preview" | "preview_status";
 
 const HOUR = 60 * 60 * 1000;
 export const RATE_LIMITS: Record<RateScope, ReadonlyArray<{ limit: number; windowMs: number }>> = {
@@ -50,6 +53,9 @@ export const RATE_LIMITS: Record<RateScope, ReadonlyArray<{ limit: number; windo
     { limit: 40, windowMs: HOUR },
     { limit: 150, windowMs: 24 * HOUR },
   ],
+  // A10 store-URL preview (ADR-055): attempts per IP; started previews are capped by lib/preview/caps.ts.
+  preview: [{ limit: 10, windowMs: HOUR }],
+  preview_status: [{ limit: 600, windowMs: HOUR }],
 };
 
 /** Bound on remembered keys; beyond it, keys with no hit inside their longest window are dropped. */

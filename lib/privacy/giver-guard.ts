@@ -35,6 +35,12 @@ export interface GiverGuardOptions {
    * (signed try-on paths, blob storage, YouCam result hosts, data:/blob: URLs) are never allowed.
    */
   allowProductImages?: boolean;
+  /**
+   * Exact product image URLs that may appear under product-image keys even without allowProductImages
+   * (ADR-055: a preview request's frozen merchant images in the giver's report). Recipient imagery
+   * patterns are still refused first.
+   */
+  allowedImageUrls?: readonly string[];
 }
 
 /** Face-attribute keys from face-attr-analysis (request names and result names). */
@@ -140,7 +146,8 @@ export function findGiverLeaks(payload: unknown, opts: GiverGuardOptions = {}): 
     }
     if (HEX_RE.test(s)) leaks.push({ path, rule: "hex_color", detail: s.match(HEX_RE)![0] });
     if (looksLikeImageUrl(s)) {
-      const allowed = opts.allowProductImages === true && parentKey !== undefined && PRODUCT_IMAGE_KEYS.has(normaliseKey(parentKey));
+      const productKey = parentKey !== undefined && PRODUCT_IMAGE_KEYS.has(normaliseKey(parentKey));
+      const allowed = productKey && (opts.allowProductImages === true || (opts.allowedImageUrls?.includes(s) ?? false));
       if (!allowed) leaks.push({ path, rule: "image_url", detail: "image URL on a giver route" });
     }
   };
@@ -199,8 +206,8 @@ export function assertGiverSafe<T>(payload: T, opts: GiverGuardOptions = {}): T 
  * a generic 500, so recipient data cannot reach the giver even when a route has a bug.
  */
 export function giverJson(payload: unknown, init: ResponseInit & GiverGuardOptions = {}): Response {
-  const { allowProductImages, ...responseInit } = init;
-  const leaks = findGiverLeaks(payload, { allowProductImages });
+  const { allowProductImages, allowedImageUrls, ...responseInit } = init;
+  const leaks = findGiverLeaks(payload, { allowProductImages, allowedImageUrls });
   const headers = new Headers(responseInit.headers);
   headers.set("Cache-Control", "private, no-store");
   if (leaks.length) {

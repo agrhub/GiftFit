@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GiverReportStatus } from "@/lib/contracts/api";
 import { type GiftApi, normalizeReport } from "../api";
 import { GiverReport } from "../report/GiverReport";
+import { GiftHeader } from "../GiftHeader";
 
 afterEach(cleanup);
 const TOKEN = "t".repeat(43);
@@ -125,5 +126,96 @@ describe("GiverReport: Help me choose (ADR-045)", () => {
     expect(screen.queryByTestId("taste-summary")).toBeNull();
     expect(screen.queryByTestId("not-tried")).toBeNull();
     expect(screen.getByText("Your picks")).toBeTruthy();
+  });
+});
+
+describe("GiverReport for a store-URL preview request (A6, ADR-055)", () => {
+  const snapshot = [
+    { catalogId: "K~pv-0-1001", title: "Aria Gold Hoops", price: 180, currency: "USD", image: "https://cdn.shop.example/aria.jpg", url: "https://shop.example/products/aria" },
+    { catalogId: "K~pv-1-1002", title: "Lumen Pearl Studs", price: 120, currency: "USD", url: "https://shop.example/products/lumen" },
+  ];
+  const preview: GiverReportStatus = {
+    status: "completed",
+    expiresAt: "2026-10-30T12:00:00.000Z",
+    results: [
+      { skuId: "K~pv-0-1001", score: 88, breakdown: { hearts: 50, metal: 16, style: 9, budgetOccasion: 13 }, reasons: ["They hearted this piece."] },
+      { skuId: "K~pv-1-1002", score: 40, breakdown: { hearts: 0, metal: 16, style: 9, budgetOccasion: 13 }, reasons: [] },
+    ],
+    heartedShortlistIds: ["K~pv-0-1001"],
+    products: snapshot,
+    previewExpired: true,
+  };
+
+  it("names the pieces from the frozen snapshot, shows merchant images and links out with rel nofollow", async () => {
+    render(<GiverReport token={TOKEN} api={apiWith(preview)} products={{}} />);
+    const items = await screen.findAllByTestId("fit-report-item");
+    expect(items[0].textContent).toContain("Aria Gold Hoops");
+    expect(items[1].textContent).toContain("Lumen Pearl Studs");
+    const img = within(items[0]).getByTestId("report-product-image") as HTMLImageElement;
+    expect(img.getAttribute("src")).toBe("https://cdn.shop.example/aria.jpg");
+    expect(img.getAttribute("referrerpolicy")).toBe("no-referrer");
+    const buy = within(items[0]).getByTestId("buy-button");
+    expect(buy.getAttribute("href")).toBe("https://shop.example/products/aria");
+    expect(buy.getAttribute("rel")).toBe("noopener noreferrer nofollow");
+    expect(buy.getAttribute("target")).toBe("_blank");
+    expect(screen.getByTestId("report-preview-expired").textContent).toContain("This preview has expired");
+    expect(screen.getByTestId("report-preview-expired").textContent).toContain("Bản xem trước");
+  });
+});
+
+describe("GiverReport without a try-on (store-URL previews, ADR-055)", () => {
+  const preview: GiverReportStatus = {
+    status: "completed",
+    expiresAt: "2026-10-30T12:00:00.000Z",
+    mode: "help_me_choose",
+    tryOn: false,
+    storeName: "gorjana",
+    results: [
+      { skuId: "hero", variantId: "hero:yellow_gold", metal: "yellow_gold", price: 245, score: 100, breakdown: { hearts: 80, budgetOccasion: 20 }, reasons: ["They hearted this piece.", "Within your $300 budget."], caution: "Scored from their hearts, your budget and the occasion. Check the size before you buy." },
+      { skuId: "nec", score: 15, breakdown: { hearts: 0, budgetOccasion: 15.2 }, reasons: ["Within your $300 budget.", "Not tagged for a birthday, but still giftable."], caution: "They did not heart this piece." },
+    ],
+    heartedShortlistIds: ["hero"],
+    tasteSummary: { text: "They hearted 1 of 2 pieces.", source: "template" },
+    similarNotTried: [{ catalogId: "nec", price: 230, currency: "USD", label: "not tried on" }],
+  };
+
+  it("Pieces shown, only the scored factors, no try-on/estimate/decoy lines, and the store's name in the header", async () => {
+    const { container } = render(
+      <>
+        <GiftHeader />
+        <GiverReport token={TOKEN} api={apiWith(preview)} products={products} />
+      </>,
+    );
+    await screen.findAllByTestId("fit-report-item");
+    expect(screen.getByText("Pieces shown")).toBeTruthy();
+    expect(screen.queryByText("Pieces tried")).toBeNull();
+    expect(screen.queryByText("Metal and undertone")).toBeNull();
+    expect(screen.queryByText("Style and face shape")).toBeNull();
+    expect(screen.getAllByText("80 / 80").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("disclaimer").textContent).toBe("Scores come from their hearts, your budget and the occasion. Not a sizing guarantee.");
+    expect(screen.getByText("Similar pieces they haven't seen")).toBeTruthy();
+    expect(screen.getByTestId("not-tried-label").textContent).toBe("Not shown to them");
+    expect((await screen.findByTestId("gift-header-store")).textContent).toBe("for gorjana");
+    const text = container.textContent ?? "";
+    expect(text).not.toMatch(/undertone|face shape|try-on|tried on|decoy|AI estimate|Aurum/i);
+  });
+
+  it("a try-on report keeps the four factors, the try-on disclaimer and the Aurum header", async () => {
+    render(
+      <>
+        <GiftHeader />
+        <GiverReport token={TOKEN} api={apiWith(completed)} products={products} />
+      </>,
+    );
+    await screen.findAllByTestId("fit-report-item");
+    expect(screen.getAllByText("Metal and undertone").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("disclaimer").textContent).toMatch(/AI try-on preview/);
+    expect((await screen.findByTestId("gift-header-store")).textContent).toBe("for Aurum Jewelry");
+  });
+
+  it("Help me choose never shows the decoy line in the transparency card", async () => {
+    const { container } = render(<GiverReport token={TOKEN} api={apiWith({ ...completed, mode: "help_me_choose" })} products={products} />);
+    await screen.findAllByTestId("fit-report-item");
+    expect(container.textContent).not.toMatch(/decoy|mixed with similar/i);
   });
 });

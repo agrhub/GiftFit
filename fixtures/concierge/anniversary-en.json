@@ -1,5 +1,6 @@
 {
   "name": "anniversary-en",
+  "description": "Recorded from Claude on 2026-10-17. Text the model wrote in turns that call a tool (narration) was removed on 2026-10-28: the engine never shows it to shoppers.",
   "recordedAt": "2026-10-17T07:35:24.347Z",
   "model": "claude-sonnet-5-5",
   "match": [
@@ -16,10 +17,6 @@
   "turns": [
     {
       "content": [
-        {
-          "type": "text",
-          "text": "Budget and occasion are both given, so I'll search now. She wears mostly gold, but she didn't insist on it, so I'll keep gold as a search preference rather than a lock."
-        },
         {
           "type": "tool_use",
           "id": "toolu_01HwAGk8u16mc2Rh8jCiDGWZ",

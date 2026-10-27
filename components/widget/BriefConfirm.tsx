@@ -14,6 +14,8 @@ export interface MatchedProduct {
   price: number;
   currency: string;
   image?: string;
+  /** Store-URL previews: false when the product is not jewelry with a metal (no Fit Request for it). */
+  giftable?: boolean;
 }
 
 export interface BriefConfirmProps {
@@ -21,6 +23,8 @@ export interface BriefConfirmProps {
   tr: (key: MessageKey, vars?: Record<string, string | number>) => string;
   brief: GiftBrief;
   match: MatchedProduct | null;
+  /** Set for a store-URL preview (ADR-055): the request is created for that preview, hearts only. */
+  previewKey?: string;
   suggestionTitles: string[];
   busy: boolean;
   error?: string;
@@ -31,8 +35,9 @@ export interface BriefConfirmProps {
 type Choice = "help" | "ideas";
 
 /** The create body for a confirmed brief (pure; exported for tests). */
-export function fitRequestBody(brief: GiftBrief, choice: Choice, match: MatchedProduct | null): CreateFitRequestBody {
+export function fitRequestBody(brief: GiftBrief, choice: Choice, match: MatchedProduct | null, previewKey?: string): CreateFitRequestBody {
   const common = {
+    ...(previewKey ? { storeId: `preview:${previewKey}` } : {}),
     occasion: brief.occasion,
     currency: brief.currency,
     ...(brief.metalLock?.length ? { metalLock: [...brief.metalLock] } : {}),
@@ -54,7 +59,7 @@ export function fitRequestBody(brief: GiftBrief, choice: Choice, match: MatchedP
   return { ...common, mode: "i_have_ideas", budgetMax, shortlistIds: ids };
 }
 
-export function BriefConfirm({ locale, tr, brief, match, suggestionTitles, busy, error, onCreate, onBack }: BriefConfirmProps) {
+export function BriefConfirm({ locale, tr, brief, match, previewKey, suggestionTitles, busy, error, onCreate, onBack }: BriefConfirmProps) {
   const legend = useId();
   const ideasPossible = Boolean(match) || Boolean(brief.shortlistIds?.length);
   const [choice, setChoice] = useState<Choice>(brief.mode === "i_have_ideas" && ideasPossible ? "ideas" : "help");
@@ -88,12 +93,17 @@ export function BriefConfirm({ locale, tr, brief, match, suggestionTitles, busy,
       </dl>
       <fieldset aria-labelledby={legend} className="flex flex-col gap-2">
         <legend id={legend} className="mb-1 text-sm font-medium text-ink">
-          {tr("brief.modeLegend")}
+          {tr(previewKey ? "brief.modeLegendNoTryOn" : "brief.modeLegend")}
         </legend>
         {option("help", tr("brief.modeHelp"))}
-        {ideasPossible && option("ideas", tr("brief.modeIdeas", { title: ideasTitle }))}
+        {ideasPossible && option("ideas", tr(previewKey ? "brief.modeIdeasNoTryOn" : "brief.modeIdeas", { title: ideasTitle }))}
       </fieldset>
-      <p className="text-xs leading-5 text-ink-soft">{tr("brief.privacy")}</p>
+      <p className="text-xs leading-5 text-ink-soft">{tr(previewKey ? "brief.privacyNoTryOn" : "brief.privacy")}</p>
+      {previewKey && (
+        <p className="rounded-xl border border-gold/60 bg-cream px-3 py-2 text-xs leading-5 text-ink" data-testid="widget-no-tryon">
+          {tr("preview.noTryOn")}
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-sm text-rose">
           {error}
@@ -104,7 +114,7 @@ export function BriefConfirm({ locale, tr, brief, match, suggestionTitles, busy,
           type="button"
           disabled={busy}
           data-testid="widget-create"
-          onClick={() => onCreate(fitRequestBody(brief, choice, match))}
+          onClick={() => onCreate(fitRequestBody(brief, choice, match, previewKey))}
           className="min-h-11 rounded-full bg-ink px-6 text-sm font-medium text-ivory hover:bg-ink-soft disabled:opacity-60"
         >
           {busy ? tr("brief.creating") : tr("brief.create")}

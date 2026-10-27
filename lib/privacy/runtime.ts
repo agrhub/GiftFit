@@ -12,6 +12,7 @@ import { storeKind } from "@/lib/store/config";
 import { getFirestoreDb } from "@/lib/store/gcp-clients";
 import { getYoucamClient } from "@/lib/youcam/client";
 import { youcamCapturePorts } from "./capture";
+import { PreviewAwareCatalog } from "@/lib/widget/preview";
 import { aurumCatalogSource } from "./catalog";
 import type { PrivacyDeps } from "./deps";
 import { privacyState } from "./global-state";
@@ -44,7 +45,8 @@ async function buildDefaults(): Promise<PrivacyDeps> {
     },
     signingSecret: getSigningSecret(),
     now: () => new Date(),
-    catalog: aurumCatalogSource(),
+    // A6 (ADR-055): preview-store requests carry key-scoped SKU ids resolved from the preview repo.
+    catalog: new PreviewAwareCatalog(aurumCatalogSource()),
     capturePorts: (baseUrl) => youcamCapturePorts(getYoucamClient(), { baseUrl }),
     youcamMode: () => getYoucamClient().mode,
   };

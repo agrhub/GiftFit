@@ -100,6 +100,27 @@ describe("giftCardEmail", () => {
   });
 });
 
+describe("emails for a gift without a try-on (store-URL previews, ADR-055)", () => {
+  it("the gift card never mentions a camera or trying pieces on", () => {
+    for (const lang of ["en", "vi"] as const) {
+      const m = giftCardEmail({ occasion: "birthday", lang, giverName: "Minh", recipientToken: "tok", baseUrl: BASE, tryOn: false });
+      for (const s of [m.html, m.text]) {
+        expect(s).not.toMatch(/camera|try a few pieces on|thử vài món bằng camera/i);
+        expect(s).toMatch(lang === "en" ? /heart the ones you love/ : /thả tim/);
+      }
+    }
+    expect(giftCardEmail({ occasion: "birthday", recipientToken: "tok", baseUrl: BASE }).text).toMatch(/phone camera/);
+  });
+
+  it("the report-ready note says they sent their hearts, not that they finished trying on", () => {
+    for (const lang of ["en", "vi"] as const) {
+      const m = fitReportReadyEmail({ lang, giverName: "Minh", recipientName: "Lan", giverToken: "g", baseUrl: BASE, tryOn: false });
+      for (const s of [m.html, m.text]) expect(s).not.toMatch(/trying on|finished trying|đã thử xong|photos are never shared/i);
+    }
+    expect(fitReportReadyEmail({ giverToken: "g", baseUrl: BASE }).text).toMatch(/finished trying on/);
+  });
+});
+
 describe("fitReportReadyEmail", () => {
   it("links to the giver report, escapes names and carries the footer", () => {
     const m = fitReportReadyEmail({ giverName: "<i>Minh</i>", recipientName: "Lan", giverToken: "gtok", baseUrl: BASE });

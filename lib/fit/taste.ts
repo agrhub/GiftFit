@@ -69,10 +69,11 @@ function top<T>(xs: readonly T[], n: number): T[] {
 const list = (xs: readonly string[]) => (xs.length <= 1 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
 /** Deterministic taste summary (≤ ~45 words). */
-export function templateTasteSummary(t: TasteInput): string {
+export function templateTasteSummary(t: TasteInput, opts: { noTryOn?: boolean } = {}): string {
   if (t.heartedCount === 0) {
     const wish = t.wishedCount > 0 ? " They did love a style but wished it came in another metal." : "";
-    return `They didn't heart any of the ${t.shownCount} pieces, so there is no clear taste signal yet.${wish} The ranking below rests on styling rules.`;
+    const rest = opts.noTryOn ? "your budget and the occasion" : "styling rules";
+    return `They didn't heart any of the ${t.shownCount} pieces, so there is no clear taste signal yet.${wish} The ranking below rests on ${rest}.`;
   }
   const styles = top(
     t.hearted.map((h) => h.style).filter((s) => s !== "other"),
@@ -100,7 +101,7 @@ export const TASTE_MAX_TOKENS = 220;
 
 export const TASTE_SYSTEM = [
   "You write a short taste summary for someone choosing a jewelry gift for another person.",
-  "The input lists only catalog attributes (category, style family, silhouette, metal) of the pieces the recipient hearted during a private try-on, and how many pieces they saw, hearted and wished came in another metal.",
+  "The input lists only catalog attributes (category, style family, silhouette, metal) of the pieces the recipient hearted, and how many pieces they saw, hearted and wished came in another metal.",
   `Write one or two plain-English sentences, at most ${TASTE_MAX_WORDS} words, describing the style, metal and shapes their hearts lean towards.`,
   "Use only the input. Refer to the recipient as 'they' (gender-neutral). Never name products, brands or ids.",
   "Never mention or speculate about photos, images, faces, skin, undertone, colouring, measurements, numbers other than the counts, or confidence.",
@@ -141,7 +142,7 @@ export function createTasteClient(env: Record<string, string | undefined> = proc
 }
 
 /** Recipient-side words a taste summary must never contain (the input never carries them). */
-const TASTE_EXTRA = /\b(undertones?|skin|complexion|face|faces|facial|selfie|warm|cool|tan|pale)\b/i;
+const TASTE_EXTRA = /\b(undertones?|skin|complexion|face|faces|facial|selfie|warm|cool|tan|pale|try[- ]?ons?|tried (it |them )?on|trying on|estimates?d?)\b/i;
 
 /** Issues with a model-written summary; empty = usable. */
 export function checkTasteText(text: unknown, catalog: readonly { id: string; title: string }[] = []): string[] {
@@ -167,8 +168,11 @@ export interface TasteSummaryResult {
 }
 
 /** Claude when a client is given and its output passes the checks; the template otherwise. Never throws. */
-export async function tasteSummary(input: TasteInput, { client, catalog }: { client: TasteClient | null; catalog?: readonly { id: string; title: string }[] }): Promise<TasteSummaryResult> {
-  const template: TasteSummary = { text: templateTasteSummary(input), source: "template" };
+export async function tasteSummary(
+  input: TasteInput,
+  { client, catalog, noTryOn = false }: { client: TasteClient | null; catalog?: readonly { id: string; title: string }[]; noTryOn?: boolean },
+): Promise<TasteSummaryResult> {
+  const template: TasteSummary = { text: templateTasteSummary(input, { noTryOn }), source: "template" };
   if (!client) return { summary: template, issue: "no_client" };
   if (input.heartedCount === 0) return { summary: template, issue: "no_hearts" };
   let raw: unknown;

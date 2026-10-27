@@ -100,6 +100,13 @@ describe("prose scrubbing", () => {
     expect(s).toMatch(/^Try/);
   });
 
+  it("drops Markdown bold markers, also when they arrive in separate deltas", () => {
+    expect(scrubProse("- **Dewdrop Bezel Earrings:** a simple pair.")).toBe("- Dewdrop Bezel Earrings: a simple pair.");
+    const sc = new ProseScrubber();
+    const out = ["- *", "*Whisper Fine", " Cable Chain:*", "* a fine chain."].map((d) => sc.push(d)).join("") + sc.flush();
+    expect(out).toBe("- Whisper Fine Cable Chain: a fine chain.");
+  });
+
   it("catches an id split across stream deltas", () => {
     const sc = new ProseScrubber();
     const deltas = ["Here is ", HALO.slice(0, 10), HALO.slice(10, 25), `${HALO.slice(25)} for you`, " today."];

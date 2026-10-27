@@ -37,6 +37,16 @@ export const FIT_PARAMS = {
   lowConfidence: 0.5,
 } as const;
 
+/**
+ * Without a try-on (store-URL previews, or the recipient never took a photo) there is no undertone and
+ * no face shape: the metal and style factors are dropped, not defaulted, and hearts + budget/occasion
+ * are renormalised to 100 in their published ratio (60 : 15 → 80 : 20).
+ */
+export const FIT_WEIGHTS_NO_TRYON = {
+  hearts: 80,
+  budgetOccasion: 20,
+} as const;
+
 /** Sum of all weights; the score is clamped to [0, FIT_MAX]. */
 export const FIT_MAX = FIT_WEIGHTS.hearts + FIT_WEIGHTS.metal + FIT_WEIGHTS.style + FIT_WEIGHTS.budgetOccasion;
 
@@ -48,4 +58,5 @@ export const FIT_FORMULA = [
   "metal = 10 × (0.5 + c × (m − 0.5)); m = (rule weight + 1) / 2 for the variant's metal; c = 1 if they set their undertone themselves, else the estimate's confidence",
   "style = 15 × (rule weight + 1) / 2; no rule (unknown face shape, rings, bracelets, watches) gives the midpoint",
   "budgetOccasion = 15 × (0.6 × b + 0.4 × o); b = 1 at or under the cap (and at or above the optional floor), falling linearly to 0 at 25% outside it; o = 1 if tagged for the occasion, else 0.4",
+  "Without a try-on (store previews, or no photo taken) there is no undertone or face-shape estimate: metal and style are dropped and score = round(80 × h + 20 × (0.6 × b + 0.4 × o))",
 ] as const;

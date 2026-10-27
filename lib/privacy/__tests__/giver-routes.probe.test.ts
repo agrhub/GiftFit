@@ -93,7 +93,8 @@ describe("giver routes leak nothing (dynamic probe)", () => {
     // POST /api/concierge (A7) is probed in app/api/concierge/__tests__/route.test.ts (every NDJSON event).
     // POST /api/widget/send-card and /api/widget/notify (A6) are probed in app/api/widget/__tests__/routes.test.ts.
     // POST /api/voice/stt and /api/voice/tts (A13) are probed in app/api/voice/__tests__/routes.test.ts.
-    const elsewhere = ["app/api/demo/seed/route.ts", "app/api/concierge/route.ts", "app/api/widget/send-card/route.ts", "app/api/widget/notify/route.ts", "app/api/voice/stt/route.ts", "app/api/voice/tts/route.ts"];
+    // POST /api/preview and GET /api/preview/<key> (A10) are probed in app/api/preview/__tests__/route.test.ts.
+    const elsewhere = ["app/api/demo/seed/route.ts", "app/api/concierge/route.ts", "app/api/widget/send-card/route.ts", "app/api/widget/notify/route.ts", "app/api/voice/stt/route.ts", "app/api/voice/tts/route.ts", "app/api/preview/route.ts", "app/api/preview/[key]/route.ts"];
     expect(giver.filter((f) => !elsewhere.includes(f))).toEqual(["app/api/fit/decoys/route.ts", "app/api/fit/report/route.ts", "app/api/fit/requests/route.ts", "app/api/fit/weights/route.ts"]);
   });
 

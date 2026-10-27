@@ -71,6 +71,7 @@ export function PlaceholderCharacter({ state, mouth = 0, tip, onActivate, reduce
  * SVG gift-box mascot as fallback); `compact` (the panel header) always uses the SVG mascot, so only
  * one WebGL context and one Live2D model are ever loaded.
  */
-export function CharacterSlot({ compact = false, ...props }: CharacterProps & { compact?: boolean; dismissLabel?: string }) {
-  return compact ? <Mascot {...props} /> : <Character {...props} />;
+export function CharacterSlot({ compact = false, forceMascot = false, ...props }: CharacterProps & { compact?: boolean; dismissLabel?: string; forceMascot?: boolean }) {
+  // forceMascot: a preview owner chose the SVG mascot in Admin v0 (ADR-055).
+  return compact || forceMascot ? <Mascot {...props} /> : <Character {...props} />;
 }

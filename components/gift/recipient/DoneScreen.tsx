@@ -10,6 +10,7 @@ export function DoneScreen({
   alreadyDone = false,
   onDeleted,
   onViewPreviews,
+  noTryOn = false,
 }: {
   token: string;
   seconds?: number;
@@ -18,6 +19,8 @@ export function DoneScreen({
   onDeleted: () => void;
   /** Shown when the session was already finished and its previews could be restored. */
   onViewPreviews?: () => void;
+  /** No try-on for this gift (store-URL previews, ADR-055): no photo was ever taken. */
+  noTryOn?: boolean;
 }) {
   const ref = useRef<HTMLHeadingElement>(null);
   useEffect(() => ref.current?.focus(), []);
@@ -34,7 +37,9 @@ export function DoneScreen({
         tabIndex={-1}
         className="mt-6 font-display text-4xl leading-tight text-ink focus:outline-none"
       >
-        Done. Your photos are deleted.
+        {noTryOn
+          ? "Done. Your hearts are sent."
+          : "Done. Your photos are deleted."}
         <br />
         <em className="font-normal">The surprise is safe.</em>
       </h1>
@@ -42,8 +47,9 @@ export function DoneScreen({
         {alreadyDone
           ? "You've already sent your hearts. "
           : "Your hearts are on their way. "}
-        They&apos;ll see fit scores, never your photos, and not which pieces you
-        were shown.
+        {noTryOn
+          ? "They'll see which pieces you hearted. No photo of you was taken."
+          : "They'll see fit scores, never your photos, and not which pieces you were shown."}
       </p>
       <dl className="mt-8 grid w-full grid-cols-3 gap-2">
         <div className="rounded-xl border border-line bg-white p-3">

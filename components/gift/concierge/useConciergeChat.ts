@@ -44,11 +44,13 @@ export interface UseConciergeChatOptions {
   fetchImpl?: typeof fetch;
   /** Page context sent with every message (embeddable widget). */
   context?: ConciergePageContext;
+  /** Catalog to ground on: "preview:<key>" for a store-URL preview (ADR-055). */
+  store?: string;
   /** Called after each reply settles (focus management). */
   onSettled?: () => void;
 }
 
-export function useConciergeChat({ endpoint, fetchImpl, context, onSettled }: UseConciergeChatOptions = {}) {
+export function useConciergeChat({ endpoint, fetchImpl, context, store, onSettled }: UseConciergeChatOptions = {}) {
   const [turns, setTurns] = useState<ConciergeTurn[]>([]);
   const [busy, setBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -75,7 +77,7 @@ export function useConciergeChat({ endpoint, fetchImpl, context, onSettled }: Us
       const ctrl = new AbortController();
       abortRef.current = ctrl;
       try {
-        for await (const ev of streamConcierge(history, { endpoint, fetchImpl, signal: ctrl.signal, context })) {
+        for await (const ev of streamConcierge(history, { endpoint, fetchImpl, signal: ctrl.signal, context, store })) {
           if (ev.type === "text") patchAssistant(botId, (t) => ({ ...t, text: t.text + ev.delta }));
           else if (ev.type === "tool") patchAssistant(botId, (t) => ({ ...t, tools: [...t.tools, { name: ev.name, summary: ev.summary }] }));
           else if (ev.type === "final") patchAssistant(botId, (t) => ({ ...t, final: ev }));
@@ -90,7 +92,7 @@ export function useConciergeChat({ endpoint, fetchImpl, context, onSettled }: Us
         onSettled?.();
       }
     },
-    [busy, turns, endpoint, fetchImpl, context, patchAssistant, onSettled],
+    [busy, turns, endpoint, fetchImpl, context, store, patchAssistant, onSettled],
   );
 
   const stop = useCallback(() => abortRef.current?.abort(), []);

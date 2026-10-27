@@ -25,6 +25,8 @@ export interface CardState {
   capNote: boolean;
   /** "Delete my photo now" was used: only already-rendered metals can be shown (ADR-036). */
   rendersOff?: boolean;
+  /** No try-on for this gift (store-URL previews, ADR-055): product photos only, never "your try-on". */
+  noTryOn?: boolean;
   /** Swatches with a render in hand (selectable even when renders are off). */
   renderedSwatchIds?: string[];
 }

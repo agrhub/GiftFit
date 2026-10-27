@@ -6,15 +6,18 @@
  * photos are left out too so the "0 photos" promise is literal. Labels only, never hex or LAB.
  * "Help me choose" requests (ADR-045, A3) add a taste summary from the hearts and 2–3 similar
  * designs they did not see, each clearly labelled "Not tried on", so the gift can stay a surprise.
+ * Without a try-on (store-URL previews, ADR-055, or no photo taken) there is no undertone or face-shape
+ * estimate: only the factors actually scored are shown, and no line claims a try-on or an estimate.
  */
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FitResult, Metal } from "@/lib/contracts/giftfit";
-import { FIT_WEIGHTS } from "@/lib/fit/weights";
+import { FIT_WEIGHTS, FIT_WEIGHTS_NO_TRYON } from "@/lib/fit/weights";
 import type { Product } from "@/components/store/catalog";
 import { GiverTransparencyCard, Disclaimer } from "@/components/trust";
 import { METAL_LABELS, METAL_SWATCH, formatExpiry, formatPrice, productPath } from "@/components/store/format";
 import { ApiError, type GiftApi, type GiverReportView, friendlyError, loadGiftApi } from "../api";
+import { setGiftStoreName, storeNameFor } from "../giftStore";
 import { HeartIcon, ShieldIcon } from "../icons";
 
 export const REPORT_POLL_MS = 5000;
@@ -26,8 +29,36 @@ const FACTORS: Array<{ key: keyof FitResult["breakdown"]; label: string; max: nu
   { key: "style", label: "Style and face shape", max: FIT_WEIGHTS.style },
   { key: "budgetOccasion", label: "Budget and occasion", max: FIT_WEIGHTS.budgetOccasion },
 ];
+// Without a try-on only hearts and budget/occasion are scored, renormalised (80 + 20).
+const FACTORS_NO_TRYON: typeof FACTORS = [
+  { key: "hearts", label: "Their hearts", max: FIT_WEIGHTS_NO_TRYON.hearts },
+  { key: "budgetOccasion", label: "Budget and occasion", max: FIT_WEIGHTS_NO_TRYON.budgetOccasion },
+];
 
-type ProductInfo = Pick<Product, "id" | "slug" | "title" | "price" | "currency" | "metal"> & { variants?: Product["variants"] };
+/** The factors this result was actually scored on (no metal/style factor without a try-on). */
+export function factorsFor(result: FitResult): typeof FACTORS {
+  return result.breakdown.metal === undefined && result.breakdown.style === undefined ? FACTORS_NO_TRYON : FACTORS;
+}
+
+type ProductInfo = Pick<Product, "id" | "slug" | "title" | "price" | "currency"> & {
+  metal?: Product["metal"];
+  variants?: Product["variants"];
+  /** Store-URL preview pieces (ADR-055): the merchant's product page and image, frozen in the request. */
+  url?: string;
+  image?: string;
+};
+
+/** Aurum pieces link to their store page (/p/<slug> → demo store); preview pieces to the merchant's own page. */
+function productLink(product: ProductInfo): { href: string; target?: string; rel?: string } {
+  return product.url ? { href: product.url, target: "_blank", rel: "noopener noreferrer nofollow" } : { href: productPath({ slug: product.slug }) };
+}
+
+/** Merchant image straight from the store: plain <img>, no Referer, never proxied. */
+function MerchantThumb({ product }: { product?: ProductInfo }) {
+  if (!product?.url || !product.image) return null;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={product.image} alt="" width={72} height={72} loading="lazy" referrerPolicy="no-referrer" className="h-16 w-16 shrink-0 rounded-xl border border-line object-cover" data-testid="report-product-image" />;
+}
 
 /** "Help me choose": what their hearts say. Words only, from catalog attributes of the hearted pieces. */
 export function TasteSummaryCard({ summary }: { summary: NonNullable<GiverReportView["tasteSummary"]> }) {
@@ -47,12 +78,12 @@ export function TasteSummaryCard({ summary }: { summary: NonNullable<GiverReport
 }
 
 /** "Help me choose": similar designs they did NOT see. Clearly labelled, never scored, no images. */
-export function NotTriedList({ picks, products }: { picks: GiverReportView["similarNotTried"]; products: Record<string, ProductInfo> }) {
+export function NotTriedList({ picks, products, tryOn = true }: { picks: GiverReportView["similarNotTried"]; products: Record<string, ProductInfo>; tryOn?: boolean }) {
   if (picks.length === 0) return null;
   return (
     <section aria-labelledby="not-tried-h" className="mt-8" data-testid="not-tried">
       <h2 id="not-tried-h" className="font-display text-2xl text-ink">
-        Similar pieces, not tried on
+        {tryOn ? "Similar pieces, not tried on" : "Similar pieces they haven't seen"}
       </h2>
       <p className="mt-1 text-sm leading-6 text-ink-soft">They match what they hearted and fit your budget. They haven&apos;t seen these, so one could stay a surprise.</p>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -63,8 +94,9 @@ export function NotTriedList({ picks, products }: { picks: GiverReportView["simi
           return (
             <li key={p.catalogId} className="rounded-2xl border border-dashed border-line-strong bg-white p-4" data-testid="not-tried-item">
               <span className="inline-flex rounded-full bg-cream px-2 py-0.5 text-xs font-medium text-ink-soft" data-testid="not-tried-label">
-                Not tried on
+                {tryOn ? "Not tried on" : "Not shown to them"}
               </span>
+              <MerchantThumb product={product} />
               <h3 className="mt-2 font-display text-lg leading-tight text-ink">{product?.title ?? "A similar piece"}</h3>
               <p className="mt-1 flex flex-wrap items-center gap-x-3 text-sm text-ink-soft">
                 {metal ? (
@@ -76,7 +108,7 @@ export function NotTriedList({ picks, products }: { picks: GiverReportView["simi
                 <span>{formatPrice(p.price, p.currency)}</span>
               </p>
               {product ? (
-                <a href={productPath(product)} className="mt-3 inline-flex min-h-11 items-center text-sm text-ink underline decoration-gold underline-offset-4">
+                <a {...productLink(product)} className="mt-3 inline-flex min-h-11 items-center text-sm text-ink underline decoration-gold underline-offset-4">
                   View piece
                 </a>
               ) : null}
@@ -114,7 +146,7 @@ function ScoreRing({ score }: { score: number }) {
 }
 
 export function ReportItem({ result, product, hearted, wished = false, rank }: { result: FitResult; product?: ProductInfo; hearted: boolean; wished?: boolean; rank: number }) {
-  const title = product?.title ?? "A piece they tried on";
+  const title = product?.title ?? "A piece from this gift";
   // ADR-032: the result is about one metal variant (the hearted one, else the best eligible one).
   const metal = result.metal ?? product?.metal;
   const price = result.price ?? product?.price;
@@ -123,6 +155,7 @@ export function ReportItem({ result, product, hearted, wished = false, rank }: {
     <li data-testid="fit-report-item" className="gf-fade-in rounded-2xl border border-line bg-white p-5">
       <div className="flex items-start gap-4">
         <ScoreRing score={result.score} />
+        <MerchantThumb product={product} />
         <div className="min-w-0 flex-1">
           <p className="text-xs uppercase tracking-[0.16em] text-muted">#{rank} · Fit Score</p>
           <h3 className="mt-1 font-display text-2xl leading-tight text-ink">{title}</h3>
@@ -154,7 +187,7 @@ export function ReportItem({ result, product, hearted, wished = false, rank }: {
       </p>
 
       <dl className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-        {FACTORS.map((f) => {
+        {factorsFor(result).map((f) => {
           const v = result.breakdown[f.key] ?? 0;
           return (
             <div key={f.key}>
@@ -186,9 +219,9 @@ export function ReportItem({ result, product, hearted, wished = false, rank }: {
 
       {product ? (
         // The store's own product page (the demo store, via the /p/<slug> 308): buying happens there.
-        <a href={productPath(product)} data-testid="buy-button" className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-ink px-6 text-sm font-medium text-ivory transition-colors hover:bg-ink-soft sm:w-auto">
+        <a {...productLink(product)} data-testid="buy-button" className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-ink px-6 text-sm font-medium text-ivory transition-colors hover:bg-ink-soft sm:w-auto">
           Buy as a gift · {metal ? `${METAL_LABELS[metal]} · ` : ""}
-          {formatPrice(price ?? product.price, currency)}
+          {formatPrice(price ?? product.price ?? 0, currency)}
         </a>
       ) : null}
     </li>
@@ -259,6 +292,19 @@ export function GiverReport({ token, api: apiProp, products: productsProp, pollM
   }, [view, products]);
 
   const report = view.kind === "report" ? view.report : null;
+  const tryOn = report?.tryOn !== false;
+  // The header names this request's store (a preview's own name, never "Aurum" for a preview).
+  const headerStore = report ? storeNameFor({ storeName: report.storeName, preview: Boolean(report.storeName || report.products.length || report.previewExpired) }) : null;
+  useEffect(() => {
+    if (report) setGiftStoreName(headerStore);
+  }, [report, headerStore]);
+  // Store-URL preview requests: the frozen snapshot names the pieces (the Aurum catalog doesn't know them).
+  const snapshotProducts = report?.products;
+  const allProducts = useMemo<Record<string, ProductInfo>>(() => {
+    if (!snapshotProducts?.length) return products;
+    const fromSnapshot = Object.fromEntries(snapshotProducts.map((p) => [p.catalogId, { id: p.catalogId, slug: "", title: p.title, price: p.price ?? 0, currency: p.currency ?? "USD", url: p.url, ...(p.image ? { image: p.image } : {}) } satisfies ProductInfo]));
+    return { ...products, ...fromSnapshot };
+  }, [products, snapshotProducts]);
   const sorted = report ? [...report.results].sort((a, b) => b.score - a.score) : [];
   const heartedSet = new Set(report?.heartedIds ?? []);
   const isDemo = Boolean(report?.demo) || demoLink;
@@ -315,6 +361,20 @@ export function GiverReport({ token, api: apiProp, products: productsProp, pollM
         </div>
       ) : null}
 
+      {report?.previewExpired ? (
+        <div className="mt-8 rounded-2xl border border-gold/60 bg-cream p-6" data-testid="report-preview-expired" role="status">
+          <h2 className="font-display text-2xl text-ink">This preview has expired</h2>
+          <p className="mt-2 text-sm leading-6 text-ink-soft">
+            This gift came from a store preview that is no longer available.{" "}
+            {report.results.length ? "Your report below was saved before it expired." : "Their pieces can't be scored any more."}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-ink-soft" lang="vi">
+            Bản xem trước của cửa hàng này đã hết hạn.{" "}
+            {report.results.length ? "Báo cáo bên dưới đã được lưu trước khi hết hạn." : "Không thể chấm điểm các món này nữa."}
+          </p>
+        </div>
+      ) : null}
+
       {report && (report.state === "waiting" || report.state === "in_progress") ? (
         <div className="mt-8 rounded-2xl border border-line bg-white p-6" data-testid="report-waiting" role="status">
           <div className="flex items-center gap-3">
@@ -322,7 +382,7 @@ export function GiverReport({ token, api: apiProp, products: productsProp, pollM
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-60" />
               <span className="relative inline-flex h-3 w-3 rounded-full bg-gold-deep" />
             </span>
-            <h2 className="font-display text-2xl text-ink">{report.state === "in_progress" ? "They're trying pieces on" : "Waiting for them to open the link"}</h2>
+            <h2 className="font-display text-2xl text-ink">{report.state === "in_progress" ? (tryOn ? "They're trying pieces on" : "They're looking at the pieces") : "Waiting for them to open the link"}</h2>
           </div>
           <p className="mt-2 text-sm leading-6 text-ink-soft">This page updates by itself. Scores appear once they send their hearts.</p>
           {formatExpiry(report.expiresAt) ? <p className="mt-2 text-xs text-muted">Link works until {formatExpiry(report.expiresAt)}.</p> : null}
@@ -333,7 +393,7 @@ export function GiverReport({ token, api: apiProp, products: productsProp, pollM
         <>
           <dl className="mt-6 grid grid-cols-3 gap-2 text-center">
             <div className="rounded-xl border border-line bg-white p-3">
-              <dt className="text-[0.65rem] uppercase tracking-[0.14em] text-muted">{report.mode === "help_me_choose" ? "Pieces tried" : "Your picks"}</dt>
+              <dt className="text-[0.65rem] uppercase tracking-[0.14em] text-muted">{report.mode === "help_me_choose" ? (tryOn ? "Pieces tried" : "Pieces shown") : "Your picks"}</dt>
               <dd className="font-display text-3xl text-ink">{sorted.length}</dd>
             </div>
             <div className="rounded-xl border border-line bg-white p-3">
@@ -347,7 +407,7 @@ export function GiverReport({ token, api: apiProp, products: productsProp, pollM
               <dd className="font-display text-3xl text-ink">{sorted[0] ? Math.round(sorted[0].score) : "–"}</dd>
             </div>
           </dl>
-          {report.labels.undertone || report.labels.faceShape ? (
+          {tryOn && (report.labels.undertone || report.labels.faceShape) ? (
             <ul className="mt-4 flex flex-wrap gap-2" aria-label="Estimates used">
               {[report.labels.undertone, report.labels.faceShape].filter(Boolean).map((l) => (
                 <li key={l} className="rounded-full border border-line-strong bg-white px-3 py-1 text-xs text-ink-soft">
@@ -359,15 +419,15 @@ export function GiverReport({ token, api: apiProp, products: productsProp, pollM
           {report.tasteSummary ? <TasteSummaryCard summary={report.tasteSummary} /> : null}
           <ol className="mt-6 space-y-4">
             {sorted.map((r, i) => (
-              <ReportItem key={r.skuId} result={r} product={products[r.skuId]} hearted={heartedSet.has(r.skuId)} wished={wishedSet.has(r.skuId)} rank={i + 1} />
+              <ReportItem key={r.skuId} result={r} product={allProducts[r.skuId]} hearted={heartedSet.has(r.skuId)} wished={wishedSet.has(r.skuId)} rank={i + 1} />
             ))}
           </ol>
-          <NotTriedList picks={report.similarNotTried} products={products} />
-          <Disclaimer className="mt-4" />
+          <NotTriedList picks={report.similarNotTried} products={allProducts} tryOn={tryOn} />
+          <Disclaimer className="mt-4" tryOn={tryOn} />
         </>
       ) : null}
 
-      <GiverTransparencyCard expiresAt={report?.expiresAt} className="mt-10 border-line" />
+      <GiverTransparencyCard expiresAt={report?.expiresAt} mode={report?.mode} tryOn={tryOn} className="mt-10 border-line" />
     </div>
   );
 }

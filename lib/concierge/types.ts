@@ -21,6 +21,25 @@ export interface ConciergeRequestBody {
   messages: ConciergeChatMessage[];
   /** Optional page context from the embeddable widget (ADR-046): product facts only. */
   context?: ConciergePageContext;
+  /**
+   * Which catalog to ground on (ADR-055): absent / "aurum" = the Aurum demo catalog; "preview:<key>" = a
+   * ready store-URL preview (jewelry → the usual tools and a draft brief; any other store → product
+   * suggestions only, no brief). Unknown or not-ready previews → 404 store_not_found.
+   */
+  store?: string;
+}
+
+/** A suggested product from a non-jewelry preview store (no Fit Request for these). */
+export interface ConciergeProductSuggestion {
+  productId: string;
+  title: string;
+  price: number | null;
+  currency: string | null;
+  /** Public product image on the store (never a try-on). */
+  image?: string;
+  /** The product page on the store. */
+  url: string;
+  reason: string;
 }
 
 /**
@@ -89,5 +108,7 @@ export type ConciergeEvent =
       degradeReason?: ConciergeDegradeReason;
       /** Short assumptions the fallback made (e.g. "Budget assumed: $250"). */
       notes?: string[];
+      /** Non-jewelry preview stores (ADR-055): grounded product picks; `suggestions` is then empty and there is no brief. */
+      products?: ConciergeProductSuggestion[];
     }
   | { type: "error"; error: "internal_error" };

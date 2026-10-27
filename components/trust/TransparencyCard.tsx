@@ -50,10 +50,37 @@ export interface RecipientTransparencyCardProps {
   /** When the Fit Request link expires (72 h after it was sent). */
   expiresAt?: Date | string;
   className?: string;
+  /** false for a gift without a try-on (store-URL previews, ADR-055): no photo is ever taken. */
+  tryOn?: boolean;
 }
 
-export function RecipientTransparencyCard({ hasHandPhoto = false, expiresAt, className }: RecipientTransparencyCardProps) {
+export function RecipientTransparencyCard({ hasHandPhoto = false, expiresAt, className, tryOn = true }: RecipientTransparencyCardProps) {
   const expiry = formatExpiry(expiresAt);
+  const expiryLine = expiry ? `Everything is deleted when this link expires (${expiry}), or sooner if you tap Delete everything.` : "Everything is deleted when this link expires after 72 hours, or sooner if you tap Delete everything.";
+  if (!tryOn) {
+    return (
+      <TransparencyCard
+        className={className}
+        title="Your privacy"
+        intro="Here is exactly what happens with your answers. No photo is taken."
+        sections={[
+          { heading: "What we use", items: ["No photo: try-on isn't enabled for this store preview. You heart pieces from the store's product photos."] },
+          {
+            heading: "What we keep",
+            items: [
+              "Only the pieces you heart (and any “wish it came in another metal”).",
+              "If this link reached you by email, we keep your address, sealed, only until the link expires, to know where this one card went. It is never shown to the person choosing your gift or to the store, and it is deleted with everything else.",
+              expiryLine,
+            ],
+          },
+          {
+            heading: "What the person choosing your gift sees",
+            items: ["Which pieces you hearted, with scores from your hearts, their budget and the occasion.", "Nothing about how you look: no photo of you exists."],
+          },
+        ]}
+      />
+    );
+  }
   return (
     <TransparencyCard
       className={className}
@@ -76,7 +103,7 @@ export function RecipientTransparencyCard({ hasHandPhoto = false, expiresAt, cla
             "Your try-on images are shown only to you, through links that stop working within 15 minutes, and are deleted within 1 hour.",
             "We keep estimates only: undertone (warm, neutral or cool) and face shape, plus the pieces you heart.",
             "If this link reached you by email, we keep your address, sealed, only until the link expires, to know where this one card went. It is never shown to the person choosing your gift or to the store, and it is deleted with everything else.",
-            expiry ? `Everything is deleted when this link expires (${expiry}), or sooner if you tap Delete everything.` : "Everything is deleted when this link expires after 72 hours, or sooner if you tap Delete everything.",
+            expiryLine,
           ],
         },
         {
@@ -101,10 +128,15 @@ export function RecipientTransparencyCard({ hasHandPhoto = false, expiresAt, cla
 export interface GiverTransparencyCardProps {
   expiresAt?: Date | string;
   className?: string;
+  /** "help_me_choose" (ADR-045) has no decoys: every piece is one GiftFit picked; absent = "i_have_ideas". */
+  mode?: "help_me_choose" | "i_have_ideas";
+  /** false for a gift without a try-on (store previews, ADR-055): no photo and no estimates exist. */
+  tryOn?: boolean;
 }
 
-export function GiverTransparencyCard({ expiresAt, className }: GiverTransparencyCardProps) {
+export function GiverTransparencyCard({ expiresAt, className, mode = "i_have_ideas", tryOn = true }: GiverTransparencyCardProps) {
   const expiry = formatExpiry(expiresAt);
+  const help = mode === "help_me_choose";
   return (
     <TransparencyCard
       className={className}
@@ -114,23 +146,24 @@ export function GiverTransparencyCard({ expiresAt, className }: GiverTransparenc
         {
           heading: "You will see",
           items: [
-            "A Fit Score from 0 to 100 for each piece you shortlisted, with a short breakdown.",
+            help ? "A Fit Score from 0 to 100 for each piece GiftFit picked for them, with a short breakdown." : "A Fit Score from 0 to 100 for each piece you shortlisted, with a short breakdown.",
             "Two short reasons and one caution per piece.",
-            "Which of your pieces they hearted.",
+            help ? "Which pieces they hearted, a summary of their taste and a few similar pieces they haven't seen." : "Which of your pieces they hearted.",
           ],
         },
         {
           heading: "You won't see",
           items: [
-            "Their photos or any try-on image.",
-            "Skin color values, face measurements or any other face data.",
-            "Which other pieces they were shown (your picks are mixed with similar decoys).",
+            ...(tryOn
+              ? ["Their photos or any try-on image.", "Skin color values, face measurements or any other face data."]
+              : ["Any photo of them: none is taken. They heart pieces from the store's product photos."]),
+            ...(help ? [] : ["Which other pieces they were shown (your picks are mixed with similar pieces)."]),
           ],
         },
         {
           heading: "Good to know",
           items: [
-            "Undertone and face shape in the reasons are AI estimates, which they can correct.",
+            ...(tryOn ? ["Undertone and face shape in the reasons are AI estimates, which they can correct."] : []),
             expiry ? `Your link expires on ${expiry}.` : "Your link expires 72 hours after you send it.",
             "They can delete everything at any time; the report then disappears too.",
             "Email addresses you give us (theirs for the gift card, yours for the “report ready” note) are used only for this gift, never shown to anyone, and deleted when the link expires (72 hours) at the latest.",

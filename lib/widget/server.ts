@@ -27,6 +27,7 @@ import { hashToken, looksLikeToken, safeEqual } from "@/lib/privacy/tokens";
 import { getContactStore, newContactRecord, openContact, type WidgetContactStore } from "./contacts";
 import { widgetEmailLimiter } from "./email-limits";
 import { cleanMessage, cleanName, MAX_CARD_MESSAGE, MAX_GIVER_NAME } from "./share";
+import { isPreviewStoreId } from "./preview-key";
 import type { EmailRateLimiter } from "@/lib/email/rate-limit";
 
 /** At most this many recipient_card records per request (older ones are dropped first). */
@@ -117,6 +118,8 @@ export async function handleSendCard(req: Request, deps: WidgetServerDeps = defa
     message: cleanMessage(body.message),
     recipientToken: body.recipientToken,
     baseUrl: appBaseUrl(req),
+    // Store-URL previews have no try-on (ADR-055): no "phone camera" copy on their card.
+    ...(isPreviewStoreId(request.storeId) ? { tryOn: false } : {}),
   });
   try {
     await sender.send({ to, ...mail, tags: [{ name: "type", value: "gift_card" }] });
@@ -174,7 +177,7 @@ export async function handleNotifyMe(req: Request, deps: WidgetServerDeps = defa
  * address the giver left (if any), then deletes that record whatever the outcome. Never throws and
  * never changes the Done response; at most one e-mail per request (the record is gone afterwards).
  */
-export async function notifyGiverReportReady(request: Pick<FitRequestRecord, "id" | "occasion">, req: Request, deps: Pick<WidgetServerDeps, "contacts" | "sender" | "now"> = defaultWidgetDeps): Promise<number> {
+export async function notifyGiverReportReady(request: Pick<FitRequestRecord, "id" | "occasion"> & Partial<Pick<FitRequestRecord, "storeId">>, req: Request, deps: Pick<WidgetServerDeps, "contacts" | "sender" | "now"> = defaultWidgetDeps): Promise<number> {
   let sent = 0;
   try {
     const store = deps.contacts();
@@ -183,7 +186,7 @@ export async function notifyGiverReportReady(request: Pick<FitRequestRecord, "id
       const p = openContact(row.sealed);
       try {
         if (p?.giverToken && isValidAddress(p.email)) {
-          const mail = fitReportReadyEmail({ lang: p.lang, giverName: p.giverName, giverToken: p.giverToken, occasion: request.occasion, baseUrl: appBaseUrl(req) });
+          const mail = fitReportReadyEmail({ lang: p.lang, giverName: p.giverName, giverToken: p.giverToken, occasion: request.occasion, baseUrl: appBaseUrl(req), ...(isPreviewStoreId(request.storeId) ? { tryOn: false } : {}) });
           await deps.sender().send({ to: p.email, ...mail, tags: [{ name: "type", value: "fit_report_ready" }] });
           sent++;
         }

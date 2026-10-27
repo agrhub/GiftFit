@@ -194,7 +194,8 @@ export function pickDiverse(catalog: ConciergeCatalog, brief: GiftBrief, styleHi
 }
 
 /** The deterministic answer for a conversation (user messages only; later wishes override earlier ones). */
-export function fallbackAnswer(messages: readonly ConciergeChatMessage[], catalog: ConciergeCatalog): FallbackAnswer {
+export function fallbackAnswer(messages: readonly ConciergeChatMessage[], catalog: ConciergeCatalog, opts: { tryOn?: boolean } = {}): FallbackAnswer {
+  const tryOn = opts.tryOn !== false;
   const userTexts = messages.filter((m) => m.role === "user").map((m) => m.content);
   const last = userTexts[userTexts.length - 1] ?? "";
   const lang = detectLang(last);
@@ -258,7 +259,7 @@ export function fallbackAnswer(messages: readonly ConciergeChatMessage[], catalo
   const budgetText = `$${brief.budgetMax}`;
   const text =
     lang === "vi"
-      ? `Đây là ${suggestions.length} gợi ý cho dịp ${OCCASION_VI[brief.occasion]}, trong ngân sách ${budgetText}. Mình đã soạn sẵn yêu cầu "Giúp tôi chọn": GiftFit sẽ chọn 6–8 mẫu trong ngân sách để người nhận thử. Bạn xem lại rồi bấm "Dùng yêu cầu này" nhé.`
-      : `Here are ${suggestions.length} ideas for a ${OCCASION_EN[brief.occasion]} gift within ${budgetText}. I've drafted a "Help me choose" brief: GiftFit will pick 6–8 pieces within your budget for them to try on. Review it and tap "Use this brief".`;
+      ? `Đây là ${suggestions.length} gợi ý cho dịp ${OCCASION_VI[brief.occasion]}, trong ngân sách ${budgetText}. Mình đã soạn sẵn yêu cầu "Giúp tôi chọn": GiftFit sẽ chọn 6–8 mẫu trong ngân sách để người nhận ${tryOn ? "thử" : "xem và thả tim"}. Bạn xem lại rồi bấm "Dùng yêu cầu này" nhé.`
+      : `Here are ${suggestions.length} ideas for a ${OCCASION_EN[brief.occasion]} gift within ${budgetText}. I've drafted a "Help me choose" brief: GiftFit will pick 6–8 pieces within your budget for them to ${tryOn ? "try on" : "look through and heart"}. Review it and tap "Use this brief".`;
   return { text, brief, suggestions, notes };
 }
