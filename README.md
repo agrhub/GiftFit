@@ -35,7 +35,7 @@ Traditional Virtual Try-On (VTO) is built for people shopping for themselves. Gi
 
 1. **Givers are guessing in the dark:** Jewelry is one of the top holiday gift categories, but givers struggle to know which metal suits the recipient's skin undertone, which earring or necklace silhouette complements their face shape, or what style they actually desire.
 2. **Asking ruins the surprise:** Direct questions eliminate the emotional magic of receiving a gift.
-3. **Returns are costly and inconvenient:** Processing a single fine jewelry return costs retailers **$30–$45** on average, and recipients often feel guilty returning gifts, leaving them unworn in drawers.
+3. **Returns are costly and inconvenient:** a gift that doesn't suit the recipient comes back to the store or ends up unworn in a drawer.
 
 ---
 
@@ -70,7 +70,7 @@ Traditional Virtual Try-On (VTO) is built for people shopping for themselves. Gi
 ## ✨ Key Features
 
 - **Decoy Mixing Engine (`lib/fit/decoys.ts`):** Statistically leveled to keep recipient guess probability at random chance ($\approx 0.171$, matching the ideal $1/6 \approx 0.167$).
-- **Multi-Factor Fit Engine (`lib/fit/score.ts`):** Combines recipient hearts (60%), skin undertone harmony (10%), face shape silhouette compatibility (15%), and budget/occasion fit (15%).
+- **Multi-Factor Fit Engine (`lib/fit/score.ts`):** With a try-on, combines recipient hearts (60%), metal and undertone harmony (10%), style and face-shape compatibility (15%), and budget/occasion fit (15%). Without a try-on (store-URL previews, or a recipient who skips the photo), undertone and face shape are not used at all: hearts (80%) and budget/occasion (20%). The undertone is an estimate from one photo, which the recipient can correct. Formula: `lib/fit/WEIGHTS.md`.
 - **AI Gift Concierge (Anthropic Claude):** Natural language gift consultation (`@anthropic-ai/sdk`) that generates grounded shortlist recommendations from catalog inventory.
 - **Retailer Console (`/retailer`):** E-commerce dashboard showing completion funnels, hearted-to-purchased conversion rates, undertone catalog coverage, and estimated return-risk reduction.
 - **Universal Drop-In Plugin (`packages/plugin/giftfit.js`):** A lightweight 1-line script tag injecting an accessible shadow-DOM "Gift it right" trigger into any e-commerce PDP.
@@ -96,6 +96,13 @@ GiftFit deeply integrates **7 Perfect Corp / YouCam AI APIs**:
 - **Reserve Floor:** Enforces a minimum $\ge 300$ unit reserve strictly locked for judge evaluations through November 2026.
 - **Run Caps & Rate Limits:** Guard prevents runs exceeding 40 units/call or 150 units/day.
 - **SHA-256 Result Cache:** Identical image/parameter combinations are never charged twice.
+
+### Running costs (measured estimates)
+Our own figures, not industry averages. Dates are when they were measured; prices change.
+- **YouCam units per recipient with a try-on:** Facial Color Tones 20 + Face Attributes 10 + about 6 jewelry try-ons × 1 + up to 4 extra metal previews × 1 ≈ **36–40 units** (prices from `GET /s2s/v2.0/credit/feature-cost`, 2026-10-15). The judge demo and store-URL previews use **0 units**.
+- **Claude (gift assistant chat):** about **$0.014–$0.021 per conversation** with prompt caching (measured 2026-10-17 on 6 recorded calls); every call counts against a daily cap (default $3, `ANTHROPIC_DAILY_USD_CAP`).
+- **Google Speech-to-Text (voice input):** $0.016 per minute at list price, billed per second; clips are at most 15 s. **Text-to-Speech** for spoken replies stayed within the monthly free tier in our tests. Both have daily caps.
+- **Hosting (Cloud Run with min 0 instances, Firestore, Cloud Storage):** estimated **$0–3 per month** at hackathon judging traffic (2026-10-17).
 
 ---
 
@@ -201,8 +208,8 @@ npx tsx lib/privacy/fairness/run.ts
 
 ## ⚖️ Privacy & Fairness by Design
 
-1. **Undertone is an Estimate:** Single-point skin color hex readings from cameras can fluctuate based on lighting. GiftFit calibrates CIELAB hue angles relative to skin depth across **Fitzpatrick I–VI**, openly labels results as *"AI estimate"*, and gives recipients a direct, friendly 1-tap override.
-2. **Short-TTL Storage:** Selfies and hand photos are held in short-lived memory/storage for a maximum of 1 hour solely to process swatches.
+1. **Undertone is a weak estimate, and we say so:** YouCam returns a skin color, not an undertone; GiftFit estimates warm/neutral/cool from its CIELAB hue angle with thresholds of our own. On our synthetic Monk/Fitzpatrick I–VI harness it still misclassifies about 27% overall, and on the real API five AI-generated portraits spanned only 57.9–64.3° of hue (4 of 5 at confidence ≤ 0.20), so one photo carries little undertone signal. That is why it is low-weight (10% at most, shrunk further at low confidence), labelled an *estimate*, correctable by the recipient in one tap, never says a metal should be avoided, and is not used at all when no photo is taken. Details and re-run command: `lib/privacy/fairness/`.
+2. **Short-TTL Storage:** Selfies and hand photos sit in a private Google Cloud Storage bucket (us-central1) for at most 1 hour, only to try other metals; Done or "Delete my photo now" deletes them at once, and a 1-day lifecycle rule is the backstop. Everything else lives in Firestore with 72-hour expiry (store previews 24–72 hours).
 3. **Signed HMAC URLs:** Try-on images use tamper-proof HMAC SHA-256 tokens valid for $\le 15$ minutes and bound to the recipient's secure cookie session.
 
 ---
@@ -210,7 +217,7 @@ npx tsx lib/privacy/fairness/run.ts
 ## 🎨 Image Provenance & Licenses
 
 All product and model imagery in GiftFit is strictly synthetic and rights-cleared:
-- **Catalog Products (`public/catalog/aurum/`):** 161 jewelry items created by the team for the fictional *Aurum Jewelry* store (code-generated SVG/PNGs under CC0, plus AI-generated product photos via Google Flow). No real brand trademarks are used.
+- **Catalog Products (`public/catalog/aurum/`):** 161 jewelry items for the fictional *Aurum Jewelry* store: SVG/PNG drawn in code (CC0), plus AI-generated product photos via Google Flow. No real brand trademarks are used.
 - **Demo Models (`fixtures/youcam/ai-demo/`):** All people displayed in demo fixtures and screenshots are **fictional, AI-generated models** created by the team. No real individuals' biometrics or likenesses exist in this repository.
 - Full provenance log: [data/LICENSES.md](data/LICENSES.md) and [fixtures/youcam/ai-demo/README.md](fixtures/youcam/ai-demo/README.md).
 - **Widget character (Live2D):** This content uses sample data owned and copyrighted by Live2D Inc. The sample data are utilized in accordance with terms and conditions set by Live2D Inc. This content itself is created at the author's sole discretion. Live2D Cubism Core (Live2D Proprietary Software License) and the Cubism Web Framework (Live2D Open Software License, git submodule) are not covered by this repository's MIT licence; none of these files are committed. Live2D and Cubism are trademarks of Live2D Inc.; GiftFit is not made or endorsed by Live2D Inc. Details: [data/LICENSES.md](data/LICENSES.md).
