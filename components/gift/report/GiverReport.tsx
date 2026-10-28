@@ -8,6 +8,8 @@
  * designs they did not see, each clearly labelled "Not tried on", so the gift can stay a surprise.
  * Without a try-on (store-URL previews, ADR-055, or no photo taken) there is no undertone or face-shape
  * estimate: only the factors actually scored are shown, and no line claims a try-on or an estimate.
+ * A16 mixed sets: pieces whose store photo couldn't be tried on carry `tryOn: false`, a "Not tried on" chip, and
+ * are scored like the no-try-on case (hearts + budget/occasion).
  */
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -177,13 +179,19 @@ export function ReportItem({ result, product, hearted, wished = false, rank }: {
                 Wished for another metal
               </span>
             ) : null}
+            {result.tryOn === false ? (
+              <span className="inline-flex items-center rounded-full border border-line-strong px-2 py-0.5 text-xs font-medium text-ink-soft" data-testid="not-tried-on-badge">
+                Not tried on
+              </span>
+            ) : null}
           </p>
         </div>
       </div>
       <p className="sr-only">
         {title}
         {metal ? ` in ${METAL_LABELS[metal].toLowerCase()}` : ""} scored {Math.round(result.score)} out of 100{hearted ? ", and they hearted it" : ""}
-        {wished ? ". They wished it came in another metal" : ""}.
+        {wished ? ". They wished it came in another metal" : ""}
+        {result.tryOn === false ? ". It was not tried on" : ""}.
       </p>
 
       <dl className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -393,7 +401,7 @@ export function GiverReport({ token, api: apiProp, products: productsProp, pollM
         <>
           <dl className="mt-6 grid grid-cols-3 gap-2 text-center">
             <div className="rounded-xl border border-line bg-white p-3">
-              <dt className="text-[0.65rem] uppercase tracking-[0.14em] text-muted">{report.mode === "help_me_choose" ? (tryOn ? "Pieces tried" : "Pieces shown") : "Your picks"}</dt>
+              <dt className="text-[0.65rem] uppercase tracking-[0.14em] text-muted">{report.mode === "help_me_choose" ? (tryOn && !sorted.some((r) => r.tryOn === false) ? "Pieces tried" : "Pieces shown") : "Your picks"}</dt>
               <dd className="font-display text-3xl text-ink">{sorted.length}</dd>
             </div>
             <div className="rounded-xl border border-line bg-white p-3">
@@ -415,6 +423,11 @@ export function GiverReport({ token, api: apiProp, products: productsProp, pollM
                 </li>
               ))}
             </ul>
+          ) : null}
+          {tryOn && sorted.some((r) => r.tryOn === false) ? (
+            <p className="mt-4 rounded-xl border border-line bg-white px-4 py-3 text-sm leading-6 text-ink-soft" data-testid="mixed-tryon-note">
+              Some pieces were not tried on: the store&apos;s photo of them can&apos;t be used for try-on. Those are scored from their hearts, your budget and the occasion only, never from an undertone or face-shape estimate.
+            </p>
           ) : null}
           {report.tasteSummary ? <TasteSummaryCard summary={report.tasteSummary} /> : null}
           <ol className="mt-6 space-y-4">

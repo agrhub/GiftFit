@@ -10,6 +10,7 @@ import { ingestStoreUrl, MAX_PREVIEW_PRODUCTS, storeNameFromHtml } from "../inge
 import { MemoryPreviewRepo, DEFAULT_PREVIEW_SETTINGS } from "../repo";
 import { buildConciergeCatalog, searchCatalog } from "@/lib/concierge/catalog";
 import { fakeNet, html, jsonLdPage, shopifyProducts } from "./fake-site";
+import { MAX_IMAGE_PROBES } from "@/lib/ingest/tryon-eligibility";
 
 const SHOP = "https://lumen-shop.test";
 const shopifySite = (n: number) => ({
@@ -45,8 +46,17 @@ describe("Shopify /products.json", () => {
     expect(ring.images).toEqual(["https://cdn.shop-fixture.test/img/1.jpg?v=1"]); // http image dropped, URL kept as-is
     expect(ring.summary!.length).toBeLessThanOrEqual(160);
     expect(r.products[1].category).toBe("necklace");
-    expect(net.hrefs()).toEqual([`${SHOP}/robots.txt`, `${SHOP}/`, `${SHOP}/products.json?limit=50`, `${SHOP}/meta.json`]);
-    expect(r.fetches).toBe(4);
+    const hrefs = net.hrefs();
+    expect(hrefs.slice(0, 4)).toEqual([`${SHOP}/robots.txt`, `${SHOP}/`, `${SHOP}/products.json?limit=50`, `${SHOP}/meta.json`]);
+    // A16 try-on eligibility: then only the image host (its robots.txt once, ranged heads of ≤ MAX_IMAGE_PROBES images).
+    expect(hrefs.length).toBeGreaterThan(4);
+    for (const h of hrefs.slice(4)) expect(h.startsWith("https://cdn.shop-fixture.test/")).toBe(true);
+    for (const c of net.calls.slice(4)) if (!c.url.pathname.endsWith("robots.txt")) expect(c.headers.range).toBe("bytes=0-32767");
+    expect(r.fetches).toBe(hrefs.length);
+    expect(r.fetches).toBeLessThanOrEqual(4 + 1 + MAX_IMAGE_PROBES);
+    // The fake CDN answers 404: the URL rules decide (.jpg, size unknown).
+    expect(ring).toMatchObject({ tryOnEligible: true, tryOnReason: "ok_size_unknown", tryOnImage: "https://cdn.shop-fixture.test/img/1.jpg?v=1" });
+    expect(ring).not.toHaveProperty("imageMeta");
   });
 
   it(`caps a large store at ${MAX_PREVIEW_PRODUCTS} products`, async () => {

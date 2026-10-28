@@ -20,7 +20,7 @@ export async function POST(req: Request): Promise<Response> {
     await deps.repos.fitRequests.setStatus(request.id, "opened");
     request = { ...request, status: "opened" };
   }
-  const body = await sessionResponse(deps, request);
+  const body = await sessionResponse(deps, request, req);
   const maxAgeSec = Math.max(1, Math.floor((request.expiresAt.getTime() - deps.now().getTime()) / 1000));
   const secure = new URL(req.url).protocol === "https:" || process.env.NODE_ENV === "production";
   return recipientJson(body, { headers: { "Set-Cookie": recipientSessionCookie(session.token, { secure, maxAgeSec }) } });

@@ -1,8 +1,9 @@
 /**
  * Store-URL previews end to end through the real route modules (A6, ADR-055): the Concierge grounds on
  * the preview's own catalog (jewelry → brief; other stores → products only), a Fit Request from a
- * preview is hearts-only (session tryOn:false, capture and swatch refused, no YouCam), and every giver
- * response stays leak-free.
+ * preview on the PUBLIC production site (A16: YOUCAM_MOCK=0, recording switch off) is hearts-only (session
+ * tryOn:false, capture and swatch refused, no YouCam), and every giver response stays leak-free. The try-on
+ * path for previews (owner recording / mock) is in lib/privacy/__tests__/tryon-mode.test.ts.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as conciergePOST } from "@/app/api/concierge/route";
@@ -93,16 +94,21 @@ describe("Concierge on a preview store", () => {
   });
 });
 
-describe("Fit Request from a preview: hearts only, never YouCam", () => {
+describe("Fit Request from a preview on the public site: hearts only, never YouCam", () => {
   it("help me choose → session tryOn:false → capture/swatch 409 → hearts → done → report", async () => {
+    // Production: real mode, no owner recording session (A16) → 0 units, hearts-only.
+    vi.stubEnv("YOUCAM_MOCK", "0");
+    stack.deps.youcamMode = () => "real";
     const key = await seed("jewelry");
     const created = await requestsPOST(post("/api/fit/requests", { storeId: `preview:${key}`, mode: "help_me_choose", occasion: "birthday", budgetMax: 300, currency: "USD", shortlistIds: [], categories: ["earring"] }));
     expect(created.status).toBe(201);
     const c = (await created.json()) as CreateFitRequestResponse;
+    expect(c.tryOn).toBe(false);
     const recipientToken = c.recipientPath.split("/").pop()!;
 
     const session = (await (await sessionPOST(post("/api/recipient/session", {}, recipientToken))).json()) as RecipientSessionResponse;
     expect(session.tryOn).toBe(false);
+    expect(session).toMatchObject({ tryOnNote: "preview_off", preview: true });
     expect(session.items.length).toBeGreaterThanOrEqual(4);
     for (const i of session.items) expect(i.productImage).toMatch(/^https:\/\/giftfit\.example\/catalog\/aurum\//);
 

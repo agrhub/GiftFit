@@ -20,6 +20,7 @@ import { DailyCapError } from "@/lib/youcam/errors";
 import { fitRequestPlan } from "@/lib/youcam/fit-request";
 import { GIFT_FACE_FEATURES, HAND_JEWELRY } from "@/lib/youcam/features";
 import type { ImageContentType, ImageInput, JewelryKind } from "@/lib/youcam/types";
+import type { PaidGrant } from "@/lib/youcam/recording";
 import type { PrivacyDeps } from "./deps";
 import { PHOTO_MAX_TTL_MS } from "./photo-store";
 import { parseInputKey, renderName, tagOf, type RenderKind } from "./renders";
@@ -249,13 +250,15 @@ async function recordTask(
  * Real ports over the lib/youcam client: the typed tasks, one per call, so every render can be
  * named by its metal variant and cached per (photo, variant).
  */
-export function youcamCapturePorts(client: YoucamClient, opts: { fetch?: typeof fetch; baseUrl?: string } = {}): CapturePorts {
+export function youcamCapturePorts(client: YoucamClient, opts: { fetch?: typeof fetch; baseUrl?: string; paidGrant?: PaidGrant } = {}): CapturePorts {
   const doFetch = opts.fetch ?? fetch;
+  // A16: the owner-recording grant rides on every task; without it the shared client refuses paid tasks.
+  const run = opts.paidGrant ? { paidGrant: opts.paidGrant } : undefined;
   return {
     async analyze(selfie) {
       const settled = await Promise.allSettled([
-        client.facialColorTones(selfie, { faceAngleStrictness: "high" }),
-        client.faceAttributes(selfie, { features: GIFT_FACE_FEATURES }),
+        client.facialColorTones(selfie, { faceAngleStrictness: "high" }, run),
+        client.faceAttributes(selfie, { features: GIFT_FACE_FEATURES }, run),
       ]);
       const failed = settled.find((r): r is PromiseRejectedResult => r.status === "rejected");
       if (failed) {
@@ -277,7 +280,7 @@ export function youcamCapturePorts(client: YoucamClient, opts: { fetch?: typeof 
     },
     async render(kind, src, catalogId, productImage) {
       try {
-        const r = await client.jewelryVto(kind, src, { products: [{ url: productImage }] });
+        const r = await client.jewelryVto(kind, src, { products: [{ url: productImage }] }, run);
         return { catalogId, kind, ok: true, url: r.result.url, feature: r.feature, taskId: r.taskId, cacheKey: r.cacheKey, unitsCharged: r.unitsCharged };
       } catch (err) {
         const e = err as { code?: string; engineError?: string; reason?: string };

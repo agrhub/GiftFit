@@ -13,12 +13,20 @@ import path from "node:path";
 import { DEFAULT_FIXTURES_ROOT } from "./mock";
 
 export const DEFAULT_BASE_URL = "https://yce-api-01.makeupar.com";
-/** Judges' reserve (MASTER_PLAN v2 4.3): never let the balance drop below this. */
-export const DEFAULT_RESERVE_UNITS = 300;
+/**
+ * Balance floor. The judges' reserve (300, MASTER_PLAN v2 4.3) no longer applies (A16): judges watch the video
+ * and the public site spends 0 units, so the default is 0. Set YOUCAM_RESERVE_UNITS to keep a floor.
+ */
+export const DEFAULT_RESERVE_UNITS = 0;
 /** Per-run (per client instance / process) spending cap. One full Fit Request is 36 units. */
 export const DEFAULT_MAX_UNITS_PER_RUN = 40;
 /** Process-wide units per UTC day (A8 deploy requirement 4). 0 disables. */
 export const DEFAULT_DAILY_UNIT_CAP = 150;
+/**
+ * Units across days on the durable counter `youcam-total` (owner recording safety net, A16). 0 disables.
+ * The counter document expires 3 days after its last paid call (daily_counters TTL).
+ */
+export const DEFAULT_TOTAL_UNIT_CAP = 300;
 
 /** Jewelry 2d-vto body variants from docs/hackathon/first_real_calls.md (see buildJewelryBody). */
 export type JewelryBodyVariant = "A" | "B" | "C";
@@ -43,6 +51,8 @@ export interface YoucamConfig {
    * real mode; 0 disables it, and it is disabled in mock mode unless set explicitly.
    */
   dailyUnitCap: number;
+  /** YOUCAM_TOTAL_UNIT_CAP: durable cap across days (default 300 in real mode, 0 = off; disabled in mock mode unless set). */
+  totalUnitCap: number;
   webhookSecret?: string;
   pollIntervalMs: number;
   maxPolls: number;
@@ -98,6 +108,7 @@ export function loadYoucamConfig(env: Env = process.env): YoucamConfig {
     reserveUnits: int(env.YOUCAM_RESERVE_UNITS, DEFAULT_RESERVE_UNITS, "YOUCAM_RESERVE_UNITS"),
     maxUnitsPerRun: int(env.YOUCAM_MAX_UNITS_PER_RUN, DEFAULT_MAX_UNITS_PER_RUN, "YOUCAM_MAX_UNITS_PER_RUN"),
     dailyUnitCap: int(env.YOUCAM_DAILY_UNIT_CAP, mock ? 0 : DEFAULT_DAILY_UNIT_CAP, "YOUCAM_DAILY_UNIT_CAP"),
+    totalUnitCap: int(env.YOUCAM_TOTAL_UNIT_CAP, mock ? 0 : DEFAULT_TOTAL_UNIT_CAP, "YOUCAM_TOTAL_UNIT_CAP"),
     webhookSecret: env.YOUCAM_WEBHOOK_SECRET?.trim() || undefined,
     pollIntervalMs: int(env.YOUCAM_POLL_INTERVAL_MS, DEFAULT_POLL_INTERVAL_MS, "YOUCAM_POLL_INTERVAL_MS"),
     maxPolls: Math.max(1, int(env.YOUCAM_MAX_POLLS, DEFAULT_MAX_POLLS, "YOUCAM_MAX_POLLS")),

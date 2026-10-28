@@ -47,7 +47,7 @@ async function buildDefaults(): Promise<PrivacyDeps> {
     now: () => new Date(),
     // A6 (ADR-055): preview-store requests carry key-scoped SKU ids resolved from the preview repo.
     catalog: new PreviewAwareCatalog(aurumCatalogSource()),
-    capturePorts: (baseUrl) => youcamCapturePorts(getYoucamClient(), { baseUrl }),
+    capturePorts: (baseUrl, opts) => youcamCapturePorts(getYoucamClient(), { baseUrl, paidGrant: opts?.paidGrant }),
     youcamMode: () => getYoucamClient().mode,
   };
 }

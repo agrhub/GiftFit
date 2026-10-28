@@ -1,3 +1,4 @@
+import type { PaidGrant } from "@/lib/youcam/recording";
 import type { CapturePorts } from "./capture";
 import type { CatalogSource } from "./catalog";
 import type { PhotoStore } from "./photo-store";
@@ -24,11 +25,19 @@ export interface PrivacyDeps {
   now: () => Date;
   /** Product data for carousel items (Aurum JSON by default). */
   catalog: CatalogSource;
-  /** YouCam side of capture; defaults to youcamCapturePorts(getYoucamClient()). Tests inject fakes. */
-  capturePorts?: (baseUrl: string) => CapturePorts;
+  /**
+   * YouCam side of capture; defaults to youcamCapturePorts(getYoucamClient()). Tests inject fakes. `paidGrant`
+   * (A16) is the owner-recording capability: without it the shared client refuses every paid task.
+   */
+  capturePorts?: (baseUrl: string, opts?: { paidGrant?: PaidGrant }) => CapturePorts;
   /**
    * Whether capture/swatch calls can reach the paid YouCam API ("real") or are fixtures ("mock").
    * Mock is exempt from per-IP limits. Default runtime: getYoucamClient().mode; unset = "mock".
    */
   youcamMode?: () => "mock" | "real";
+  /**
+   * A16: whether an owner-recording call could pay right now (lib/youcam/recording.ts paidReadiness). Default:
+   * from the environment. Tests with fake real-mode ports set it.
+   */
+  youcamPaidReady?: () => boolean;
 }

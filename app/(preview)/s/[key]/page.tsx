@@ -1,6 +1,9 @@
 /**
  * /s/<key> : a store-URL preview (owner: A6, ADR-055) in GiftFit's own neutral template — the store's
- * name and products only, never its look or HTML. Banner "not affiliated", noindex, no checkout, cart,
+ * name and products only. Snapshot mode (A15, user decision "Chụp lại trang thật"): a jewelry store whose
+ * home page could be copied safely is shown as that inert, sanitized copy (/s/<key>/snapshot) in a
+ * sandboxed iframe below the banner instead; `?view=template` still shows the template. When the copy
+ * was refused, the template says why. Banner "not affiliated", noindex, no checkout, cart,
  * payment or login form. Images by URL (plain <img>, no Referer). The widget runs with
  * data-store="preview:<key>" and grounds the Concierge on this catalog. 404 when missing or expired;
  * queued/crawling refresh by themselves; refused/failed explain why.
@@ -12,7 +15,10 @@ import { notFound } from "next/navigation";
 import Script from "next/script";
 import { BookmarkletLink } from "@/components/preview/BookmarkletLink";
 import { expiresInHours, MerchantImage, PreviewBanner, PreviewHeader } from "@/components/preview/PreviewChrome";
+import { SnapshotFrame } from "@/components/preview/SnapshotFrame";
 import { formatMoney, translator, type MessageKey } from "@/lib/i18n";
+import { snapshotBasePath } from "@/lib/preview/page-snapshot";
+import { inSnapshotMode } from "@/lib/preview/page-snapshot-http";
 import { defaultPreviewRepo, PREVIEW_KEY_RE } from "@/lib/preview/repo";
 import { siteLocale } from "@/lib/site/locale";
 import { siteOrigin } from "@/lib/site/snippet";
@@ -24,13 +30,25 @@ export const metadata: Metadata = { title: "Store preview" };
 
 type Params = Promise<{ key: string }>;
 
-export default async function PreviewStorePage({ params, searchParams }: { params: Params; searchParams: Promise<{ lang?: string }> }) {
+export default async function PreviewStorePage({ params, searchParams }: { params: Params; searchParams: Promise<{ lang?: string; view?: string }> }) {
   const { key } = await params;
   if (!PREVIEW_KEY_RE.test(key)) notFound();
   const rec = await defaultPreviewRepo().get(key);
   if (!rec) notFound();
-  const locale = siteLocale((await searchParams).lang, (await headers()).get("accept-language"));
+  const sp = await searchParams;
+  const locale = siteLocale(sp.lang, (await headers()).get("accept-language"));
   const tr = translator(locale);
+
+  if (inSnapshotMode(rec) && sp.view !== "template") {
+    return (
+      <>
+        <SnapshotFrame src={snapshotBasePath(key)} title={tr("pstore.snapshotTitle", { domain: rec.domain })}>
+          <PreviewBanner locale={locale} domain={rec.domain} />
+        </SnapshotFrame>
+        <Script src="/giftfit.js" data-store={`preview:${key}`} strategy="lazyOnload" />
+      </>
+    );
+  }
 
   if (rec.state === "queued" || rec.state === "crawling") {
     return (
@@ -72,6 +90,18 @@ export default async function PreviewStorePage({ params, searchParams }: { param
         <p className="text-sm text-ink-soft">
           {tr("pstore.products", { count: view.products.length })} · {tr("pstore.assistant")}
         </p>
+        {rec.snapshot?.mode === "template" && rec.snapshot.reason && rec.snapshot.reason !== "disabled" ? (
+          <p className="mt-2 text-xs text-muted" data-testid="preview-look-note">
+            {tr("pstore.look.template", { domain: view.domain, why: tr(`pstore.look.reason.${rec.snapshot.reason}` as MessageKey) })}
+          </p>
+        ) : null}
+        {inSnapshotMode(rec) ? (
+          <p className="mt-2 text-xs">
+            <Link href={home} className="underline underline-offset-4" data-testid="preview-to-snapshot">
+              {tr("pstore.look.toSnapshot", { domain: view.domain })}
+            </Link>
+          </p>
+        ) : null}
         <ul className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4" data-testid="preview-grid">
           {view.products.map((p) => (
             <li key={p.id}>

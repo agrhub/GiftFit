@@ -64,6 +64,8 @@ export interface WidgetAppProps {
   store: string;
   /** Set for data-store="preview:<key>" (validated on the server: the preview exists and is ready). */
   preview?: WidgetPreview;
+  /** A16: the recipient of a gift made here will be offered a try-on (server decision for this browser). */
+  tryOn?: boolean;
   /** Exact origin of the store page (validated on the server), or null when opened directly. */
   parentOrigin: string | null;
   /** Store default UI language (`data-lang`). */
@@ -138,7 +140,7 @@ export function WidgetApp(props: WidgetAppProps) {
   return <Widget {...props} />;
 }
 
-function Widget({ store, preview, parentOrigin, preferredLang, allowedLangs, baseUrl, facebookAppId }: WidgetAppProps) {
+function Widget({ store, preview, tryOn, parentOrigin, preferredLang, allowedLangs, baseUrl, facebookAppId }: WidgetAppProps) {
   const accent = preview?.settings.accentColor;
   const standalone = parentOrigin === null;
   const [open, setOpen] = useState(standalone);
@@ -374,7 +376,7 @@ function Widget({ store, preview, parentOrigin, preferredLang, allowedLangs, bas
         />
       </div>
       {view === "brief" && brief && (
-        <BriefConfirm locale={locale} tr={tr} brief={brief.brief} match={match?.giftable === false ? null : match} previewKey={preview?.key} suggestionTitles={brief.titles} busy={creating} error={createError} onCreate={(b) => void create(b)} onBack={() => setView("chat")} />
+        <BriefConfirm locale={locale} tr={tr} brief={brief.brief} match={match?.giftable === false ? null : match} previewKey={preview?.key} tryOn={tryOn} suggestionTitles={brief.titles} busy={creating} error={createError} onCreate={(b) => void create(b)} onBack={() => setView("chat")} />
       )}
       {view === "card" && created && <GiftCardStep locale={locale} tr={tr} result={created.result} occasion={created.occasion} baseUrl={baseUrl} facebookAppId={facebookAppId} onNewGift={newGift} />}
       {view === "about" && (

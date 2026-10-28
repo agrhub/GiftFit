@@ -15,6 +15,7 @@ import type { StoreProductSnapshot } from "@/lib/contracts/api";
 import { PreviewAwareCatalog } from "@/lib/widget/preview";
 import { previewStoreHooks } from "@/lib/widget/preview-snapshot";
 import { type FitRepository, PrivacyFitRepository, StaticCatalog } from "./repository";
+import { tryOnOfferedTo } from "@/lib/privacy/tryon-mode";
 
 /**
  * Hooks for requests made from a store other than the Aurum catalog (A6, ADR-055: store-URL previews).
@@ -36,6 +37,13 @@ export interface StoreHooks {
 export interface FitDeps {
   /** Store-URL preview hooks (A6); absent in unit tests = plain Aurum behaviour. */
   stores?: StoreHooks;
+  /**
+   * A16: would THIS caller's recipient be offered a try-on in this deployment (lib/privacy/tryon-mode.ts)?
+   * false on the public production site (0 YouCam units: hearts-only); true for the owner's recording session
+   * and in mock mode. Only giver-side copy depends on it; recipient routes decide again for themselves.
+   * Absent = true (unit tests, legacy behaviour).
+   */
+  tryOnOffered?: (req?: Request) => boolean;
   repository: FitRepository;
   rules: JewelryRules | null;
   explainer: ExplainClient | null;
@@ -58,6 +66,7 @@ function buildDefaults(): FitDeps {
     repository: new PrivacyFitRepository(async () => (await getPrivacyDeps()).repos, new PreviewAwareCatalog(new StaticCatalog(aurumCatalog as unknown as CatalogSku[]))),
     rules: jewelryRules,
     stores: previewStoreHooks,
+    tryOnOffered: (req) => tryOnOfferedTo(req),
     explainer: createExplainClient(),
     taster: createTasteClient(),
     decoySecret: process.env.FIT_DECOY_SECRET || randomBytes(32).toString("hex"),

@@ -27,6 +27,8 @@ export interface CardState {
   rendersOff?: boolean;
   /** No try-on for this gift (store-URL previews, ADR-055): product photos only, never "your try-on". */
   noTryOn?: boolean;
+  /** A16 mixed set: this piece is never tried on (its store photo can't be used); hearts from the photo. */
+  notTriable?: boolean;
   /** Swatches with a render in hand (selectable even when renders are off). */
   renderedSwatchIds?: string[];
 }

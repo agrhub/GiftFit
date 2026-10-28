@@ -11,6 +11,7 @@ import { notFound } from "next/navigation";
 import { CopyText } from "@/components/preview/CopyText";
 import { expiresInHours, MerchantImage } from "@/components/preview/PreviewChrome";
 import { formatMoney, LOCALES, t, type MessageKey } from "@/lib/i18n";
+import { inSnapshotMode } from "@/lib/preview/page-snapshot-http";
 import { siteOrigin } from "@/lib/site/snippet";
 import { previewStoreView } from "@/lib/widget/preview";
 import { OWNER_COOKIE, verifyOwner } from "@/lib/widget/preview-admin";
@@ -67,6 +68,32 @@ export default async function PreviewAdminPage({ params, searchParams }: { param
         </Link>
       </p>
       <p className="mt-2 text-xs text-muted">This page opens only in the browser that used your owner link. Keep that link private; it is not shown again.</p>
+      {rec.state === "ready" ? (
+        <p className="mt-4 rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink" data-testid="admin-look">
+          Look:{" "}
+          {inSnapshotMode(rec) ? (
+            <>
+              <span data-testid="admin-look-mode">snapshot</span> — an inert, sanitized copy of your home page
+              {rec.snapshot?.productPages.length ? ` and ${rec.snapshot.productPages.length} product page${rec.snapshot.productPages.length === 1 ? "" : "s"}` : ""} (no scripts, forms or
+              tracking; images, styles and fonts load from {rec.domain}).{" "}
+              <Link href={`/s/${key}?view=template`} className="underline underline-offset-4">
+                Open the template view
+              </Link>
+            </>
+          ) : (
+            <>
+              <span data-testid="admin-look-mode">template</span> — GiftFit&apos;s neutral template
+              {rec.snapshot?.reason ? (
+                <>
+                  , because <span data-testid="admin-look-reason">{t("en", `pstore.look.reason.${rec.snapshot.reason}` as MessageKey)}</span>
+                </>
+              ) : (
+                "."
+              )}
+            </>
+          )}
+        </p>
+      ) : null}
 
       {q.msg && MESSAGES[q.msg] ? (
         <p role="status" className="mt-6 rounded-xl border border-sage/40 bg-white px-4 py-3 text-sm text-ink" data-testid="admin-message">

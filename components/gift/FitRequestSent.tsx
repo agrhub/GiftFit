@@ -43,7 +43,9 @@ export function FitRequestSent({ result, titles, onDone, curated = false }: { re
         text:
           result.tryOn === false
             ? `Someone who cares about you is choosing a gift. Look through ${result.carouselSize} pieces and heart the ones you love.`
-            : `Someone who cares about you is choosing a gift. Try on ${result.carouselSize} pieces and heart the ones you love. They will never see your photos.`,
+            : result.tryOnPartial
+              ? `Someone who cares about you is choosing a gift. Try some of ${result.carouselSize} pieces on and heart the ones you love. They will never see your photos.`
+              : `Someone who cares about you is choosing a gift. Try on ${result.carouselSize} pieces and heart the ones you love. They will never see your photos.`,
         url: link,
       });
       setStatus("Shared.");

@@ -54,7 +54,11 @@ export type CostGuardReason =
   | "daily_cap"
   /** The durable daily counter (STORE=firestore) could not be read or written: fail closed. */
   | "daily_counter_unavailable"
-  | "balance_unavailable";
+  | "balance_unavailable"
+  /** YOUCAM_TOTAL_UNIT_CAP (durable, across days) would be exceeded. */
+  | "total_cap"
+  /** No valid owner-recording grant (A16): the shared server client never pays without one. */
+  | "recording_off";
 
 /** The cost guard refused a paid call. The refusal is always written to the audit log. */
 export class CostGuardError extends YoucamError {

@@ -4,11 +4,12 @@
  * the cost guard decides any real call). Cached per (photo, variant): repeats are free and don't
  * count. At most 4 extra renders per Fit Request; the 5th returns `cap_reached` without a call.
  */
-import { FlowError, flowErrorResponse, swatchFlow } from "@/lib/privacy/recipient-flow";
+import { FlowError, flowErrorResponse, swatchFlow, tryOnOffCode } from "@/lib/privacy/recipient-flow";
 import { takeRateFor } from "@/lib/privacy/rate-limit";
 import { getPrivacyDeps } from "@/lib/privacy/runtime";
 import { recipientError, recipientJson, resolveRecipientSession } from "@/lib/privacy/session";
-import { isPreviewStoreId } from "@/lib/widget/preview-key";
+import { grantFor, requestTryOn } from "@/lib/privacy/tryon-mode";
+import { resolveCarousel } from "@/lib/privacy/carousel";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,8 +19,9 @@ export async function POST(req: Request): Promise<Response> {
   const deps = await getPrivacyDeps();
   const session = await resolveRecipientSession(req, deps);
   if (!session.ok) return recipientError(session.status, session.error);
-  // ADR-055: try-on is off for store-URL previews (no YouCam call, no render).
-  if (isPreviewStoreId(session.request.storeId)) return recipientError(409, "tryon_disabled_preview");
+  // A16: same access as capture (public production: 409, no YouCam call; owner recording: a paid grant).
+  const access = await requestTryOn(deps, session.request, req, { skus: (await resolveCarousel(deps, session.request)).map((c) => c.sku) });
+  if (access.mode === "off") return recipientError(409, tryOnOffCode(session.request));
   if (!deps.capturePorts) return recipientError(503, "capture_not_configured");
   let body: unknown;
   try {
@@ -34,7 +36,8 @@ export async function POST(req: Request): Promise<Response> {
         sessionToken: session.token,
         body,
         baseUrl,
-        ports: deps.capturePorts(baseUrl),
+        ports: deps.capturePorts(baseUrl, { paidGrant: grantFor(access, req) }),
+        access,
         // Per-IP limit (8/h) only for a real render: not mock, demo, cached, capped or refused.
         beforeYoucam: (deps.youcamMode?.() ?? "mock") === "real" ? () => takeRateFor(req, "swatch", deps.now().getTime()) : undefined,
       }));

@@ -5,7 +5,9 @@
  *   1. paid calls are enabled (YOUCAM_MOCK unset/0 AND YOUCAM_ALLOW_PAID=1) and a key exists;
  *   2. the task's price is known from the live feature-cost endpoint (cached);
  *   3. units committed by this run + price <= YOUCAM_MAX_UNITS_PER_RUN (default 40);
- *   4. live balance - units in flight - price >= YOUCAM_RESERVE_UNITS (default 280).
+ *   4. live balance - units in flight - price >= YOUCAM_RESERVE_UNITS (default 0 since A16; was the judges' 300).
+ * With a durable counter, YOUCAM_TOTAL_UNIT_CAP (A16) is reserved after the daily cap on the key
+ * `youcam-total` (across days; refunded like the daily count; a store failure is a refusal).
  * Checks 3-4 and the reservation run synchronously after the awaits, so concurrent
  * calls in one process cannot both slip under a limit.
  *
@@ -43,6 +45,8 @@ export interface CostGuardOptions {
    * (process memory). Key: `youcam-<YYYY-MM-DD>`.
    */
   dailyCounter?: DailyCounterStore;
+  /** Units across days on `dailyCounter` under TOTAL_COUNTER_KEY (A16). 0 or unset disables; needs dailyCounter. */
+  totalUnitCap?: number;
   /** How long live prices are reused. Default 10 minutes. */
   costTtlMs?: number;
   now?: () => number;
@@ -134,6 +138,11 @@ export class CostGuard {
   /** The durable counter, when there is one and a daily cap is set. */
   private durableCounter(): DailyCounterStore | undefined {
     return (this.opts.dailyUnitCap ?? 0) > 0 ? this.opts.dailyCounter : undefined;
+  }
+
+  /** The durable counter for the total cap, when there is one and a total cap is set. */
+  private totalCounter(): DailyCounterStore | undefined {
+    return (this.opts.totalUnitCap ?? 0) > 0 ? this.opts.dailyCounter : undefined;
   }
 
   private dailyRefusal(total: number): Pick<GuardDecision, "reason" | "message"> | undefined {
@@ -315,7 +324,7 @@ export class CostGuard {
    */
   private async reserveDurable(d: GuardDecision): Promise<GuardDecision> {
     const counter = this.durableCounter();
-    if (!counter) return d;
+    if (!counter) return this.reserveTotal(d, undefined);
     const units = d.unitsExpected!;
     const day = this.l.day!;
     const cap = this.opts.dailyUnitCap ?? 0;
@@ -323,7 +332,7 @@ export class CostGuard {
       const r = await counter.tryReserve(dailyKey(day), units, cap);
       if (r.ok) {
         if (this.l.day === day) this.l.dayCommitted = Math.max(this.l.dayCommitted, r.used);
-        return { ...d, dayUnits: this.l.dayCommitted };
+        return this.reserveTotal({ ...d, dayUnits: this.l.dayCommitted }, day);
       }
       this.releaseLocal(units, day);
       if (this.l.day === day) this.l.dayCommitted = Math.max(this.l.dayCommitted, r.used);
@@ -337,6 +346,40 @@ export class CostGuard {
     } catch (err) {
       this.releaseLocal(units, day);
       return { ...d, allowed: false, reason: "daily_counter_unavailable", message: `daily counter unavailable: ${(err as Error).message}` };
+    }
+  }
+
+  /**
+   * The total cap (A16): an atomic reserve on TOTAL_COUNTER_KEY after the daily one. A refusal or a store error
+   * gives the daily reservation back and refuses (fail closed).
+   */
+  private async reserveTotal(d: GuardDecision, dailyDay: string | undefined): Promise<GuardDecision> {
+    const counter = this.totalCounter();
+    if (!counter) return d;
+    const units = d.unitsExpected!;
+    const day = this.l.day;
+    const cap = this.opts.totalUnitCap ?? 0;
+    let refusal: Pick<GuardDecision, "reason" | "message">;
+    try {
+      const r = await counter.tryReserve(TOTAL_COUNTER_KEY, units, cap);
+      if (r.ok) return d;
+      refusal = { reason: "total_cap", message: `total cap: ${r.used} committed + ${units} > YOUCAM_TOTAL_UNIT_CAP ${cap}` };
+    } catch (err) {
+      refusal = { reason: "daily_counter_unavailable", message: `total counter unavailable: ${(err as Error).message}` };
+    }
+    this.releaseLocal(units, day);
+    if (dailyDay !== undefined) await this.refundDurable(dailyDay, units);
+    return { ...d, allowed: false, ...refusal };
+  }
+
+  /** Gives total-cap units back; never throws (logged). */
+  private async refundTotal(units: number): Promise<void> {
+    const counter = this.totalCounter();
+    if (!counter || units <= 0) return;
+    try {
+      await counter.refund(TOTAL_COUNTER_KEY, units);
+    } catch (err) {
+      console.error("[youcam] total counter refund failed:", (err as Error).message);
     }
   }
 
@@ -365,6 +408,7 @@ export class CostGuard {
       if (r.day !== undefined && r.day === this.today()) this.l.dayCommitted -= r.units;
       unitsCharged = 0;
       await this.refundDurable(r.day, r.units);
+      await this.refundTotal(r.units);
     }
     try {
       await this.opts.audit.write(
@@ -408,6 +452,9 @@ export class CostGuard {
     return d;
   }
 }
+
+/** Durable counter key of the total cap (A16; no date in it, so its TTL runs 3 days after the last paid call). */
+export const TOTAL_COUNTER_KEY = "youcam-total";
 
 /** Durable counter key for one UTC day (lib/store/daily-counter.ts). */
 export const dailyKey = (day: string) => `youcam-${day}`;

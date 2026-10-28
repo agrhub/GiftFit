@@ -20,7 +20,8 @@ describe("GET /api/health", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     const body = await res.json();
-    expect(Object.keys(body).sort()).toEqual(["demoAvailable", "mock", "ok", "paidCallsEnabled", "version"]);
+    expect(Object.keys(body).sort()).toEqual(["demoAvailable", "mock", "ok", "paidCallsEnabled", "publicTryOn", "recording", "version", "youcamPaid"]);
+    expect(body).toMatchObject({ youcamPaid: false, recording: "off", publicTryOn: "mock" });
     expect(body).toMatchObject({ ok: true, mock: true, demoAvailable: true, paidCallsEnabled: false });
   });
 
@@ -51,5 +52,21 @@ describe("buildVersion", () => {
     expect(buildVersion({})).toMatch(/^\d+\.\d+\.\d+$/);
     expect(buildVersion({ K_REVISION: "giftfit-00012-abc" })).toMatch(/\+giftfit-00012-abc$/);
     expect(buildVersion({ GIT_SHA: "abc123 <script>" })).toMatch(/\+abc123script$/);
+  });
+});
+
+describe("A16 paid-mode probe", () => {
+  const READY = { YOUCAM_RECORDING: "on", GIFTFIT_RECORDING_TOKEN: "owner-recording-token-0123456789-abcdefghij", YOUCAM_MOCK: "0", YOUCAM_ALLOW_PAID: "1", YOUCAM_API_KEY: "sk-test-youcam-0123456789", STORE: "firestore" };
+  it("youcamPaid is true only with the switch, the token, real paid mode, a key and durable caps; never echoes the token", async () => {
+    for (const [k, v] of Object.entries(READY)) vi.stubEnv(k, v);
+    const text = await (await GET()).text();
+    expect(JSON.parse(text)).toMatchObject({ youcamPaid: true, recording: "on", publicTryOn: "off", paidCallsEnabled: true });
+    expect(text).not.toContain(READY.GIFTFIT_RECORDING_TOKEN);
+    vi.stubEnv("YOUCAM_RECORDING", "off");
+    expect(await (await GET()).json()).toMatchObject({ youcamPaid: false, recording: "off", publicTryOn: "off" });
+  });
+  it("today's production env (real mode, paid allowed, switch unset) reports youcamPaid:false", async () => {
+    for (const [k, v] of Object.entries({ ...READY, YOUCAM_RECORDING: "", GIFTFIT_RECORDING_TOKEN: "" })) vi.stubEnv(k, v);
+    expect(await (await GET()).json()).toMatchObject({ youcamPaid: false, recording: "off", paidCallsEnabled: true, publicTryOn: "off" });
   });
 });

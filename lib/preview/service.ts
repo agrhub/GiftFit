@@ -14,6 +14,7 @@ import type { DailyCounterStore } from "@/lib/store/daily-counter";
 import type { Env } from "@/lib/store/config";
 import { defaultPreviewCounters, reservePreview } from "./caps";
 import { ingestStoreUrl, PREVIEW_DEADLINE_MS, type IngestStoreOptions } from "./ingest";
+import { capturePageSnapshot, type CaptureInput, type CaptureOptions, type PageSnapshotInfo, type SnapshotReason } from "./page-snapshot";
 import { defaultPreviewRepo, DEFAULT_PREVIEW_SETTINGS, PREVIEW_KEY_RE, PREVIEW_TTL_MS, type PreviewRecord, type PreviewRepo } from "./repo";
 import { hashOwnerToken, newOwnerToken, newPreviewKey } from "./tokens";
 import type { PreviewReason, PreviewState, StoreIngestResult } from "./types";
@@ -32,6 +33,8 @@ export interface PreviewDeps {
   /** Passed to the crawler's SafeFetcher (tests inject a transport and resolver). */
   fetcherOptions?: SafeFetcherOptions;
   ingest: (url: string, opts: IngestStoreOptions) => Promise<StoreIngestResult>;
+  /** A15: store-page snapshot after a ready ingest (tests inject a fake). */
+  capture: (input: CaptureInput, opts: CaptureOptions) => Promise<PageSnapshotInfo>;
   instanceId: string;
   env: Env;
 }
@@ -60,6 +63,7 @@ export function getPreviewDeps(): PreviewDeps {
     resolver: o.resolver,
     fetcherOptions: o.fetcherOptions,
     ingest: o.ingest ?? ingestStoreUrl,
+    capture: o.capture ?? capturePageSnapshot,
     instanceId: o.instanceId ?? s.instanceId,
     env,
   };
@@ -200,6 +204,7 @@ async function runCrawl(key: string, origin: string): Promise<void> {
     await deps.repo.update(key, { state: "crawling", updatedAt: new Date(t0), runner: deps.instanceId });
     const r = await deps.ingest(origin, { fetcherOptions: { ...(deps.resolver ? { resolver: deps.resolver } : {}), ...deps.fetcherOptions }, now: deps.now });
     const stateOut: PreviewState = r.outcome;
+    const snapshot = r.outcome === "ready" ? await snapshotFor(deps, key, r) : null;
     await deps.repo.update(key, {
       state: stateOut,
       reason: r.reason ?? null,
@@ -211,12 +216,27 @@ async function runCrawl(key: string, origin: string): Promise<void> {
       products: r.outcome === "ready" ? r.products : [],
       productCount: r.outcome === "ready" ? r.products.length : 0,
       fetches: r.fetches,
+      snapshot,
       updatedAt: new Date(deps.now()),
     });
-    console.info(`[preview] ${keyTag(key)} ${stateOut}${r.reason ? ` (${r.reason})` : ""} ${r.domain} products=${r.products.length} fetches=${r.fetches} ${r.ms}ms`);
+    const look = snapshot ? ` look=${snapshot.mode}${snapshot.reason ? `(${snapshot.reason})` : `(${snapshot.productPages.length} product pages)`}` : "";
+    console.info(`[preview] ${keyTag(key)} ${stateOut}${r.reason ? ` (${r.reason})` : ""} ${r.domain} products=${r.products.length} fetches=${r.fetches} ${r.ms}ms${look}`);
   } catch (err) {
     console.error(`[preview] ${keyTag(key)} crawl failed:`, isSafeFetchError(err) ? err.code : (err as Error).name);
     await deps.repo.update(key, { state: "failed", reason: "internal", products: [], productCount: 0, updatedAt: new Date(deps.now()) }).catch(() => undefined);
+  }
+}
+
+/** A15: the store-page snapshot of a ready ingest; never throws (a failure means the neutral template). */
+async function snapshotFor(deps: PreviewDeps, key: string, r: StoreIngestResult): Promise<PageSnapshotInfo> {
+  try {
+    const rec = await deps.repo.get(key, deps.now());
+    const expiresAt = rec?.expiresAt ?? new Date(deps.now() + PREVIEW_TTL_MS);
+    const fetcherOptions = { ...(deps.resolver ? { resolver: deps.resolver } : {}), ...deps.fetcherOptions };
+    return await deps.capture({ key, origin: r.origin, products: r.products, expiresAt }, { fetcherOptions, now: deps.now, env: deps.env });
+  } catch (err) {
+    console.error(`[preview] ${keyTag(key)} snapshot failed:`, (err as Error).name);
+    return { mode: "template", reason: "storage_failed", capturedAt: new Date(deps.now()), productPages: [], bytes: 0, fetches: 0 };
   }
 }
 
@@ -226,6 +246,8 @@ export interface PreviewStatus {
   name?: string;
   productCount?: number;
   reason?: PreviewReason;
+  /** A15: how a ready preview looks (a copy of the store page, or GiftFit's template and why). */
+  look?: { mode: PageSnapshotInfo["mode"]; reason?: SnapshotReason };
 }
 
 function isTracked(key: string): boolean {
@@ -257,5 +279,6 @@ export async function getPreviewStatus(key: string): Promise<PreviewStatus | nul
     ...(rec.storeName ? { name: rec.storeName } : {}),
     ...(st === "ready" ? { productCount: rec.productCount } : {}),
     ...(reason && (st === "refused" || st === "failed") ? { reason } : {}),
+    ...(st === "ready" && rec.snapshot ? { look: { mode: rec.snapshot.mode, ...(rec.snapshot.reason ? { reason: rec.snapshot.reason } : {}) } } : {}),
   };
 }

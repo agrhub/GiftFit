@@ -19,6 +19,12 @@ import { fixtureRenderRef, parseInputKey, parseRenderRef, tagOf } from "./render
 import { isRenderFeature, type FitRequestRecord, type RecipientProfileRecord, type TryOnRecord } from "./repos/types";
 import { signTryOnUrl } from "./signed-url";
 import { isPreviewStoreId } from "@/lib/widget/preview-key";
+import { isTryOnEligible, requestTryOn, type TryOnAccess } from "./tryon-mode";
+
+/** 409 code when a call asks for a try-on that this recipient does not get (A16, tryon-mode.ts). */
+export function tryOnOffCode(request: Pick<FitRequestRecord, "storeId">): string {
+  return isPreviewStoreId(request.storeId) ? "tryon_disabled_preview" : "tryon_off";
+}
 
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 const PHOTO_TYPES = ["image/jpeg", "image/png"] as const;
@@ -113,12 +119,16 @@ export interface CaptureFlowInput {
    * refusal). Returns ok=false to refuse with 429 and no YouCam call.
    */
   beforeYoucam?: () => { ok: boolean; retryAfterSec: number } | Promise<{ ok: boolean; retryAfterSec: number }>;
+  /** Who gets a try-on (A16). Absent = a public call (no owner cookie). */
+  access?: TryOnAccess;
 }
 
 export async function captureFlow(deps: PrivacyDeps, input: CaptureFlowInput): Promise<CaptureResponse> {
   const { request } = input;
-  // ADR-055 (A6): store-URL previews are hearts-only; never a YouCam call for them.
-  if (isPreviewStoreId(request.storeId)) throw new FlowError(409, "tryon_disabled_preview");
+  const initial = await resolveCarousel(deps, request);
+  // A16: public production recipients are hearts-only (0 units); only the owner's recording session or mock mode capture.
+  const access = input.access ?? (await requestTryOn(deps, request, undefined, { skus: initial.map((c) => c.sku) }));
+  if (access.mode === "off") throw new FlowError(409, tryOnOffCode(request));
   if (request.status === "created" || request.status === "opened") throw new FlowError(409, "consent_required");
   if (request.status === "completed") throw new FlowError(409, "already_completed");
   // The seeded judge demo is pre-captured from fixtures: a real capture would spend units.
@@ -127,14 +137,15 @@ export async function captureFlow(deps: PrivacyDeps, input: CaptureFlowInput): P
   const before = await deps.repos.profiles.get(request.id);
   // A new capture is a new photo: an earlier "Delete my photo now" applied to the old one.
   if (request.photoDeletedAt) await deps.repos.fitRequests.setPhotoDeletedAt(request.id, null);
-  const initial = await resolveCarousel(deps, request);
+  // Store-URL preview pieces whose photo try-on can't use are never rendered (A16): hearts-only.
+  const triable = (c: ResolvedItem) => isTryOnEligible(c.sku);
   // Keep a photo only if some design rendered on it has another metal to try (privacy by default).
-  const multi = (hand: boolean) => initial.some((c) => isHandItem(c.sku) === hand && c.swatches.length > 1);
+  const multi = (hand: boolean) => initial.some((c) => triable(c) && isHandItem(c.sku) === hand && c.swatches.length > 1);
   let carousel: ResolvedItem[] = initial;
 
   // A1's daily unit cap, checked for the whole capture before any call: refuse, nothing stored.
   if (input.ports.preflight) {
-    const renders = initial.filter((c) => !isHandItem(c.sku) || input.hand).map((c) => c.sku.category as JewelryKind);
+    const renders = initial.filter((c) => triable(c) && (!isHandItem(c.sku) || input.hand)).map((c) => c.sku.category as JewelryKind);
     if ((await input.ports.preflight({ analysis: true, renders })) === "daily_cap") throw dailyCapError(deps);
   }
   if (input.beforeYoucam) {
@@ -152,7 +163,7 @@ export async function captureFlow(deps: PrivacyDeps, input: CaptureFlowInput): P
       // Defaults are chosen after the estimate is stored (lib/fit defaultVariant: tone match first).
       items: async () => {
         carousel = await resolveCarousel(deps, request);
-        return carousel.map((c) => captureItemFor(c, c.defaultSwatch, input.baseUrl));
+        return carousel.filter(triable).map((c) => captureItemFor(c, c.defaultSwatch, input.baseUrl));
       },
       rules: input.rules,
       consentAt: before?.consentAt ?? deps.now(),
@@ -165,21 +176,23 @@ export async function captureFlow(deps: PrivacyDeps, input: CaptureFlowInput): P
     throw new FlowError(422, "analysis_failed");
   }
   const processingSeconds = Math.round((performance.now() - started) / 100) / 10;
-  const byCatalog = new Map(carousel.map((c) => [c.sku.id, c]));
   // "Delete my photo now" arrived while rendering: wipe what this capture produced, show no images.
   const deletedMidway = await isPhotoDeleted(deps, request.id);
   if (deletedMidway) await wipeFaceImages(deps, request.id);
 
   const profile = (await deps.repos.profiles.get(request.id)) as RecipientProfileRecord;
   const estimate = profile.undertoneEstimate ?? view.undertone.undertone;
+  const rendered = new Map(view.tryOns.map((t) => [t.catalogId, t]));
   return {
-    tryons: view.tryOns.map((t) => {
-      const c = byCatalog.get(t.catalogId)!;
+    // Carousel order; pieces that were not rendered because their photo can't be used say so (A16).
+    tryons: carousel.flatMap((c): CaptureResponse["tryons"] => {
       const swatchId = c.defaultSwatch.swatchId;
-      if (deletedMidway) return { itemId: c.itemId, swatchId, status: "failed" as const, failureReason: "photo_deleted" };
-      if (t.ok) return { itemId: c.itemId, swatchId, status: "ready" as const, imageUrl: t.imageUrl };
-      if (t.code === "hand_photo_required") return { itemId: c.itemId, swatchId, status: "skipped_needs_hand" as const };
-      return { itemId: c.itemId, swatchId, status: "failed" as const, failureReason: t.code === "daily_cap" ? "daily_cap_reached" : t.code };
+      const t = rendered.get(c.sku.id);
+      if (!t) return triable(c) ? [] : [{ itemId: c.itemId, swatchId, status: "skipped_not_eligible" }];
+      if (deletedMidway) return [{ itemId: c.itemId, swatchId, status: "failed", failureReason: "photo_deleted" }];
+      if (t.ok) return [{ itemId: c.itemId, swatchId, status: "ready", imageUrl: t.imageUrl }];
+      if (t.code === "hand_photo_required") return [{ itemId: c.itemId, swatchId, status: "skipped_needs_hand" }];
+      return [{ itemId: c.itemId, swatchId, status: "failed", failureReason: t.code === "daily_cap" ? "daily_cap_reached" : t.code }];
     }),
     undertone: {
       estimate,
@@ -227,6 +240,7 @@ export async function capturedView(deps: PrivacyDeps, request: FitRequestRecord,
   const tryons = carousel.map((c): CaptureResponse["tryons"][number] => {
     const { itemId, sku, defaultSwatch } = c;
     const swatchId = defaultSwatch.swatchId;
+    if (!isTryOnEligible(sku)) return { itemId, swatchId, status: "skipped_not_eligible" };
     if (photoDeleted) return { itemId, swatchId, status: "failed", failureReason: "photo_deleted" };
     const vTag = tagOf(defaultSwatch.variant.variantId);
     const forDesign = rows.filter((r) => r.row.catalogId === sku.id);
@@ -279,6 +293,8 @@ export interface SwatchFlowInput {
   ports: CapturePorts;
   /** Per-IP limit, called only when a real render is about to happen (not cached, demo, capped or refused). */
   beforeYoucam?: () => { ok: boolean; retryAfterSec: number } | Promise<{ ok: boolean; retryAfterSec: number }>;
+  /** Who gets a try-on (A16). Absent = a public call (no owner cookie). */
+  access?: TryOnAccess;
 }
 
 /**
@@ -288,11 +304,13 @@ export interface SwatchFlowInput {
  */
 export async function swatchFlow(deps: PrivacyDeps, input: SwatchFlowInput): Promise<SwatchResponse> {
   const { request } = input;
-  if (isPreviewStoreId(request.storeId)) throw new FlowError(409, "tryon_disabled_preview");
+  const carousel = await resolveCarousel(deps, request);
+  // A16: a cached or demo render stays viewable, but a new render needs the same access as capture.
+  const access = input.access ?? (await requestTryOn(deps, request, undefined, { skus: carousel.map((c) => c.sku) }));
+  if (access.mode === "off") throw new FlowError(409, tryOnOffCode(request));
   if (request.status === "completed") throw new FlowError(409, "already_completed");
   if (request.status !== "tried_on") throw new FlowError(409, "not_captured");
   const b = input.body as { itemId?: unknown; swatchId?: unknown } | null;
-  const carousel = await resolveCarousel(deps, request);
   const { item, swatch } = findSwatch(carousel, b?.itemId, b?.swatchId);
   // After "Delete my photo now" there is no image of the recipient left to show or to render on.
   if (await isPhotoDeleted(deps, request.id)) return { status: "failed", failureReason: "photo_deleted", rendersLeft: 0 };
@@ -310,6 +328,8 @@ export async function swatchFlow(deps: PrivacyDeps, input: SwatchFlowInput): Pro
   const rows = await renderRows(deps, request);
   const extras = rows.filter((r) => r.parsed?.kind === "x").length;
   const left = () => Math.max(0, MAX_EXTRA_RENDERS - extras);
+  // A16: a store-URL preview piece whose photo try-on can't use is never rendered.
+  if (!isTryOnEligible(item.sku)) return { status: "failed", failureReason: "not_eligible", rendersLeft: left() };
 
   // Cached: this variant already rendered on the current photo (or, with no photo kept, any live render of it).
   const vTag = tagOf(swatch.variant.variantId);

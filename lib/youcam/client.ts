@@ -12,8 +12,9 @@ import { globalLedger, youcamState } from "./global-state";
 import { loadYoucamConfig, type JewelryBodyVariant, type YoucamConfig } from "./config";
 import { parseFeatureCostPage } from "./costs";
 import { CostGuard, type GuardDecision } from "./cost-guard";
+import { isValidPaidGrant, logPaidCall, logPaidMode, type PaidGrant } from "./recording";
 import { defaultDailyCounterStore, type DailyCounterStore } from "../store/daily-counter";
-import { YoucamApiError, YoucamTaskError, YoucamTimeoutError, YoucamValidationError } from "./errors";
+import { CostGuardError, YoucamApiError, YoucamTaskError, YoucamTimeoutError, YoucamValidationError } from "./errors";
 import {
   DEFAULT_UPLOAD_PATH,
   attachFiles,
@@ -81,6 +82,12 @@ export interface YoucamClientOptions {
    * "isolated": this client gets its own ledger and fresh defaults (tests, scripts).
    */
   state?: "global" | "isolated";
+  /**
+   * A16 owner-recording switch: every paid task needs a valid `RunOptions.paidGrant` (lib/youcam/recording.ts),
+   * else it is refused before the cost guard ("recording_off"). The shared server client (getYoucamClient) sets
+   * it; scripts that build their own client keep the cost guard alone.
+   */
+  requirePaidGrant?: boolean;
 }
 
 export interface RunOptions {
@@ -88,6 +95,8 @@ export interface RunOptions {
   cache?: boolean;
   /** Jewelry body variant for this call (default: config.jewelryBodyVariant). */
   jewelryBodyVariant?: JewelryBodyVariant;
+  /** Owner-recording grant for a paid task (required when the client has requirePaidGrant). Ignored in mock mode. */
+  paidGrant?: PaidGrant;
 }
 
 export interface RunResult<R> {
@@ -148,6 +157,7 @@ export class YoucamClient {
   readonly guard: CostGuard;
   readonly audit: AuditSink;
   readonly cache: ResultCache | null;
+  readonly requirePaidGrant: boolean;
   private readonly transport: Transport;
   private readonly now: () => number;
 
@@ -155,6 +165,7 @@ export class YoucamClient {
     this.config = { ...loadYoucamConfig(), ...(opts.config ?? {}) };
     if (this.config.mock) this.config.allowPaid = false;
     this.now = opts.now ?? Date.now;
+    this.requirePaidGrant = opts.requirePaidGrant === true;
     this.transport = {
       fetch: opts.fetch ?? ((input, init) => fetch(input, init)),
       sleep: opts.sleep ?? realSleep,
@@ -171,6 +182,7 @@ export class YoucamClient {
       reserveUnits: this.config.reserveUnits,
       maxUnitsPerRun: this.config.maxUnitsPerRun,
       dailyUnitCap: this.config.dailyUnitCap,
+      totalUnitCap: this.config.totalUnitCap,
       audit: this.audit,
       fetchBalance: () => this.getBalance(),
       fetchFeatureCosts: () => this.getFeatureCosts(),
@@ -514,7 +526,14 @@ export class YoucamClient {
       }
     }
 
+    if (this.requirePaidGrant && !isValidPaidGrant(opts.paidGrant, this.now())) {
+      // A16: no owner-recording grant, no paid task. Audited like any other refusal; nothing is reserved.
+      const unitsExpected = this.guard.estimate(feature, tier);
+      await this.writeAudit({ event: "youcam.attempt", mode: "real", feature, decision: "refused", reason: "recording_off", unitsExpected, cacheKey: key });
+      throw new CostGuardError(`YouCam call refused: owner recording is off for this request (${feature})`, "recording_off", feature, unitsExpected);
+    }
     const reservation = await this.guard.authorize(feature, tier, key);
+    if (opts.paidGrant) logPaidCall({ feature, units: reservation.units, dayUnits: this.guard.unitsToday, dailyUnitCap: this.config.dailyUnitCap });
     let taskId: string | undefined;
     try {
       const srcRef = await this.resolveFile(src, spec.uploadPath);
@@ -632,7 +651,11 @@ export function createYoucamClient(opts: YoucamClientOptions = {}): YoucamClient
  */
 export function getYoucamClient(): YoucamClient {
   const state = youcamState();
-  state.client ??= new YoucamClient();
+  if (!state.client) {
+    // A16: the server never pays without an owner-recording grant.
+    state.client = new YoucamClient({ requirePaidGrant: true });
+    logPaidMode("youcam client");
+  }
   return state.client;
 }
 

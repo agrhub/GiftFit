@@ -22,5 +22,5 @@ export async function POST(req: Request): Promise<Response> {
   }
   if ((body as { accepted?: unknown } | null)?.accepted !== true) return recipientError(400, "consent_not_given");
   const request = await recordConsent(deps, session.request);
-  return recipientJson(await sessionResponse(deps, request));
+  return recipientJson(await sessionResponse(deps, request, req));
 }

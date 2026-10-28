@@ -21,7 +21,7 @@ import { HD_SKIN_ACTIONS } from "../types";
 describe("loadYoucamConfig", () => {
   it("defaults to mock with paid calls off", () => {
     const c = loadYoucamConfig({});
-    expect(c).toMatchObject({ mock: true, allowPaid: false, reserveUnits: 300, maxUnitsPerRun: 40, pollIntervalMs: 5000, maxPolls: 60, jewelryBodyVariant: "A" });
+    expect(c).toMatchObject({ mock: true, allowPaid: false, reserveUnits: 0, maxUnitsPerRun: 40, pollIntervalMs: 5000, maxPolls: 60, jewelryBodyVariant: "A" });
     expect(c.baseUrl).toBe("https://yce-api-01.makeupar.com");
     expect(c.apiKey).toBeUndefined();
   });

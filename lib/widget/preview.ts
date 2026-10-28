@@ -7,10 +7,10 @@
  *   - `products`     every product the owner did not remove (any kind of store);
  *   - `skus`         the jewelry subset (A10's previewProductToSku) with KEY-SCOPED ids `<key>~<sku id>` and
  *                    storeId `preview:<key>`, so a Fit Request can only ever draw from its own preview.
- *                    They are marked try-on ready ONLY so the existing curation/decoy rules accept them for a
- *                    hearts-only request: try-on is refused server-side for every preview request
- *                    (lib/privacy/recipient-flow.ts captureFlow/swatchFlow → 409 tryon_disabled_preview),
- *                    and the recipient UI never offers a selfie (session `tryOn: false`).
+ *                    All are marked vto_spec_ok so curation/decoys accept them; `attributes.tryon_eligible`
+ *                    (A16, from the ingest's try-on eligibility) says which ones a try-on may render. Whether a
+ *                    try-on happens at all is decided per recipient session (lib/privacy/tryon-mode.ts:
+ *                    owner recording / mock rehearsal → try-on, public production → hearts-only).
  *   - `settings`     the owner's widget settings (Admin v0), validated.
  * Missing, expired, queued, crawling, refused or failed previews are `null` everywhere.
  */
@@ -65,8 +65,9 @@ export function previewStoreView(rec: PreviewRecord): PreviewStoreView {
       ...sku,
       id,
       storeId: previewStoreId(rec.key),
-      // Hearts-only eligibility (see the header): never rendered, capture and swatch refuse preview requests.
-      attributes: { ...sku.attributes, vto_spec_ok: true, vto_image: p.images[0] },
+      // vto_spec_ok keeps every piece giftable (curation/decoys); `tryon_eligible` (A16) says which ones a
+      // try-on may render, on `tryOnImage` (the photo that passed the checks). The rest stay hearts-only.
+      attributes: { ...sku.attributes, vto_spec_ok: true, vto_image: p.tryOnImage ?? p.images[0], tryon_eligible: p.tryOnEligible === true },
     });
   });
   return {

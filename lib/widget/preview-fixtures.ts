@@ -6,6 +6,7 @@
 import { PREVIEW_TTL_MS, type PreviewRecord } from "@/lib/preview/repo";
 import { hashOwnerToken, newOwnerToken, newPreviewKey } from "@/lib/preview/tokens";
 import type { PreviewProduct } from "@/lib/preview/types";
+import { classifyTryOn } from "@/lib/ingest/tryon-eligibility";
 
 export type FixtureKind = "jewelry" | "generic";
 
@@ -30,24 +31,39 @@ const GENERIC: Array<[string, string, number, string]> = [
   ["t5", "Chamomile Bedtime Blend", 16, "Tea"],
 ];
 
+/**
+ * Image metadata as a Shopify store would state it (A16 try-on eligibility): two pieces are deliberately NOT
+ * try-on eligible, so a fixture gift mixes tried-on and hearts-only pieces: 1007's photo is a model shot, 2002's
+ * photo is a 300 px thumbnail. The rest are 1200 px packshots.
+ */
+const FIXTURE_IMAGE_META: Record<string, { width: number; height: number; alt?: string }> = {
+  "1007": { width: 1200, height: 1500, alt: "Model wearing the Tide Bar Earrings" },
+  "2002": { width: 300, height: 300 },
+};
+
 export function fixtureProducts(kind: FixtureKind, imageBase: string, domain: string): PreviewProduct[] {
   const base = imageBase.replace(/\/$/, "");
   if (kind === "jewelry") {
-    return JEWELRY.map(([id, title, price, category, metal, img]) => ({
-      id,
-      title,
-      url: `https://${domain}/products/${id}`,
-      images: [`${base}/catalog/aurum/${img}`],
-      price,
-      currency: "USD",
-      categoryText: category === "earring" ? "Earrings" : "Necklaces",
-      category,
-      metal,
-      style: null,
-      tags: [],
-      summary: `${title}, a fictional test piece.`,
-      available: true,
-    }));
+    return JEWELRY.map(([id, title, price, category, metal, img]) => {
+      const url = `${base}/catalog/aurum/${img}`;
+      const p: PreviewProduct = {
+        id,
+        title,
+        url: `https://${domain}/products/${id}`,
+        images: [url],
+        price,
+        currency: "USD",
+        categoryText: category === "earring" ? "Earrings" : "Necklaces",
+        category,
+        metal,
+        style: null,
+        tags: [],
+        summary: `${title}, a fictional test piece.`,
+        available: true,
+      };
+      const v = classifyTryOn({ ...p, imageMeta: [{ url, position: 1, ...(FIXTURE_IMAGE_META[id] ?? { width: 1200, height: 1200 }) }] });
+      return { ...p, tryOnEligible: v.tryOnEligible, tryOnReason: v.tryOnReason, ...(v.tryOnImage ? { tryOnImage: v.tryOnImage } : {}) };
+    });
   }
   return GENERIC.map(([id, title, price, cat], i) => ({
     id,

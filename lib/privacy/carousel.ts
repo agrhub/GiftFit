@@ -16,6 +16,7 @@ import type { PrivacyDeps } from "./deps";
 import { parseRenderRef, tagOf } from "./renders";
 import { isRenderFeature, type FitRequestRecord, type FitRequestStatus } from "./repos/types";
 import { isPreviewStoreId } from "@/lib/widget/preview-key";
+import { isTryOnEligible, requestTryOn } from "./tryon-mode";
 
 
 export const HAND_CATEGORIES: readonly JewelryCategory[] = ["ring", "bracelet", "watch"];
@@ -72,7 +73,7 @@ export interface ResolvedItem {
   defaultSwatch: ResolvedSwatch;
 }
 
-type CarouselDeps = Pick<PrivacyDeps, "signingSecret" | "catalog" | "repos">;
+type CarouselDeps = Pick<PrivacyDeps, "signingSecret" | "catalog" | "repos"> & Partial<Pick<PrivacyDeps, "youcamMode" | "youcamPaidReady">>;
 
 /** Tone input for lib/fit defaultVariant: the override, else the estimate; null before capture. */
 function toneOf(p: { undertoneEstimate: Undertone | null; undertoneOverride: Undertone | null } | undefined) {
@@ -127,6 +128,8 @@ export function toCarouselItem(r: ResolvedItem): CarouselItem {
     category: sku.category,
     productImage: def.images[0] ?? sku.images[0] ?? def.vto_image,
     needsHandPhoto: HAND_CATEGORIES.includes(sku.category),
+    // A16: a store-URL preview photo that try-on can't use; hearts-only for this piece.
+    ...(isTryOnEligible(sku) ? {} : { tryOn: false as const }),
     swatches: r.swatches.map((s) => ({
       swatchId: s.swatchId,
       metalLabel: SWATCH_LABEL[s.variant.metal],
@@ -152,18 +155,24 @@ export function sessionStatus(status: FitRequestStatus): RecipientSessionRespons
   }
 }
 
-export async function sessionResponse(deps: CarouselDeps, request: FitRequestRecord): Promise<RecipientSessionResponse> {
+/**
+ * `req` carries the owner-recording cookie (A16, tryon-mode.ts); without it the call is treated as public.
+ */
+export async function sessionResponse(deps: CarouselDeps, request: FitRequestRecord, req?: Pick<Request, "headers">): Promise<RecipientSessionResponse> {
   const items = await resolveCarousel(deps, request);
+  // Who gets a try-on (A16): owner recording / mock rehearsal → try-on; public production → hearts-only.
   // Seeded judge demo (demo.ts): fixture try-on rows or the memory flag; A4 shows an "AI-generated model, demo" badge.
-  const demo = request.demo || (await deps.repos.tryons.listForRequest(request.id)).some((r) => r.resultRef?.startsWith("fixture:"));
+  const access = await requestTryOn(deps, request, req, { skus: items.map((i) => i.sku) });
+  const demo = access.mode === "demo";
+  const preview = isPreviewStoreId(request.storeId);
   return {
     status: sessionStatus(request.status),
     occasion: (request.occasion as Occasion | null) ?? null,
     expiresAt: request.expiresAt.toISOString(),
     items: items.map(toCarouselItem),
     ...(demo ? { demo: true } : {}),
-    // ADR-055: store-URL previews are hearts-only (no selfie, no try-on).
-    ...(isPreviewStoreId(request.storeId) ? { tryOn: false as const } : {}),
+    ...(access.mode === "off" ? { tryOn: false as const, ...(access.note ? { tryOnNote: access.note } : {}) } : {}),
+    ...(preview ? { preview: true as const } : {}),
     // The gift pages' header names the preview's store, never the Aurum demo store (ADR-055).
     ...(isPreviewStoreId(request.storeId) && request.storeName ? { storeName: request.storeName } : {}),
     // The preview behind it is gone (ADR-055): its pieces can't be shown any more.

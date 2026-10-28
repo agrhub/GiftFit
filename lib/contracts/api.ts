@@ -105,8 +105,13 @@ export interface CreateFitRequestResponse {
   carouselSize: number;
   /** Store-URL preview requests (ADR-055): display data of the giver's own pieces (never decoys). */
   products?: StoreProductSnapshot[];
-  /** false for stores without try-on (store-URL previews): the recipient hearts from product photos. */
+  /**
+   * false when the recipient will heart from product photos (no try-on for this link in this deployment:
+   * the public site spends 0 YouCam units, A16). Absent = a try-on is offered.
+   */
   tryOn?: false;
+  /** A16: a try-on is offered, but only some pieces can be tried on (store photos that YouCam can't use). */
+  tryOnPartial?: true;
 }
 
 /** POST /api/fit/report — existing route (body `{ giverToken }`), response unchanged. */
@@ -158,6 +163,11 @@ export interface CarouselItem {
   /** Ring, bracelet and watch need the back-of-hand photo. */
   needsHandPhoto: boolean;
   /**
+   * A16: false when this piece is never tried on (a store-URL preview photo that YouCam can't use); the
+   * recipient hearts it from the store's photo. Absent = it can be tried on when the gift has a try-on.
+   */
+  tryOn?: false;
+  /**
    * Eligible metal variants of this design (within the giver's cap and lock), never with prices
    * (ADR-032). Always present (≥ 1); decoys carry swatches in the same shape, leveled in count.
    */
@@ -187,6 +197,14 @@ export interface RecipientSessionResponse {
    * from the store's product photos ("Try-on isn't enabled for previews"). Absent = try-on as usual.
    */
   tryOn?: false;
+  /**
+   * A16: why there is no try-on, for the copy. "demo_mode": the public demo (0 units; try-ons are pre-recorded
+   * in the judge demo, no photo is sent); "preview_off": a store-URL preview on the public site; "no_eligible":
+   * none of the store's photos can be used for try-on.
+   */
+  tryOnNote?: "demo_mode" | "preview_off" | "no_eligible";
+  /** A16: the request comes from a store-URL preview (header and copy), whatever its try-on state. */
+  preview?: true;
   /** The store preview behind this request is gone: its pieces can no longer be shown (ADR-055). */
   previewExpired?: true;
   /** The store's display name for a store-URL preview request (absent = the Aurum demo store). */
@@ -208,7 +226,8 @@ export interface CaptureResponse {
     itemId: string;
     /** The default swatch rendered at capture time. */
     swatchId?: string;
-    status: "ready" | "failed" | "skipped_needs_hand";
+    /** "skipped_not_eligible" (A16): the store's photo of this piece can't be used for try-on; heart it from the photo. */
+    status: "ready" | "failed" | "skipped_needs_hand" | "skipped_not_eligible";
     /** Short-lived signed URL, recipient session only. */
     imageUrl?: string;
     failureReason?: string;

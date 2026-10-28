@@ -18,7 +18,9 @@ export async function POST(req: Request): Promise<Response> {
   try {
     const done = await doneFlow(deps, session.request);
     // A6 widget (ADR-046): one "Fit Report ready" e-mail if the giver left an address; never throws.
-    await notifyGiverReportReady(session.request, req);
+    // A16: "finished trying on" only when a try-on happened (an estimate exists); otherwise "sent their hearts".
+    const tried = Boolean((await deps.repos.profiles.get(session.request.id))?.undertoneEstimate);
+    await notifyGiverReportReady(session.request, req, undefined, { tryOn: tried });
     return recipientJson(done);
   } catch (err) {
     if (err instanceof FlowError) return recipientError(err.status, err.code);

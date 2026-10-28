@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FirestorePreviewRepo, MemoryPreviewRepo } from "@/lib/preview/repo";
 import { FirestorePrivacyRepos } from "@/lib/privacy/repos/firestore";
 import { newFitRequestTokens } from "@/lib/privacy/tokens";
@@ -9,6 +9,12 @@ import { extendedPreviewExpiry, extendPreviewForRequest, isPreviewGone, PREVIEW_
 
 const H = 3_600_000;
 const T0 = Date.parse("2026-10-27T08:00:00Z");
+// Freeze Date at T0: some reads use the wall clock, and T0 + 72 h is already in the past.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(T0);
+});
+afterEach(() => vi.useRealTimers());
 const at = (h: number) => new Date(T0 + h * H);
 
 describe("preview lifetime extension", () => {

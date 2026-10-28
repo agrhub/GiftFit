@@ -125,7 +125,7 @@ export async function handleCreateRequest(req: Request, deps: FitDeps): Promise<
   const parsed = CreateBody.safeParse(await readJson(req));
   if (!parsed.success) return json<FitErrorResponse>({ error: "bad_request", message: parsed.error.issues[0]?.message }, 400);
   const body = parsed.data;
-  if (body.mode === "help_me_choose") return createHelpMeChoose(body, deps);
+  if (body.mode === "help_me_choose") return createHelpMeChoose(body, deps, req);
   const shortlist = await deps.repository.getSkus(body.shortlistIds);
   if (shortlist.length !== body.shortlistIds.length) return json<FitErrorResponse>({ error: "unknown_sku" }, 404);
   const storeId = body.storeId ?? shortlist[0].storeId;
@@ -144,7 +144,7 @@ export async function handleCreateRequest(req: Request, deps: FitDeps): Promise<
   const sel = selectDecoys(shortlist, await deps.repository.listCatalog(storeId), { seed: decoySeed(deps.decoySecret, id), request: variantRequest });
   if (sel.decoyIds.length < 2) return json<FitErrorResponse>({ error: "insufficient_catalog" }, 422);
 
-  return storeRequest(deps, id, body, { mode: "i_have_ideas", storeId, shortlistIds: [...body.shortlistIds], decoyIds: sel.decoyIds });
+  return storeRequest(deps, id, body, { mode: "i_have_ideas", storeId, shortlistIds: [...body.shortlistIds], decoyIds: sel.decoyIds }, req);
 }
 
 /**
@@ -152,7 +152,7 @@ export async function handleCreateRequest(req: Request, deps: FitDeps): Promise<
  * lock, categories and gender presentation; no decoys. The curated designs are stored as the request's
  * shortlist, so the recipient flow is unchanged. Refuses (422 insufficient_catalog) below 4 designs.
  */
-async function createHelpMeChoose(body: CreateInput, deps: FitDeps): Promise<Response> {
+async function createHelpMeChoose(body: CreateInput, deps: FitDeps, req?: Request): Promise<Response> {
   const catalog = await deps.repository.listCatalog(body.storeId);
   const storeId = body.storeId ?? catalog[0]?.storeId;
   const pool = storeId ? catalog.filter((s) => s.storeId === storeId) : catalog;
@@ -177,8 +177,11 @@ async function createHelpMeChoose(body: CreateInput, deps: FitDeps): Promise<Res
     ...(body.categories?.length ? { categories: [...body.categories] } : {}),
     ...(body.styleHints?.length ? { styleHints: [...body.styleHints] } : {}),
     ...(body.genderPresentation ? { genderPresentation: body.genderPresentation } : {}),
-  });
+  }, req);
 }
+
+/** A store-URL preview piece whose photo try-on can't use (A16); every Aurum piece can be tried on. */
+const triable = (s: Pick<CatalogSku, "attributes">) => s.attributes.tryon_eligible !== false;
 
 /** Mints the tokens (only their SHA-256 hashes are stored, in lib/privacy) and stores the request with the 72 h expiry. */
 async function storeRequest(
@@ -186,13 +189,19 @@ async function storeRequest(
   id: string,
   body: CreateInput,
   shape: StoredBrief & { storeId?: string; shortlistIds: string[]; decoyIds: string[] },
+  req?: Request,
 ): Promise<Response> {
   const tokens = newFitRequestTokens();
   const now = deps.now();
   // Store-URL previews (A6, ADR-055): freeze the pieces' display data so the report outlives the preview.
   const snapshot = await deps.stores?.snapshot(shape.storeId).catch(() => undefined);
   const storeName = await deps.stores?.name?.(shape.storeId).catch(() => undefined);
-  const tryOnOff = deps.stores?.tryOnEnabled?.(shape.storeId) === false;
+  // What the giver is told about the recipient's side (A16): no try-on when the store has none, when this deployment
+  // doesn't offer one to them (the public site spends 0 YouCam units), or when no piece's photo can be used.
+  const pieces = await deps.repository.getSkus([...shape.shortlistIds, ...shape.decoyIds]).catch(() => [] as CatalogSku[]);
+  const triableCount = pieces.filter(triable).length;
+  const tryOnOff = deps.stores?.tryOnEnabled?.(shape.storeId) === false || (deps.tryOnOffered?.(req) ?? true) === false || (pieces.length > 0 && triableCount === 0);
+  const tryOnPartial = !tryOnOff && triableCount < pieces.length;
   const created = await deps.repository.createRequest({
     id,
     storeId: shape.storeId ?? null,
@@ -227,6 +236,7 @@ async function storeRequest(
       carouselSize: shape.shortlistIds.length + shape.decoyIds.length,
       ...(own.products ? { products: own.products } : {}),
       ...(tryOnOff ? { tryOn: false as const } : {}),
+      ...(tryOnPartial ? { tryOnPartial: true as const } : {}),
     },
     201,
     own.images,
@@ -256,8 +266,8 @@ export function recipientLabels(profile: RecipientProfile | null): GiverReportSt
 }
 
 /** Hash of everything a report is computed from; a cached fit_reports row is reused only on a match. */
-function reportFingerprint(request: StoredFitRequest, noTryOn: boolean): string {
-  const material = JSON.stringify({ v: FIT_WEIGHTS_VERSION, input: request.input, decoys: request.decoyIds, profile: request.profile, brief: request.brief ?? null, noTryOn });
+function reportFingerprint(request: StoredFitRequest, noTryOn: boolean, noTryOnIds: readonly string[] = []): string {
+  const material = JSON.stringify({ v: FIT_WEIGHTS_VERSION, input: request.input, decoys: request.decoyIds, profile: request.profile, brief: request.brief ?? null, noTryOn, ...(noTryOnIds.length ? { noTryOnIds } : {}) });
   return createHash("sha256").update(material).digest("hex");
 }
 
@@ -339,10 +349,13 @@ export async function handleReport(req: Request, deps: FitDeps): Promise<Respons
   // No try-on (ADR-055 previews, or the recipient never took a photo): no undertone or face-shape estimate
   // exists, so the report drops those factors and never claims one (lib/fit/WEIGHTS.md "Without a try-on").
   const storeTryOn = deps.stores?.tryOnEnabled?.(request.storeId) !== false;
+  // A16: before completion, a try-on is shown when the store has one and either this deployment offers it (owner
+  // recording, mock mode) or one already happened; the public site is hearts-only (0 YouCam units).
+  const liveTryOn = storeTryOn && (request.demo || request.captured === true || (deps.tryOnOffered?.(req) ?? true));
   const meta: Pick<GiverReportStatus, "mode" | "demo" | "tryOn" | "storeName"> = {
     mode: brief.mode,
     ...(request.demo ? { demo: true } : {}),
-    ...(storeTryOn ? {} : { tryOn: false as const }),
+    ...(liveTryOn ? {} : { tryOn: false as const }),
     ...(request.storeName ? { storeName: request.storeName } : {}),
   };
   const status = giverStatus(request, deps.now());
@@ -355,9 +368,15 @@ export async function handleReport(req: Request, deps: FitDeps): Promise<Respons
   if (!deps.rules) return json<FitErrorResponse>({ error: "fit_rules_not_configured" }, 503);
 
   const profile: RecipientProfile = request.profile ?? { undertoneEstimate: "neutral", undertoneConfidence: 0, faceShape: "Unknown", heartedSkuIds: [] };
-  const noTryOn = !storeTryOn || request.captured === false;
+  // A16 mixed set: the recipient took a photo, but pieces whose store photo can't be tried on are scored without
+  // a try-on (FIT_WEIGHTS_NO_TRYON) and say so; if no shortlisted piece was triable, the whole report is no-try-on.
+  const shortlistSkus = await deps.repository.getSkus(request.input.shortlistIds);
+  const untried = shortlistSkus.filter((s) => !triable(s)).map((s) => s.id);
+  const noTryOn = !storeTryOn || request.captured === false || (shortlistSkus.length > 0 && untried.length === shortlistSkus.length);
+  const noTryOnIds = noTryOn ? [] : untried;
   if (noTryOn) meta.tryOn = false;
-  const fingerprint = reportFingerprint(request, noTryOn);
+  else delete meta.tryOn;
+  const fingerprint = reportFingerprint(request, noTryOn, noTryOnIds);
   const cached = await deps.repository.getReport(request.id);
   const help = brief.mode === "help_me_choose";
   let results: FitResult[];
@@ -372,11 +391,11 @@ export async function handleReport(req: Request, deps: FitDeps): Promise<Respons
     // The pieces can't be scored without the preview's catalog: say so instead of an empty report.
     return reportJson({ status, expiresAt, ...meta, ...storeMeta }, own.images);
   } else {
-    const shortlist = await deps.repository.getSkus(request.input.shortlistIds);
+    const shortlist = shortlistSkus;
     const decoys = await deps.repository.getSkus(request.decoyIds);
     const cap = swatchCap(shortlist, decoys, request.input);
     const hearted = heartedViews(await deps.repository.getSkus(profile.heartedSkuIds), profile, request.input, cap);
-    const scored = scoreSkus(profile, shortlist, request.input, deps.rules, { heartedSkus: hearted, swatchCap: cap, noTryOn }).map((s) => ({
+    const scored = scoreSkus(profile, shortlist, request.input, deps.rules, { heartedSkus: hearted, swatchCap: cap, noTryOn, ...(noTryOnIds.length ? { noTryOnIds: new Set(noTryOnIds) } : {}) }).map((s) => ({
       ...s,
       category: shortlist.find((k) => k.id === s.skuId)!.category,
     }));

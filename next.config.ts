@@ -63,7 +63,16 @@ const nextConfig: NextConfig = {
     const embedAncestors = process.env.GIFTFIT_EMBED_ANCESTORS?.trim() || "*";
     return [
       // /w (A6 widget frame) gets its frame-ancestors at request time in middleware.ts (GIFTFIT_WIDGET_ORIGINS).
-      { source: "/((?!embed(?:/|$)|w(?:/|$)).*)", headers: [{ key: "Content-Security-Policy", value: "frame-ancestors 'self'" }, { key: "X-Frame-Options", value: "SAMEORIGIN" }] },
+      { source: "/((?!embed(?:/|$)|w(?:/|$)|s/[^/]+/snapshot(?:/|$)).*)", headers: [{ key: "Content-Security-Policy", value: "frame-ancestors 'self'" }, { key: "X-Frame-Options", value: "SAMEORIGIN" }] },
+      // Store-page snapshots (A15): config headers win over a route's own, so the strict no-script policy
+      // is set here too (same string as SNAPSHOT_CSP in lib/preview/page-snapshot-http.ts; a test compares them).
+      ...["/s/:key/snapshot", "/s/:key/snapshot/:path*"].map((source) => ({
+        source,
+        headers: [
+          { key: "Content-Security-Policy", value: "default-src 'none'; img-src https: data:; style-src https: 'unsafe-inline'; font-src https: data:; frame-ancestors 'self'" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+        ],
+      })),
       { source: "/embed/:path*", headers: [{ key: "Content-Security-Policy", value: `frame-ancestors ${embedAncestors}` }] },
       { source: "/embed", headers: [{ key: "Content-Security-Policy", value: `frame-ancestors ${embedAncestors}` }] },
       // In-browser voice assets (A13, ADR-052): Supertonic 3 weights and the onnxruntime-web runtime live

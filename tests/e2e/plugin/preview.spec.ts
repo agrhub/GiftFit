@@ -6,6 +6,7 @@
 import { createServer, type Server } from "node:http";
 import { devices, expect, test, type APIRequestContext, type BrowserContext } from "@playwright/test";
 import { scanGiverResponse, type Leak } from "../support/giver-leaks";
+import { recipientCapture } from "../support/recipient-ui";
 
 const HOST_PORT = 4361;
 const HOST = `http://127.0.0.1:${HOST_PORT}`;
@@ -86,7 +87,9 @@ test("preview store: banner, noindex, no forms, View on links, JSON-LD product p
   await expect(page.getByTestId("widget-not-allowed")).toBeVisible();
 });
 
-test("jewelry preview: widget grounded on the preview → hearts-only Fit Request, YouCam refused", async ({ browser, baseURL, request }) => {
+// A16: in mock mode (this server: YOUCAM_MOCK=1, recording switch off) previews get the mock try-on for pieces whose
+// photo is usable; the public production behaviour (hearts-only) is covered by a16-recording.spec.ts.
+test("jewelry preview: widget grounded on the preview → Fit Request with mock try-on for eligible pieces", async ({ browser, baseURL, request }) => {
   const appOrigin = new URL(baseURL!).origin;
   const s = await seed(request, "jewelry");
   const giver = await browser.newContext({ ...devices["Desktop Chrome"], baseURL, extraHTTPHeaders: { "X-Forwarded-For": "203.0.113.56" } });
@@ -108,55 +111,48 @@ test("jewelry preview: widget grounded on the preview → hearts-only Fit Reques
     expect((await concierge).postDataJSON()).toMatchObject({ store: `preview:${s.key}` });
     await expect(frame.getByRole("list", { name: "Suggested pieces" })).toBeVisible({ timeout: 30_000 });
     await frame.getByTestId("widget-use-brief").click();
-    await expect(frame.getByTestId("widget-no-tryon")).toContainText("Try-on isn't enabled for previews");
+    await expect(frame.getByTestId("widget-no-tryon")).toHaveCount(0);
     const created = g.waitForResponse((r) => r.url().endsWith("/api/fit/requests") && r.request().method() === "POST");
     await frame.getByTestId("widget-create").click();
     const res = await created;
     expect(res.status()).toBe(201);
     expect(res.request().postDataJSON()).toMatchObject({ storeId: `preview:${s.key}`, mode: "help_me_choose" });
     await expect(frame.getByTestId("widget-card-step")).toBeVisible({ timeout: 30_000 });
-    // No try-on for previews: the e-card never promises one (A3, copy accuracy).
-    await expect(frame.getByTestId("widget-ecard")).toContainText("No photo is needed");
-    await expect(frame.getByTestId("widget-ecard")).not.toContainText(/camera|try a few pieces on/i);
-    expect((await res.json()).tryOn).toBe(false);
+    // Mock mode offers the try-on, so the e-card says so (A16).
+    await expect(frame.getByTestId("widget-ecard")).toContainText(/try a few pieces on/i);
+    expect((await res.json()).tryOn).toBeUndefined();
     const link = await frame.getByTestId("widget-share-link").inputValue();
     const recipientToken = link.split("/").pop()!;
 
-    // Never a YouCam call for a preview request, even if a client tries.
-    const capture = await request.post("/api/recipient/capture", { headers: { Authorization: `Bearer ${recipientToken}` }, multipart: { selfie: { name: "s.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) } } });
-    expect(capture.status()).toBe(409);
-    expect(await capture.json()).toMatchObject({ error: "tryon_disabled_preview" });
+    expect(recipientToken.length).toBeGreaterThan(20);
 
     const r = await recipient.newPage();
     await r.goto(new URL(link).pathname);
-    await expect(r.getByTestId("no-tryon-consent")).toBeVisible({ timeout: 30_000 });
+    await expect(r.getByTestId("consent-screen")).toBeVisible({ timeout: 30_000 });
     await expect(r.getByTestId("gift-header-store")).toHaveText("for Lumen Fine Jewelry");
-    await expect(r.getByTestId("consent-screen")).not.toContainText(/Try on \d+ pieces|A private try-on|They will never see your photos/);
-    await r.getByTestId("consent-accept").click();
-    await expect(r.getByTestId("no-tryon-note")).toBeVisible({ timeout: 30_000 });
+    await expect(r.getByTestId("no-tryon-consent")).toHaveCount(0);
+    await recipientCapture(r);
     await r.getByTestId("carousel-item").first().getByTestId("heart").click();
     await r.getByTestId("send-hearts").click();
+    await expect(r.getByTestId("undertone-screen")).toBeVisible({ timeout: 30_000 });
+    await r.getByTestId("finish").click();
     await expect(r.getByTestId("done-screen")).toBeVisible({ timeout: 30_000 });
-    await expect(r.getByTestId("done-screen")).not.toContainText(/photos are deleted/i);
 
     const reportHref = (await frame.getByTestId("widget-report-link").getAttribute("href"))!;
     const report = await g.request.post("/api/fit/report", { data: { giverToken: reportHref.split("/").pop() } });
-    const rep = (await report.json()) as { status: string; tryOn?: boolean; storeName?: string; recipientLabels?: unknown; results: Array<{ breakdown: Record<string, number>; reasons: string[]; caution?: string }>; tasteSummary?: { text: string } };
-    expect(rep).toMatchObject({ status: "completed", tryOn: false, storeName: "Lumen Fine Jewelry" });
-    expect(rep.recipientLabels).toBeUndefined();
-    // No undertone / face-shape factor and no try-on claim anywhere (no photo was ever taken).
+    const rep = (await report.json()) as { status: string; tryOn?: boolean; storeName?: string; results: Array<{ tryOn?: boolean; breakdown: Record<string, number>; reasons: string[]; caution?: string }> };
+    expect(rep).toMatchObject({ status: "completed", storeName: "Lumen Fine Jewelry" });
+    expect(rep.tryOn).toBeUndefined();
+    // Pieces not tried on (their photo isn't usable) carry no undertone / face-shape factor and no try-on claim.
     const NO_TRYON = /\b(undertones?|skin|face[- ]?shapes?|faces?|try[- ]?ons?|tried (it |them )?on|selfies?|photos?|estimates?d?|low[- ]confidence)\b/i;
-    for (const x of rep.results) {
+    for (const x of rep.results.filter((y) => y.tryOn === false)) {
       expect(Object.keys(x.breakdown).sort()).toEqual(["budgetOccasion", "hearts"]);
       for (const t of [...x.reasons, x.caution ?? ""]) expect(t).not.toMatch(NO_TRYON);
     }
-    expect(rep.tasteSummary?.text ?? "").not.toMatch(NO_TRYON);
     await g.goto(new URL(reportHref).pathname);
     await expect(g.getByTestId("fit-report-item").first()).toBeVisible({ timeout: 30_000 });
-    await expect(g.getByText("Pieces shown")).toBeVisible();
     await expect(g.getByTestId("gift-header-store")).toHaveText("for Lumen Fine Jewelry");
-    await expect(g.getByTestId("disclaimer")).toHaveText("Scores come from their hearts, your budget and the occasion. Not a sizing guarantee.");
-    expect(await g.locator("main").innerText()).not.toMatch(/undertone|face shape|try-on|tried on|decoy|Aurum/i);
+    expect(await g.locator("main").innerText()).not.toMatch(/decoy|Aurum/i);
 
     // A second gift link from the same preview whose recipient hasn't started yet.
     const second = await g.request.post("/api/fit/requests", { data: { storeId: `preview:${s.key}`, mode: "help_me_choose", occasion: "birthday", budgetMax: 300, currency: "USD", shortlistIds: [], categories: ["earring"] } });

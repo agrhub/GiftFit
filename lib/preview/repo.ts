@@ -7,13 +7,16 @@
  *     products: PreviewProduct[] (≤ 50), productCount, fetches,
  *     createdAt, updatedAt, expiresAt (= createdAt + 24 h, TTL policy field),
  *     ownerTokenHash (sha256 hex; the token itself is never stored), runner (instance id of the crawler),
- *     settings (Admin v0 placeholder)
+ *     settings (Admin v0 placeholder),
+ *     snapshot (A15: page-snapshot outcome — mode, reason, captured product pages; the pages themselves
+ *               live in preview_page_snapshots, see lib/preview/page-snapshot-store.ts)
  *   }
  * Reads treat a record past `expiresAt` as gone (Firestore TTL deletion can lag by a day).
  */
 import { isFirestoreStore, type Env } from "@/lib/store/config";
 import { defined, isNotFound, toDate, type FsData, type FsDb } from "@/lib/store/firestore-types";
 import { getFirestoreDb } from "@/lib/store/gcp-clients";
+import type { PageSnapshotInfo } from "./page-snapshot";
 import type { PreviewPlatform, PreviewProduct, PreviewReason, PreviewState } from "./types";
 
 export const PREVIEW_COLLECTION = "preview_stores";
@@ -53,6 +56,8 @@ export interface PreviewRecord {
   /** Process instance that runs (or ran) the crawl; used to detect crawls lost to a restart. */
   runner: string | null;
   settings: PreviewSettings;
+  /** Store-page snapshot outcome (A15); absent until a crawl finished with the snapshot step. */
+  snapshot?: PageSnapshotInfo | null;
 }
 
 export type PreviewPatch = Partial<Omit<PreviewRecord, "key" | "createdAt" | "ownerTokenHash">>;
@@ -108,7 +113,20 @@ export class MemoryPreviewRepo implements PreviewRepo {
 }
 
 function toDoc(rec: PreviewRecord): FsData {
-  return defined({ ...rec, products: rec.products.map((p) => defined({ ...p })), settings: defined({ ...rec.settings }) } as unknown as FsData);
+  return defined({ ...rec, products: rec.products.map((p) => defined({ ...p })), settings: defined({ ...rec.settings }), snapshot: rec.snapshot ? defined({ ...rec.snapshot }) : rec.snapshot } as unknown as FsData);
+}
+
+function snapshotFromDoc(v: unknown): PageSnapshotInfo | null {
+  if (!v || typeof v !== "object") return null;
+  const d = v as FsData;
+  return {
+    mode: d.mode === "snapshot" ? "snapshot" : "template",
+    reason: (d.reason ?? null) as PageSnapshotInfo["reason"],
+    capturedAt: d.capturedAt ? toDate(d.capturedAt) : new Date(0),
+    productPages: Array.isArray(d.productPages) ? d.productPages.map(String) : [],
+    bytes: Number(d.bytes ?? 0),
+    fetches: Number(d.fetches ?? 0),
+  };
 }
 
 function fromDoc(d: FsData): PreviewRecord {
@@ -130,6 +148,7 @@ function fromDoc(d: FsData): PreviewRecord {
     ownerTokenHash: String(d.ownerTokenHash ?? ""),
     runner: (d.runner ?? null) as string | null,
     settings: (d.settings as PreviewSettings | undefined) ?? { ...DEFAULT_PREVIEW_SETTINGS },
+    snapshot: snapshotFromDoc(d.snapshot),
   };
 }
 
@@ -164,6 +183,7 @@ export class FirestorePreviewRepo implements PreviewRepo {
     const data: FsData = { ...patch } as FsData;
     if (patch.products) data.products = patch.products.map((p) => defined({ ...p }));
     if (patch.settings) data.settings = defined({ ...patch.settings });
+    if (patch.snapshot) data.snapshot = defined({ ...patch.snapshot });
     try {
       await (await this.ref(key)).update(defined(data));
     } catch (err) {

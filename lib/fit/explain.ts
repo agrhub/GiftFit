@@ -27,6 +27,8 @@ export interface ExplainItem {
   category: JewelryCategory;
   breakdown: FitResult["breakdown"];
   signals: string[];
+  /** A16 mixed set: this piece was not tried on (its signals have no undertone/face/try-on facts; neither may the text). */
+  tryOn?: false;
 }
 
 export interface ExplainRequest {
@@ -97,18 +99,18 @@ export function buildExplainInput(scored: readonly (ScoredSku & { category: Jewe
     category: s.category,
     breakdown: { ...s.breakdown },
     signals: s.signals.map((g) => g.label),
+    ...(s.tryOn === false ? { tryOn: false as const } : {}),
   }));
   for (const it of items) {
     for (const label of it.signals) {
       if (UNSAFE_INPUT.some((re) => re.test(label))) throw new Error(`explain input label is not giver-safe: ${label}`);
     }
   }
-  if (opts.noTryOn) {
-    for (const it of items) {
-      for (const label of it.signals) if (NO_TRYON_WORDS.test(label)) throw new Error(`explain input label mentions a try-on: ${label}`);
-    }
-    return { tryOn: false, items };
+  for (const it of items) {
+    if (!opts.noTryOn && it.tryOn !== false) continue;
+    for (const label of it.signals) if (NO_TRYON_WORDS.test(label)) throw new Error(`explain input label mentions a try-on: ${label}`);
   }
+  if (opts.noTryOn) return { tryOn: false, items: items.map(({ tryOn: _t, ...it }) => it) }; // eslint-disable-line @typescript-eslint/no-unused-vars
   return { items };
 }
 
@@ -144,6 +146,7 @@ export const EXPLAIN_SYSTEM = [
   "Never mention or speculate about photos, selfies, images, skin colour values, hex codes, colour numbers, measurements, ratios or confidence numbers.",
   "Undertone and face shape are estimates: say 'estimate' when you use them. Refer to the recipient as 'they' (gender-neutral); recipients can be anyone.",
   "If a signal says 'not hearted' or 'low-confidence', use it as the caution. Otherwise caution that the try-on is an AI preview.",
+  "An item with `tryOn: false` was NOT tried on (only its product photo was seen): for that item never mention try-ons, previews, photos, undertone, skin, face shape or estimates, and caution to check the size before buying.",
 ].join(" ");
 
 /** System prompt for a request without a try-on: no undertone, face shape or try-on exists to talk about. */
@@ -283,10 +286,13 @@ export function validateExplanation(
       if (Array.isArray(items)) issues.push({ skuId: s.skuId, code: "missing_sku" });
       return base;
     }
-    const fallback = { reason1: base.reasons[0], reason2: base.reasons[1], caution: base.caution ?? (ctx.noTryOn ? GENERIC_CAUTION_NO_TRYON : GENERIC_CAUTION) };
+    // A16 mixed set: a piece that was not tried on gets the no-try-on word guard on its own.
+    const itemNoTryOn = Boolean(ctx.noTryOn) || s.tryOn === false;
+    const ictx = itemNoTryOn === Boolean(vctx.noTryOn) ? vctx : { ...vctx, noTryOn: itemNoTryOn };
+    const fallback = { reason1: base.reasons[0], reason2: base.reasons[1], caution: base.caution ?? (itemNoTryOn ? GENERIC_CAUTION_NO_TRYON : GENERIC_CAUTION) };
     const out: Record<"reason1" | "reason2" | "caution", string> = { ...fallback };
     for (const field of ["reason1", "reason2", "caution"] as const) {
-      const codes = checkText(rec[field], s.skuId, vctx);
+      const codes = checkText(rec[field], s.skuId, ictx);
       if (codes.length === 0) out[field] = (rec[field] as string).trim();
       else for (const code of codes) issues.push({ skuId: s.skuId, field, code });
     }

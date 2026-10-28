@@ -98,13 +98,14 @@ GiftFit deeply integrates **7 Perfect Corp / YouCam AI APIs**:
 
 ### Safety & Cost Guard (`lib/youcam/cost-guard.ts`)
 - **Default Mock Mode (`YOUCAM_MOCK=1`):** Complete local development and test runs cost **0 units**.
-- **Reserve Floor:** Enforces a minimum $\ge 300$ unit reserve strictly locked for judge evaluations through November 2026.
-- **Run Caps & Rate Limits:** Guard prevents runs exceeding 40 units/call or 150 units/day.
+- **The public site spends 0 units:** visitors get the judge demo (pre-recorded try-ons of an AI-generated model) and hearts-only gifts from the product photos; no selfie goes to YouCam. There is no judges' reserve: judges watch the demo video.
+- **Real try-on only in the owner's recording session:** `YOUCAM_RECORDING=on` plus an owner cookie minted from a secret token (`/owner/recording`); off by default. `GET /api/health` reports `youcamPaid: false` whenever no paid call is possible.
+- **Caps (durable, fail closed):** 150 units/day, 300 units total and 40 units per server process (all configurable).
 - **SHA-256 Result Cache:** Identical image/parameter combinations are never charged twice.
 
 ### Running costs (measured estimates)
 Our own figures, not industry averages. Dates are when they were measured; prices change.
-- **YouCam units per recipient with a try-on:** Facial Color Tones 20 + Face Attributes 10 + about 6 jewelry try-ons × 1 + up to 4 extra metal previews × 1 ≈ **36–40 units** (prices from `GET /s2s/v2.0/credit/feature-cost`, 2026-10-15). The judge demo and store-URL previews use **0 units**.
+- **YouCam units per recipient with a try-on:** Facial Color Tones 20 + Face Attributes 10 + about 6 jewelry try-ons × 1 + up to 4 extra metal previews × 1 ≈ **36–40 units** (prices from `GET /s2s/v2.0/credit/feature-cost`, 2026-10-15). Only the owner's recording session spends units; the public site, the judge demo and store-URL previews use **0 units**.
 - **Claude (gift assistant chat):** about **$0.014–$0.021 per conversation** with prompt caching (measured 2026-10-17 on 6 recorded calls); every call counts against a daily cap (default $3, `ANTHROPIC_DAILY_USD_CAP`).
 - **Google Speech-to-Text (voice input):** $0.016 per minute at list price, billed per second; clips are at most 15 s. **Text-to-Speech** for spoken replies stayed within the monthly free tier in our tests. Both have daily caps.
 - **Hosting (Cloud Run with min 0 instances, Firestore, Cloud Storage):** estimated **$0–3 per month** at hackathon judging traffic (2026-10-17).

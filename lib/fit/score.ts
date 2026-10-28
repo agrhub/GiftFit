@@ -64,6 +64,12 @@ export interface FitContext {
    * budget/occasion are renormalised (FIT_WEIGHTS_NO_TRYON). No text mentions undertone, face shape or try-on.
    */
   noTryOn?: boolean;
+  /**
+   * A16 mixed set: the recipient took a photo, but these designs were not tried on (a store-URL preview photo
+   * try-on can't use). They are scored exactly like `noTryOn` (FIT_WEIGHTS_NO_TRYON, no undertone or face-shape
+   * factor or text) and marked `tryOn: false`; the others keep the try-on weights.
+   */
+  noTryOnIds?: ReadonlySet<string>;
 }
 
 export const GENERIC_CAUTION = "AI try-on preview: undertone and face shape are estimates, not a sizing guarantee.";
@@ -264,6 +270,10 @@ export function fitScore(
   rules: JewelryRules,
   ctx: FitContext = {},
 ): ScoredSku {
+  if (!ctx.noTryOn && ctx.noTryOnIds?.has(sku.id)) {
+    const r = fitScore(profile, sku, request, rules, { ...ctx, noTryOn: true, noTryOnIds: undefined });
+    return { ...r, tryOn: false };
+  }
   const all = variantsOf(sku);
   const eligible = visibleVariants(sku, request, ctx.swatchCap);
   const candidates = eligible.length > 0 ? eligible : all;
@@ -366,7 +376,18 @@ function scoreWithoutTryOn(
   };
 }
 
-/** Scores every SKU, highest first (stable on ties). */
+/**
+ * Mixed sets (user decision 2026-10-28, "tried-on pieces first"): a hearted piece scored without a try-on can
+ * reach a higher number than a hearted piece that was tried on (80/20 vs 60/10/15/15), so among hearted pieces
+ * the tried-on ones rank first; hearted "Not tried on" pieces follow; pieces without a heart come last.
+ */
+function mixedTier(s: ScoredSku): number {
+  const hearted = s.signals.some((sig) => sig.factor === "hearts" && sig.label === "hearted");
+  if (!hearted) return 2;
+  return s.tryOn === false ? 1 : 0;
+}
+
+/** Scores every SKU, highest first (stable on ties); mixed sets rank by mixedTier first. */
 export function scoreSkus(
   profile: RecipientProfile | null,
   skus: readonly CatalogSku[],
@@ -374,9 +395,10 @@ export function scoreSkus(
   rules: JewelryRules,
   ctx: FitContext = {},
 ): ScoredSku[] {
+  const mixed = !ctx.noTryOn && (ctx.noTryOnIds?.size ?? 0) > 0;
   return skus
     .map((sku, i) => ({ s: fitScore(profile, sku, request, rules, ctx), i }))
-    .sort((a, b) => b.s.raw - a.s.raw || a.i - b.i)
+    .sort((a, b) => (mixed ? mixedTier(a.s) - mixedTier(b.s) : 0) || b.s.raw - a.s.raw || a.i - b.i)
     .map((x) => x.s);
 }
 
@@ -399,5 +421,6 @@ export function toFitResult(s: FitResult): FitResult {
   if (s.metal !== undefined) out.metal = s.metal;
   if (s.price !== undefined) out.price = s.price;
   if (s.wishOtherMetal) out.wishOtherMetal = true;
+  if (s.tryOn === false) out.tryOn = false;
   return out;
 }

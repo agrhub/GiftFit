@@ -100,6 +100,59 @@ function ActionBar({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Why this recipient gets no try-on (A16, session `tryOnNote`). The public site spends 0 YouCam units: the
+ * demo store points to the pre-recorded judge demo; previews say try-on is off for them right now.
+ */
+function NoTryOnCopy({
+  note,
+  where,
+}: {
+  note?: RecipientSessionResponse["tryOnNote"];
+  where: "consent" | "tryon";
+}) {
+  if (note === "demo_mode")
+    return (
+      <>
+        Demo mode: try-ons are pre-recorded and no photo is sent.{" "}
+        {where === "consent"
+          ? "You'll just heart the pieces you like."
+          : "Heart the pieces you like from the store's photos."}{" "}
+        <a
+          href="/demo"
+          data-testid="judge-demo-link"
+          className="font-medium text-ink underline decoration-gold underline-offset-2"
+        >
+          See pre-recorded try-ons on an AI-generated model
+        </a>
+      </>
+    );
+  if (note === "no_eligible")
+    return where === "consent" ? (
+      <>
+        The store&apos;s photos of these pieces can&apos;t be used for try-on,
+        so no photo is needed. You&apos;ll just heart the pieces you like.
+      </>
+    ) : (
+      <>
+        These photos can&apos;t be used for try-on. Heart the pieces you like
+        from the store&apos;s photos.
+      </>
+    );
+  return where === "consent" ? (
+    <>
+      This gift comes from a store preview: try-on isn&apos;t enabled for
+      previews, so no photo is needed. You&apos;ll just heart the pieces you
+      like.
+    </>
+  ) : (
+    <>
+      Try-on isn&apos;t enabled for previews. Heart the pieces you like from the
+      store&apos;s photos.
+    </>
+  );
+}
+
 function PrivacyDetails({
   token,
   hasHandPhoto,
@@ -206,7 +259,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       setGiftStoreName(
         storeNameFor({
           storeName: s.storeName,
-          preview: s.tryOn === false || Boolean(s.storeName),
+          preview: Boolean(s.preview || s.storeName),
         }),
       );
       // A reload after capture restores the carousel (GET /api/recipient/capture, fresh signed URLs).
@@ -257,11 +310,16 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
   }, [step.kind]);
 
   const items = session?.items ?? [];
-  const needsHand = items.some((i) => i.needsHandPhoto);
+  // A16: pieces whose store photo can't be tried on are hearts-only (and never ask for a hand photo).
+  const triable = items.filter((i) => i.tryOn !== false);
+  const mixed = triable.length > 0 && triable.length < items.length;
+  const needsHand = triable.some((i) => i.needsHandPhoto);
   // Seeded judge demo (ADR-038): the recipient is an AI-generated model.
   const isDemo = Boolean(session?.demo || capture?.demo);
-  // Store-URL preview (ADR-055): try-on is off; the recipient hearts pieces from the product photos.
+  // No try-on for this recipient (A16: the public site spends 0 YouCam units; a preview with no usable photo):
+  // the recipient hearts pieces from the product photos. `tryOnNote` says why.
   const noTryOn = session?.tryOn === false;
+  const tryOnNote = session?.tryOnNote ?? (noTryOn ? "preview_off" : undefined);
   const shownSwatch = (item: CarouselItem) =>
     shown[item.itemId] ?? defaultSwatch(item);
 
@@ -305,13 +363,13 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
     setAnnounce(PHOTO_DELETED_NOTE);
   }
   // Earring try-ons need visible earlobes (engine error "2", ADR-026).
-  const needsEars = items.some((i) => i.category === "earring");
+  const needsEars = triable.some((i) => i.category === "earring");
   /** New selfie after a fixable failure (e.g. hidden earlobes). Hearts live in state and are kept. */
   const retake = (kind: RetakeKind) => {
     setStepError(null);
     setStep({ kind: "selfie", retake: kind });
   };
-  const handCount = items.filter((i) => i.needsHandPhoto).length;
+  const handCount = triable.filter((i) => i.needsHandPhoto).length;
   const occasion = session?.occasion ? OCCASION_LABELS[session.occasion] : null;
   const onDeleted = () => setStep({ kind: "deleted" });
 
@@ -388,6 +446,8 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
     const previous = shownSwatch(item);
     setShown((m) => ({ ...m, [itemId]: swatchId }));
     if (renders[heartKey(itemId, swatchId)]) return;
+    // A16: a piece that is never tried on just shows another metal (the store's photo stays, no render).
+    if (item.tryOn === false) return;
     if (photoDeleted) {
       setShown((m) => ({ ...m, [itemId]: previous ?? swatchId }));
       return;
@@ -514,6 +574,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       capNote: capNotes.has(item.itemId),
       rendersOff: photoDeleted || noTryOn,
       noTryOn,
+      notTriable: !noTryOn && item.tryOn === false,
       renderedSwatchIds: (item.swatches ?? [])
         .map((x) => x.swatchId)
         .filter((id) => Boolean(renders[heartKey(item.itemId, id)])),
@@ -752,7 +813,9 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
           ) : (
             <>
               <p className="mt-4 text-base leading-7 text-ink-soft">
-                Try on {items.length || 6} pieces and heart the ones you love.{" "}
+                {mixed
+                  ? `Try on ${triable.length} of ${items.length} pieces and heart the ones you love.`
+                  : `Try on ${items.length || 6} pieces and heart the ones you love.`}{" "}
                 <strong className="font-semibold text-ink">
                   They will never see your photos.
                 </strong>
@@ -780,10 +843,19 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
                 <p
                   className="mt-6 rounded-xl border border-gold/60 bg-cream px-3 py-2 text-sm text-ink"
                   data-testid="no-tryon-consent"
+                  data-note={tryOnNote}
                 >
-                  This gift comes from a store preview: try-on isn&apos;t
-                  enabled for previews, so no photo is needed. You&apos;ll just
-                  heart the pieces you like.
+                  <NoTryOnCopy note={tryOnNote} where="consent" />
+                </p>
+              ) : null}
+              {!noTryOn && mixed ? (
+                <p
+                  className="mt-6 rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink-soft"
+                  data-testid="mixed-tryon-consent"
+                >
+                  {triable.length} of {items.length} pieces can be tried on.
+                  The store&apos;s photos of the others can&apos;t be used for
+                  try-on, so you&apos;ll heart those from the photos.
                 </p>
               ) : null}
               <ul
@@ -946,9 +1018,13 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
             className="mb-4 mt-1 text-sm text-ink-soft"
             data-testid={noTryOn ? "no-tryon-note" : undefined}
           >
-            {noTryOn
-              ? "Try-on isn't enabled for previews. Heart the pieces you like from the store's photos."
-              : "Every image is an AI preview made from your selfie, for you only."}
+            {noTryOn ? (
+              <NoTryOnCopy note={tryOnNote} where="tryon" />
+            ) : mixed ? (
+              "AI previews are made from your selfie, for you only. Pieces marked \"Not tried on\" show the store's photo."
+            ) : (
+              "Every image is an AI preview made from your selfie, for you only."
+            )}
           </p>
           <TryOnCarousel
             items={items}
@@ -963,8 +1039,10 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
           <Disclaimer className="mt-4" />
           {capture && capture.processingSeconds > 0 ? (
             <p className="mt-1 text-xs text-muted">
-              Previews made in {Math.round(capture.processingSeconds)} s. Your
-              photos are already deleted.
+              {/* The photo is kept up to 1 h for other metals (ADR-036; the photo bar says so) until Done or
+                  "Delete my photo now": only claim deletion when it happened. */}
+              Previews made in {Math.round(capture.processingSeconds)} s.
+              {photoDeleted ? " Your photo is deleted." : ""}
             </p>
           ) : null}
           <PrivacyDetails

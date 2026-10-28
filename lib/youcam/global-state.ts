@@ -48,6 +48,8 @@ export interface YoucamGlobalState {
   completedTasks: Map<string, { status: "success" | "error"; at: number }>;
   taskListeners: Map<string, Set<(status: "success" | "error") => void>>;
   fixtureMemo: Map<string, LoadedFixture>;
+  /** Owner-recording paid grants minted this process (recording.ts, A16). */
+  paidGrants?: WeakSet<object>;
 }
 
 type WithState = typeof globalThis & { [YOUCAM_STATE_KEY]?: YoucamGlobalState };

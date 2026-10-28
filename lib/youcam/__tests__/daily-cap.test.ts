@@ -42,7 +42,7 @@ describe("YOUCAM_DAILY_UNIT_CAP config", () => {
     expect(loadYoucamConfig({ YOUCAM_MOCK: "1", YOUCAM_DAILY_UNIT_CAP: "20" }).dailyUnitCap).toBe(20);
     expect(() => loadYoucamConfig({ YOUCAM_DAILY_UNIT_CAP: "-5" })).toThrow(/YOUCAM_DAILY_UNIT_CAP/);
     // unchanged neighbours
-    expect(loadYoucamConfig({ YOUCAM_MOCK: "0" })).toMatchObject({ reserveUnits: 300, maxUnitsPerRun: 40 });
+    expect(loadYoucamConfig({ YOUCAM_MOCK: "0" })).toMatchObject({ reserveUnits: 0, maxUnitsPerRun: 40, totalUnitCap: 300 });
   });
 });
 

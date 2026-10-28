@@ -61,8 +61,9 @@ test("health (Cloud Run smoke): flags and version only, nothing secret", async (
   expect(res.headers()["cache-control"]).toBe("no-store");
   const text = await res.text();
   const body = JSON.parse(text);
-  expect(Object.keys(body).sort()).toEqual(["demoAvailable", "mock", "ok", "paidCallsEnabled", "version"]);
-  expect(body).toMatchObject({ ok: true, mock: true, demoAvailable: true, paidCallsEnabled: false });
+  expect(Object.keys(body).sort()).toEqual(["demoAvailable", "mock", "ok", "paidCallsEnabled", "publicTryOn", "recording", "version", "youcamPaid"]);
+  // A16 probe: youcamPaid false = this server can never spend a YouCam unit.
+  expect(body).toMatchObject({ ok: true, mock: true, demoAvailable: true, paidCallsEnabled: false, youcamPaid: false, recording: "off", publicTryOn: "mock" });
   expect(text).not.toContain(process.env.E2E_CRON_SECRET!);
   expect(text).not.toContain(process.env.E2E_SIGNING_SECRET!);
 });

@@ -406,6 +406,14 @@ describe("pinnedRequest (local server)", () => {
     expect(await code(pinnedRequest(req("/declared"), local()))).toBe("too_large");
   });
 
+  it("A16 image heads (truncate): keeps exactly the first maxBytes of a server that ignores Range, then hangs up", async () => {
+    const res = await pinnedRequest(req("/big", { maxBytes: 32 * 1024, truncate: true }), local());
+    expect(res.status).toBe(200);
+    expect(res.body.length).toBe(32 * 1024);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(seen.filter((s) => s.path === "/big").at(-1)?.closedEarly).toBe(true);
+  });
+
   it("caps the DECOMPRESSED size (gzip bomb) and decodes normal gzip", async () => {
     expect(await code(pinnedRequest(req("/bomb"), local()))).toBe("too_large");
     const ok = await pinnedRequest(req("/gz"), local());

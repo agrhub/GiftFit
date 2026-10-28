@@ -12,6 +12,7 @@ import { exactOrigin } from "@/lib/widget/protocol";
 import { findStore } from "@/lib/metrics/catalog";
 import { loadPreviewStore, previewKeyOf } from "@/lib/widget/preview";
 import { WidgetApp, type WidgetPreview } from "@/components/widget/WidgetApp";
+import { tryOnOfferedTo } from "@/lib/privacy/tryon-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -74,5 +75,7 @@ export default async function WidgetPage({ searchParams }: { searchParams: Searc
       </p>
     );
   }
-  return <WidgetApp store={preview ? `preview:${preview.key}` : (store?.key ?? "aurum")} preview={preview} parentOrigin={parentOrigin} preferredLang={preferredLang} allowedLangs={allowedLangs} baseUrl={process.env.APP_BASE_URL?.trim() ? base : (self ?? base)} facebookAppId={facebookAppId()} />;
+  // A16: will a gift made in this frame offer its recipient a try-on? Public production: no (0 YouCam units).
+  const tryOn = tryOnOfferedTo({ headers: await headers() }) && (!previewView || previewView.skus.some((s) => s.attributes.tryon_eligible === true));
+  return <WidgetApp store={preview ? `preview:${preview.key}` : (store?.key ?? "aurum")} preview={preview} tryOn={tryOn} parentOrigin={parentOrigin} preferredLang={preferredLang} allowedLangs={allowedLangs} baseUrl={process.env.APP_BASE_URL?.trim() ? base : (self ?? base)} facebookAppId={facebookAppId()} />;
 }

@@ -1,6 +1,8 @@
 /**
  * Per-IP limits on paid recipient calls and Fit Request creation (A8 "Requirement for A5"), plus
  * A1's daily unit cap mapped to 503. YouCam is faked with counting ports; 0 units.
+ * A16: in real mode only the owner's recording session can capture at all, so the real-mode cases run as the
+ * owner (YOUCAM_RECORDING=on + the gf_rec cookie); a public recipient gets 409 before any call.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RecipientSessionResponse, SwatchResponse } from "@/lib/contracts/api";
@@ -20,6 +22,10 @@ import { POST as capturePOST } from "../capture/route";
 import { POST as consentPOST } from "../consent/route";
 import { POST as sessionPOST } from "../session/route";
 import { POST as swatchPOST } from "../swatch/route";
+import { RECORDING_COOKIE, recordingCookieValue } from "@/lib/youcam/recording";
+
+const REC_TOKEN = "rec-token-for-tests-0123456789abcdefghijklmnop";
+let ownerCookie = "";
 
 const BASE = "http://localhost:3000";
 const REAL_IP = "203.0.113.50";
@@ -56,6 +62,10 @@ beforeEach(() => {
   stack = makeStack();
   stack.deps.capturePorts = ports();
   stack.deps.youcamMode = () => "real"; // calls "can reach YouCam" (the ports are fakes)
+  stack.deps.youcamPaidReady = () => true; // as if the deployment were paid-ready (the ports are fakes)
+  vi.stubEnv("YOUCAM_RECORDING", "on");
+  vi.stubEnv("GIFTFIT_RECORDING_TOKEN", REC_TOKEN);
+  ownerCookie = `${RECORDING_COOKIE}=${recordingCookieValue(REC_TOKEN)}`;
   calls = { analyze: 0, render: 0, preflight: 0 };
   dailyCap = false;
   setPrivacyDeps(stack.deps);
@@ -63,6 +73,7 @@ beforeEach(() => {
 afterEach(() => {
   setPrivacyDeps(undefined);
   resetPrivacyState();
+  vi.unstubAllEnvs();
 });
 
 /** Cloud Run direct: the GFE appends the real client; anything left of it is client-controlled. */
@@ -70,7 +81,7 @@ const xff = (realIp: string, spoof = "") => ({ "x-forwarded-for": spoof ? `${spo
 const post = (p: string, token: string, body?: unknown, headers: Record<string, string> = {}) =>
   new Request(`${BASE}${p}`, {
     method: "POST",
-    headers: { authorization: `Bearer ${token}`, ...headers, ...(body !== undefined && !(body instanceof FormData) ? { "content-type": "application/json" } : {}) },
+    headers: { authorization: `Bearer ${token}`, ...(ownerCookie ? { cookie: ownerCookie } : {}), ...headers, ...(body !== undefined && !(body instanceof FormData) ? { "content-type": "application/json" } : {}) },
     body: body instanceof FormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
   });
 const selfie = () => {
@@ -129,6 +140,18 @@ describe("POST /api/recipient/capture per-IP limit (2/h, 4/24h)", () => {
   it("mock mode is exempt", async () => {
     stack.deps.youcamMode = () => "mock";
     for (let i = 0; i < 5; i++) expect((await capture((await readyRequest()).token, xff(REAL_IP))).status).toBe(200);
+  });
+
+  it("A16: a public recipient (no owner cookie) is refused with 409 before any call, and the limit is not charged", async () => {
+    const { token } = await readyRequest();
+    ownerCookie = "";
+    for (let i = 0; i < 3; i++) {
+      const res = await capture(token, xff(REAL_IP));
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ error: "tryon_off" });
+    }
+    expect(calls).toEqual({ analyze: 0, render: 0, preflight: 0 });
+    expect(rateKeysForTests()).toEqual([]);
   });
 
   it("keeps only salted hashes of the IP", async () => {

@@ -23,8 +23,13 @@ export interface BriefConfirmProps {
   tr: (key: MessageKey, vars?: Record<string, string | number>) => string;
   brief: GiftBrief;
   match: MatchedProduct | null;
-  /** Set for a store-URL preview (ADR-055): the request is created for that preview, hearts only. */
+  /** Set for a store-URL preview (ADR-055): the request is created for that preview. */
   previewKey?: string;
+  /**
+   * A16: whether the recipient will be offered a try-on (decided on the server for this browser: the public site
+   * is hearts-only, the owner's recording session and mock mode try on). Absent = previews hearts-only (legacy).
+   */
+  tryOn?: boolean;
   suggestionTitles: string[];
   busy: boolean;
   error?: string;
@@ -59,7 +64,8 @@ export function fitRequestBody(brief: GiftBrief, choice: Choice, match: MatchedP
   return { ...common, mode: "i_have_ideas", budgetMax, shortlistIds: ids };
 }
 
-export function BriefConfirm({ locale, tr, brief, match, previewKey, suggestionTitles, busy, error, onCreate, onBack }: BriefConfirmProps) {
+export function BriefConfirm({ locale, tr, brief, match, previewKey, tryOn, suggestionTitles, busy, error, onCreate, onBack }: BriefConfirmProps) {
+  const noTryOn = tryOn === undefined ? Boolean(previewKey) : !tryOn;
   const legend = useId();
   const ideasPossible = Boolean(match) || Boolean(brief.shortlistIds?.length);
   const [choice, setChoice] = useState<Choice>(brief.mode === "i_have_ideas" && ideasPossible ? "ideas" : "help");
@@ -93,13 +99,13 @@ export function BriefConfirm({ locale, tr, brief, match, previewKey, suggestionT
       </dl>
       <fieldset aria-labelledby={legend} className="flex flex-col gap-2">
         <legend id={legend} className="mb-1 text-sm font-medium text-ink">
-          {tr(previewKey ? "brief.modeLegendNoTryOn" : "brief.modeLegend")}
+          {tr(noTryOn ? "brief.modeLegendNoTryOn" : "brief.modeLegend")}
         </legend>
         {option("help", tr("brief.modeHelp"))}
-        {ideasPossible && option("ideas", tr(previewKey ? "brief.modeIdeasNoTryOn" : "brief.modeIdeas", { title: ideasTitle }))}
+        {ideasPossible && option("ideas", tr(noTryOn ? "brief.modeIdeasNoTryOn" : "brief.modeIdeas", { title: ideasTitle }))}
       </fieldset>
-      <p className="text-xs leading-5 text-ink-soft">{tr(previewKey ? "brief.privacyNoTryOn" : "brief.privacy")}</p>
-      {previewKey && (
+      <p className="text-xs leading-5 text-ink-soft">{tr(noTryOn ? "brief.privacyNoTryOn" : "brief.privacy")}</p>
+      {previewKey && noTryOn && (
         <p className="rounded-xl border border-gold/60 bg-cream px-3 py-2 text-xs leading-5 text-ink" data-testid="widget-no-tryon">
           {tr("preview.noTryOn")}
         </p>

@@ -140,6 +140,11 @@ export function TryOnCard({
               <span data-testid="product-photo-note">
                 The store&apos;s product photo.
               </span>
+            ) : state.notTriable || render?.status === "skipped_not_eligible" ? (
+              <span data-testid="not-tried-on-note">
+                Not tried on: the store&apos;s photo of this piece can&apos;t
+                be used for try-on. You can still heart it.
+              </span>
             ) : state.rendersOff ? (
               <span data-testid="product-photo-note">
                 Product photo. Your try-on was deleted; your heart is kept.

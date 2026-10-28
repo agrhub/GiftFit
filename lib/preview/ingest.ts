@@ -8,7 +8,8 @@
  *   4. sitemap.xml (robots.txt sitemaps first) → product pages → JSON-LD Product/Offer, Open Graph.
  *
  * ≤ 50 products, normalised to PreviewProduct; fewer than 3 → `refused` / `not_a_store`. Nothing but the
- * normalised fields leaves this module: no HTML, no long descriptions, images by URL only.
+ * normalised fields leaves this module: no HTML, no long descriptions, images by URL only. Try-on eligibility
+ * (A16, lib/ingest/tryon-eligibility.ts) reads at most a few image HEADS (first 32 KB, ranged, same budget).
  */
 import * as cheerio from "cheerio";
 import type { Metal } from "@/lib/contracts/giftfit";
@@ -17,6 +18,7 @@ import { canonicalMetal, inferCategory, normaliseCurrency, tagMap } from "@/lib/
 import { checkUrl, isSafeFetchError, SafeFetcher, type SafeFetcherOptions, type SafeResponse } from "@/lib/ingest/safe-fetch";
 import { isProductUrl, parseSitemap, productFromJsonLd, productFromOpenGraph } from "@/lib/ingest/tier2-jsonld";
 import type { ExtractedProduct } from "@/lib/ingest/types";
+import { classifyProducts, MAX_IMAGE_PROBES, type ImageMeta } from "@/lib/ingest/tryon-eligibility";
 import type { PreviewPlatform, PreviewProduct, PreviewReason, StoreIngestResult } from "./types";
 
 export const MAX_PREVIEW_PRODUCTS = 50;
@@ -35,6 +37,8 @@ export interface IngestStoreOptions {
   deadlineMs?: number;
   now?: () => number;
   onPhase?: (phase: "home" | PreviewPlatform) => void;
+  /** Ranged image-head probes for try-on eligibility (default MAX_IMAGE_PROBES; 0 = URL/metadata rules only). */
+  imageProbes?: number;
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -197,8 +201,30 @@ interface ShopifyProductLite {
   product_type?: string | null;
   tags?: string[] | string;
   variants?: ShopifyVariantLite[];
-  images?: { src?: string }[];
+  images?: { src?: string; width?: number; height?: number; alt?: string | null; position?: number }[];
   options?: { name?: string }[];
+}
+
+const posInt = (v: unknown): number | undefined => (typeof v === "number" && Number.isInteger(v) && v > 0 && v < 100_000 ? v : undefined);
+
+/** Image metadata the store's JSON states for free (try-on eligibility, A16); URLs normalised like `images`. */
+function imageMetaOf(list: { src?: unknown; width?: unknown; height?: unknown; alt?: unknown; position?: unknown; srcset?: unknown }[] | undefined, base: string): ImageMeta[] {
+  const out: ImageMeta[] = [];
+  for (const [i, img] of (list ?? []).slice(0, 4).entries()) {
+    const url = httpsImages([img?.src], base)[0];
+    if (!url) continue;
+    let width = posInt(img.width);
+    let height = posInt(img.height);
+    // WooCommerce: the largest "-<w>x<h>.<ext>" size in the srcset.
+    if ((!width || !height) && typeof img.srcset === "string") {
+      for (const m of img.srcset.matchAll(/-(\d{2,5})x(\d{2,5})\.(?:jpe?g|png|webp)\b/gi)) {
+        const w = Number(m[1]);
+        if (!width || w > width) [width, height] = [w, Number(m[2])];
+      }
+    }
+    out.push({ url, ...(width && height ? { width, height } : {}), ...(typeof img.alt === "string" && img.alt.trim() ? { alt: img.alt.trim().slice(0, 160) } : {}), position: posInt(img.position) ?? i + 1 });
+  }
+  return out;
 }
 
 const num = (v: unknown): number | null => {
@@ -220,6 +246,7 @@ export function fromShopify(p: ShopifyProductLite, origin: string, currency: str
     title,
     url: handle ? `${origin}/products/${encodeURIComponent(handle)}` : origin,
     images: httpsImages((p.images ?? []).map((i) => i?.src), origin),
+    imageMeta: imageMetaOf(p.images, origin),
     price: prices.length ? Math.min(...prices) : null,
     currency: prices.length ? currency : null,
     categoryText: clean(p.product_type, 60),
@@ -270,7 +297,7 @@ interface WooProductLite {
   short_description?: string;
   description?: string;
   prices?: { price?: string | number; currency_code?: string; currency_minor_unit?: number };
-  images?: { src?: string }[];
+  images?: { src?: string; alt?: string; srcset?: string }[];
   categories?: { name?: string }[];
   tags?: { name?: string }[];
   is_in_stock?: boolean;
@@ -289,6 +316,7 @@ export function fromWoo(p: WooProductLite, origin: string): PreviewProduct | nul
     title,
     url: productLink(p.permalink, origin, origin),
     images: httpsImages((p.images ?? []).map((i) => i?.src), origin),
+    imageMeta: imageMetaOf(p.images, origin),
     price,
     currency: price === null ? null : normaliseCurrency(p.prices?.currency_code),
     categoryText: clean((p.categories ?? [])[0]?.name ? htmlText(p.categories![0].name, 60) : null, 60),
@@ -542,7 +570,15 @@ export async function ingestStoreUrl(input: string | URL, opts: IngestStoreOptio
     if (enough) break;
   }
 
-  if (best.products.length >= MIN_PREVIEW_PRODUCTS) return done("ready");
+  if (best.products.length >= MIN_PREVIEW_PRODUCTS) {
+    // A16: try-on eligibility per product (heuristics; ≤ MAX_IMAGE_PROBES ranged image heads within the budget).
+    best.products = await classifyProducts(best.products, {
+      probe: async (u) => (await f.getImageHead(u))?.bytes ?? null,
+      maxProbes: opts.imageProbes ?? MAX_IMAGE_PROBES,
+      shouldStop: () => isLate() || f.remaining < 2,
+    });
+    return done("ready");
+  }
   if (failure === "blocked_url") return done("failed", "blocked_url");
   if (f.answered === 0) return done("failed", failure === "timeout" ? "timeout" : "unreachable");
   if (robotsBlocked && best.products.length === 0) return done("refused", "robots_disallowed");

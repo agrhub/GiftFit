@@ -3,7 +3,7 @@
  * SSRF refusals (no resolved IP echoed), durable caps (5/IP/day, 100/day, fail closed), the hashed owner
  * token, cold-start handling, the Firestore repo, and the giver guard on every response.
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { findGiverLeaks } from "@/lib/privacy/giver-guard";
 import { setRateLimitOverride } from "@/lib/privacy/rate-limit";
 import { PREVIEW_COLLECTION, FirestorePreviewRepo, MemoryPreviewRepo, PREVIEW_TTL_MS, DEFAULT_PREVIEW_SETTINGS, type PreviewRecord } from "@/lib/preview/repo";
@@ -18,6 +18,12 @@ import { POST } from "../route";
 import { GET } from "../[key]/route";
 
 const T0 = Date.parse("2026-10-27T10:00:00Z");
+// Freeze Date at T0: the memory repos also read the wall clock, and T0 + 24 h is already in the past.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(T0);
+});
+afterEach(() => vi.useRealTimers());
 let ip = 0;
 const post = (body: unknown, from = `198.51.100.${(ip++ % 200) + 1}`) =>
   POST(new Request("http://app.test/api/preview", { method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": from }, body: typeof body === "string" ? body : JSON.stringify(body) }));
@@ -57,7 +63,7 @@ beforeEach(() => {
   repo = new MemoryPreviewRepo();
   counters = new MemoryDailyCounterStore();
   now = T0;
-  setPreviewDepsForTests({ repo, counters, resolver, now: () => now, ingest: async () => ready(), env: { NODE_ENV: "test" } });
+  setPreviewDepsForTests({ repo, counters, resolver, now: () => now, ingest: async () => ready(), env: { NODE_ENV: "test", PREVIEW_SNAPSHOT: "off" } });
 });
 afterEach(async () => {
   await drainPreviewJobsForTests();
@@ -194,7 +200,7 @@ describe("GET /api/preview/<key>", () => {
     expect((await json(await status(key))).state).toBe("crawling");
     finish(ready(7));
     await drainPreviewJobsForTests();
-    expect(await json(await status(key))).toEqual({ state: "ready", domain: "shop.example.com", name: "Example Shop", productCount: 7 });
+    expect(await json(await status(key))).toEqual({ state: "ready", domain: "shop.example.com", name: "Example Shop", productCount: 7, look: { mode: "template", reason: expect.any(String) } }); // A15: its fake network has no copyable home page
     expect(repo.records.get(key)!.products).toHaveLength(7);
   });
 
@@ -266,7 +272,7 @@ describe("GET /api/preview/<key>", () => {
     setPreviewDepsForTests({ repo, counters, resolver, now: () => now, fetcherOptions: net.options, env: { NODE_ENV: "test" } });
     const { key } = (await json(await post({ url: SHOP }))) as { key: string };
     await drainPreviewJobsForTests();
-    expect(await json(await status(key))).toEqual({ state: "ready", domain: "shop.example.com", name: "Fixture Shop", productCount: 3 });
+    expect(await json(await status(key))).toEqual({ state: "ready", domain: "shop.example.com", name: "Fixture Shop", productCount: 3, look: { mode: "template", reason: "too_little_text" } }); // A15: the bare fixture home page can't be copied
   });
 });
 

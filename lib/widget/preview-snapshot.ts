@@ -14,6 +14,7 @@
  *    has expired"; the report falls back to its cached results, else says the same.
  */
 import type { StoreProductSnapshot } from "@/lib/contracts/api";
+import { defaultPageSnapshotStore } from "@/lib/preview/page-snapshot-store";
 import { defaultPreviewRepo, type PreviewRepo } from "@/lib/preview/repo";
 import { isPreviewStoreId, loadPreviewCatalogView, loadPreviewStore, previewKeyOf } from "./preview";
 
@@ -32,7 +33,11 @@ export async function extendPreviewForRequest(storeId: string | undefined, reque
   const rec = await repo.get(key, nowMs);
   if (!rec) return null;
   const next = extendedPreviewExpiry(rec.expiresAt, rec.createdAt, requestExpiresAt);
-  if (next.getTime() > rec.expiresAt.getTime()) await repo.update(key, { expiresAt: next });
+  if (next.getTime() > rec.expiresAt.getTime()) {
+    await repo.update(key, { expiresAt: next });
+    // A15: the preview's store-page copies keep the same expiry (and Firestore TTL) as the preview.
+    if (rec.snapshot?.mode === "snapshot") await defaultPageSnapshotStore().extend(key, next).catch(() => undefined);
+  }
   return next;
 }
 
@@ -78,6 +83,10 @@ export const previewStoreHooks = {
     if (!key) return undefined;
     return (await loadPreviewStore(key).catch(() => null))?.storeName || undefined;
   },
-  /** Try-on is off for every preview request (ADR-055). */
-  tryOnEnabled: (storeId: string | undefined) => !isPreviewStoreId(storeId),
+  /**
+   * A16: previews can be tried on (pieces whose photo passed the eligibility checks), so the store itself never
+   * rules a try-on out; whether one happens is the recipient session's call (lib/privacy/tryon-mode.ts) and
+   * the report reads it from the capture.
+   */
+  tryOnEnabled: () => true,
 };

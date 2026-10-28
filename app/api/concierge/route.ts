@@ -16,6 +16,7 @@ import { conciergeNdjson, NDJSON_CONTENT_TYPE } from "@/lib/concierge/stream";
 import { giverJson } from "@/lib/privacy/giver-guard";
 import { giverRateLimit } from "@/lib/privacy/rate-limit";
 import { loadPreviewStore, previewKeyOf } from "@/lib/widget/preview";
+import { tryOnOfferedTo } from "@/lib/privacy/tryon-mode";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +34,9 @@ export async function POST(req: Request): Promise<Response> {
   if (!parsed.ok) return giverJson({ error: parsed.error }, { status: 400 });
 
   // Which catalog to ground on (ADR-055): the Aurum demo catalog, or a READY store-URL preview.
-  let events = runConcierge(parsed.messages, { signal: req.signal, pageContext: parsed.context });
+  // A16: say "try on" only when this browser's gifts would offer one (the public site is hearts-only, 0 units).
+  const offered = tryOnOfferedTo(req);
+  let events = runConcierge(parsed.messages, { signal: req.signal, pageContext: parsed.context, ...(offered ? {} : { tryOn: false }) });
   if (parsed.store !== undefined && parsed.store !== "aurum") {
     const key = previewKeyOf(parsed.store);
     if (!key) return giverJson({ error: "invalid_request" }, { status: 400 });
@@ -41,7 +44,7 @@ export async function POST(req: Request): Promise<Response> {
     if (!store) return giverJson({ error: "store_not_found" }, { status: 404 });
     events = store.skus.length
       ? // Jewelry preview: the usual tools, grounded on that preview's key-scoped SKUs only.
-        runConcierge(parsed.messages, { signal: req.signal, pageContext: parsed.context, catalog: buildConciergeCatalog(store.skus), tryOn: false })
+        runConcierge(parsed.messages, { signal: req.signal, pageContext: parsed.context, catalog: buildConciergeCatalog(store.skus), ...(offered && store.skus.some((s) => s.attributes.tryon_eligible === true) ? {} : { tryOn: false }) })
       : // Any other store: product suggestions from its own products, no brief (no Fit Request, no try-on).
         runGenericConcierge(parsed.messages, { storeName: store.storeName, currency: store.currency, products: store.products }, { signal: req.signal, pageContext: parsed.context });
   }

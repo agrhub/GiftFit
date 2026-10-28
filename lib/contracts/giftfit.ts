@@ -84,6 +84,12 @@ export interface GiftFitAttributes extends JewelryAttributes {
   vto_spec_ok: boolean;
   /** Path under public/catalog/ of the spec-compliant try-on image. */
   vto_image: string;
+  /**
+   * Store-URL preview pieces only (A16): false when the store's photo can't be used for YouCam try-on
+   * (lib/ingest/tryon-eligibility.ts). The piece stays in the gift as hearts-only and is scored without
+   * undertone or face-shape factors. Absent = try-on capable (the Aurum catalog).
+   */
+  tryon_eligible?: boolean;
 }
 
 /**
@@ -215,6 +221,12 @@ export interface FitResult {
   price?: number;
   /** The recipient asked for this design in another metal. */
   wishOtherMetal?: boolean;
+  /**
+   * A16: false for a piece in a MIXED report that was not tried on (its store photo can't be used for try-on):
+   * scored like a request without a try-on (hearts + budget/occasion, FIT_WEIGHTS_NO_TRYON), with no undertone
+   * or face-shape claim. Absent on tried pieces and on reports where nothing was tried (report-level tryOn false).
+   */
+  tryOn?: false;
   score: number;
   breakdown: FitBreakdown;
   reasons: string[];

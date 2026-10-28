@@ -4,6 +4,7 @@
  * HTML, no full descriptions, no images (image URLs are kept as-is and never fetched).
  */
 import type { JewelryCategory, Metal } from "@/lib/contracts/giftfit";
+import type { ImageMeta, TryOnReason } from "@/lib/ingest/tryon-eligibility";
 
 export type PreviewState = "queued" | "crawling" | "ready" | "refused" | "failed";
 export type PreviewPlatform = "shopify" | "woocommerce" | "jsonld";
@@ -25,7 +26,7 @@ export interface PreviewProduct {
   title: string;
   /** The product page on the merchant's site ("View on <domain>"). */
   url: string;
-  /** ≤ 4 absolute https image URLs, as published by the store (never fetched or cached). */
+  /** ≤ 4 absolute https image URLs, as published by the store (never cached; ingest may read a few image heads, A16). */
   images: string[];
   price: number | null;
   /** ISO 4217. */
@@ -43,6 +44,17 @@ export interface PreviewProduct {
   /** ≤ 160 chars of plain-text summary (short description), for search/grounding only. */
   summary: string | null;
   available: boolean | null;
+  /**
+   * YouCam jewelry try-on can use this product's photo (A16, lib/ingest/tryon-eligibility.ts; heuristics, no AI
+   * call). Absent on previews made before it existed = not eligible (hearts-only, as before).
+   */
+  tryOnEligible?: boolean;
+  /** Why (stable code, tryon-eligibility.ts TRYON_REASONS). */
+  tryOnReason?: TryOnReason;
+  /** The image sent to try-on when eligible (one of `images`, possibly with a CDN resize parameter). */
+  tryOnImage?: string;
+  /** Transient during ingest only (Shopify/WooCommerce image metadata); never stored. */
+  imageMeta?: ImageMeta[];
 }
 
 export interface StoreIngestResult {

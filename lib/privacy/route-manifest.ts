@@ -113,6 +113,12 @@ export const ROUTE_MANIFEST: Record<string, RouteManifestEntry> = {
     owner: "A6",
     description: "Preview owner: turns the one-time owner token (#t= link fragment) into the HttpOnly, SameSite=Strict Admin v0 cookie for /admin/<key>; 204 or 403, never echoes the token",
   },
+  // A16 owner-only real-credit recording switch (lib/youcam/recording.ts): flags only, never a token
+  "app/api/owner/recording/route.ts": {
+    audience: "internal",
+    owner: "A16",
+    description: "GiftFit operator only: turns GIFTFIT_RECORDING_TOKEN into the HttpOnly gf_rec owner-recording cookie (POST), reports switch/owner/paid flags (GET), clears it (DELETE); 409 while YOUCAM_RECORDING is off",
+  },
   // A6 retailer (aggregates and product data only; responses pass assertGiverSafe)
   "app/api/retailer/lookup/route.ts": { audience: "retailer", owner: "A6", description: "Public catalog lookup for the script tag (CORS): is this PDP's product in the store's catalog" },
   "app/api/retailer/purchase/route.ts": { audience: "retailer", owner: "A6", description: "Record a gift purchase of shortlisted pieces against the giver's Fit Request (no recipient data)" },

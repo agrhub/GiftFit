@@ -40,21 +40,26 @@ export const MIN_INTERVAL_MS = 1_000;
 /** A robots.txt Crawl-delay above this stops the host (a preview must finish in about a minute). */
 export const MAX_CRAWL_DELAY_MS = 5_000;
 
-export type BodyKind = "html" | "json" | "xml" | "robots";
+export type BodyKind = "html" | "json" | "xml" | "robots" | "image";
 const MB = 1024 * 1024;
-export const SIZE_CAPS: Record<BodyKind, number> = { html: 2 * MB, json: 2 * MB, xml: 2 * MB, robots: 256 * 1024 };
+/** First bytes read of an image (try-on eligibility, A16): enough for PNG/GIF/WebP headers and most JPEG SOF markers. */
+export const IMAGE_HEAD_BYTES = 32 * 1024;
+export const SIZE_CAPS: Record<BodyKind, number> = { html: 2 * MB, json: 2 * MB, xml: 2 * MB, robots: 256 * 1024, image: IMAGE_HEAD_BYTES };
 
 const ACCEPT: Record<BodyKind, string> = {
   html: "text/html,application/xhtml+xml;q=0.9",
   json: "application/json",
   xml: "application/xml,text/xml;q=0.9",
   robots: "text/plain",
+  // No image/webp or image/*: a negotiating CDN must answer with what YouCam would get by default.
+  image: "image/jpeg,image/png",
 };
 const CONTENT_TYPES: Record<BodyKind, RegExp> = {
   html: /^(text\/html|application\/xhtml\+xml)\b/i,
   json: /^(application\/([\w.-]+\+)?json|text\/json)\b/i,
   xml: /^((application|text)\/([\w.-]+\+)?xml)\b/i,
   robots: /^text\/plain\b/i,
+  image: /^image\//i,
 };
 
 export type SafeFetchErrorCode =
@@ -235,6 +240,8 @@ export interface PinnedRequest {
   family: 4 | 6;
   headers: Record<string, string>;
   maxBytes: number;
+  /** Keep the first `maxBytes` and stop reading instead of failing with too_large (image heads only). */
+  truncate?: boolean;
   connectTimeoutMs: number;
   /** Absolute deadline (ms since epoch) for the whole response. */
   deadline: number;
@@ -320,7 +327,7 @@ export function pinnedRequest(req: PinnedRequest, opts: PinnedRequestOptions = {
         return;
       }
       const declared = Number(headers["content-length"]);
-      if (Number.isFinite(declared) && declared > req.maxBytes) {
+      if (!req.truncate && Number.isFinite(declared) && declared > req.maxBytes) {
         abort(new SafeFetchError("too_large", "the response is too large"));
         res.destroy();
         return;
@@ -339,6 +346,18 @@ export function pinnedRequest(req: PinnedRequest, opts: PinnedRequestOptions = {
       let total = 0;
       stream.on("data", (c: Buffer) => {
         total += c.length;
+        if (total > req.maxBytes && req.truncate) {
+          // Image heads (Range ignored by the server): keep the first maxBytes, then hang up.
+          chunks.push(c.subarray(0, c.length - (total - req.maxBytes)));
+          if (!settled) {
+            settled = true;
+            clearTimeout(totalTimer);
+            resolve({ status, headers, body: Buffer.concat(chunks) });
+          }
+          res.destroy();
+          if (stream !== res) stream.destroy();
+          return;
+        }
         if (total > req.maxBytes) {
           abort(new SafeFetchError("too_large", "the response is too large"));
           res.destroy();
@@ -469,7 +488,24 @@ export class SafeFetcher {
     return this.fetch(checkUrl(raw), kind, true);
   }
 
+  /**
+   * The first IMAGE_HEAD_BYTES of an image (`Range: bytes=0-…`, identity encoding), for format and pixel-size
+   * sniffing (lib/ingest/tryon-eligibility.ts). Same guards, robots, budget and rate as get(); a server that
+   * ignores Range is cut off after the cap. Returns null for a non-2xx answer.
+   */
+  async getImageHead(raw: string | URL): Promise<{ url: string; contentType: string; bytes: Uint8Array } | null> {
+    const { url, res } = await this.fetchRaw(checkUrl(raw), "image", true);
+    if (res.status < 200 || res.status >= 300) return null;
+    return { url: url.href, contentType: res.headers["content-type"] ?? "", bytes: new Uint8Array(res.body) };
+  }
+
   private async fetch(start: URL, kind: BodyKind, checkRobots: boolean): Promise<SafeResponse> {
+    const { url, res } = await this.fetchRaw(start, kind, checkRobots);
+    const contentType = res.headers["content-type"] ?? "";
+    return { url: url.href, status: res.status, contentType, headers: res.headers, body: decode(res.body, contentType) };
+  }
+
+  private async fetchRaw(start: URL, kind: BodyKind, checkRobots: boolean): Promise<{ url: URL; res: PinnedResponse }> {
     const deadline = this.now() + this.totalTimeoutMs;
     let url = start;
     for (let hop = 0; ; hop++) {
@@ -490,7 +526,7 @@ export class SafeFetcher {
       if (res.status >= 200 && res.status < 300 && kind !== "robots" && !CONTENT_TYPES[kind].test(contentType.trim())) {
         throw new SafeFetchError("bad_content_type", `unexpected content type for ${kind}`);
       }
-      return { url: url.href, status: res.status, contentType, headers: res.headers, body: decode(res.body, contentType) };
+      return { url, res };
     }
   }
 
@@ -510,8 +546,12 @@ export class SafeFetcher {
         url,
         address,
         family,
-        headers: { "user-agent": this.userAgent, accept: ACCEPT[kind], "accept-encoding": "gzip, deflate, br", "accept-language": "en;q=0.9, *;q=0.5" },
+        headers:
+          kind === "image"
+            ? { "user-agent": this.userAgent, accept: ACCEPT.image, "accept-encoding": "identity", range: `bytes=0-${IMAGE_HEAD_BYTES - 1}` }
+            : { "user-agent": this.userAgent, accept: ACCEPT[kind], "accept-encoding": "gzip, deflate, br", "accept-language": "en;q=0.9, *;q=0.5" },
         maxBytes: SIZE_CAPS[kind],
+        ...(kind === "image" ? { truncate: true } : {}),
         connectTimeoutMs: this.connectTimeoutMs,
         deadline,
       });

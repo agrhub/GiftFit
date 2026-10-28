@@ -91,7 +91,7 @@ gcloud run deploy "$SERVICE" \
   --concurrency 40 \
   --timeout 360 \
   --cpu-boost \
-  --set-env-vars "^@^NODE_ENV=production@YOUCAM_MOCK=0@YOUCAM_ALLOW_PAID=1@YOUCAM_RESERVE_UNITS=300@YOUCAM_MAX_UNITS_PER_RUN=40@YOUCAM_DAILY_UNIT_CAP=150@GIFTFIT_TRUSTED_PROXY_HOPS=1@INGEST_FIXTURE=1@GIFTFIT_DATA_DIR=/tmp/giftfit@NEXT_TELEMETRY_DISABLED=1" \
+  --set-env-vars "^@^NODE_ENV=production@YOUCAM_MOCK=0@YOUCAM_ALLOW_PAID=0@YOUCAM_MAX_UNITS_PER_RUN=40@YOUCAM_DAILY_UNIT_CAP=150@GIFTFIT_TRUSTED_PROXY_HOPS=1@INGEST_FIXTURE=1@GIFTFIT_DATA_DIR=/tmp/giftfit@NEXT_TELEMETRY_DISABLED=1" \
   --set-secrets "YOUCAM_API_KEY=giftfit-youcam-api-key:latest,ANTHROPIC_API_KEY=giftfit-anthropic-api-key:latest,GIFTFIT_URL_SIGNING_SECRET=giftfit-url-signing-secret:latest,FIT_DECOY_SECRET=giftfit-fit-decoy-secret:latest,CRON_SECRET=giftfit-cron-secret:latest"
 ```
 
@@ -101,7 +101,8 @@ Why these flags:
 - **Request-based billing** is the default; don't pass `--no-cpu-throttling`. An idle minimum instance is billed at the idle rate. Async ingest jobs only progress while requests come in, which is fine because the UI polls.
 - **`--timeout 360`**: a real capture polls YouCam for up to 60 × 5 s.
 - **`--allow-unauthenticated`** gives the judges public access. Requests denied by IAM would not be billed, but here every request is allowed.
-- **A mock-only deployment** (0 units even for judges' selfies): set `YOUCAM_MOCK=1@YOUCAM_ALLOW_PAID=0` and drop `giftfit-youcam-api-key` from `--set-secrets`.
+- **Paid YouCam calls are off** (`YOUCAM_ALLOW_PAID=0`, ADR-058): the public site spends 0 units. Real try-on is only for the owner's recording session: `YOUCAM_RECORDING=on`, `YOUCAM_ALLOW_PAID=1`, `GIFTFIT_RECORDING_TOKEN` (secret), `STORE=firestore` and the caps, then open `/owner/recording#t=<token>`; turn it off right after and check `GET /api/health` → `youcamPaid: false`.
+- **A mock-only deployment** (fixture try-ons, no YouCam network at all): set `YOUCAM_MOCK=1@YOUCAM_ALLOW_PAID=0` and drop `giftfit-youcam-api-key` from `--set-secrets`.
 
 Later deploys run the same command. To change only env or secrets, use `gcloud run services update "$SERVICE" --update-env-vars ... / --update-secrets ...`.
 
