@@ -13,7 +13,7 @@ export const ja: Record<WidgetMessageKey, string> = {
   "launcher.tipReady": "お知らせ：Fit Report の準備ができました！",
   "launcher.tipDismiss": "閉じる",
 
-  "panel.title": "ギフトアシスタント",
+  "panel.title": "ギフト相談",
   "panel.subtitle": "GiftFit 提供",
   "panel.close": "閉じる",
   "panel.notAllowed": "このサイトでは GiftFit がまだ有効になっていません。",

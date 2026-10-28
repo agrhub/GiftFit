@@ -26,6 +26,7 @@ import { parentMatchesAncestor, type HostMessage, type PdpSummary } from "@/lib/
 import { ApiError, httpGiftApi } from "@/components/gift/api";
 import { BriefConfirm, type MatchedProduct } from "./BriefConfirm";
 import { CharacterSlot, type CharacterState } from "./CharacterSlot";
+import { MarkAvatar } from "./character/MarkAvatar";
 import { GiftCardStep } from "./GiftCardStep";
 import { useHostBridge } from "./useHostBridge";
 import { WidgetAbout } from "./WidgetAbout";
@@ -287,9 +288,17 @@ function Widget({ store, preview, tryOn, parentOrigin, preferredLang, allowedLan
     <div role="dialog" aria-modal={!standalone} aria-label={tr("panel.title")} className={`flex flex-col overflow-hidden bg-ivory text-ink ${standalone ? "mx-auto h-dvh max-w-md border-x border-line" : "fixed inset-0 rounded-2xl border border-line shadow-2xl"}`} data-testid="widget-panel">
       <header className="flex items-center gap-1.5 border-b border-line bg-white px-3 py-2" style={accent ? { borderTop: `4px solid ${accent}` } : undefined} data-accent={accent}>
         <div className="h-14 w-14 shrink-0 overflow-hidden">
-          <div className="origin-top-left scale-[0.7]">
-            <SpeakingCharacter compact analyser={voice.analyser} state={charState} mouth={charMouth} onActivate={() => setView("chat")} reducedMotion={reducedMotion} label={tr("panel.title")} />
-          </div>
+          <MarkAvatar
+            mascot={preview?.settings.character === "mascot"}
+            reducedMotion={reducedMotion}
+            label={tr("panel.title")}
+            onActivate={() => setView("chat")}
+            fallback={
+              <div className="origin-top-left scale-[0.7]">
+                <SpeakingCharacter compact analyser={voice.analyser} state={charState} mouth={charMouth} onActivate={() => setView("chat")} reducedMotion={reducedMotion} label={tr("panel.title")} />
+              </div>
+            }
+          />
         </div>
         {/* One line at the usual ~400 px panel: About is an icon (its full name is the accessible name and
             tooltip) and the subtitle is just "by GiftFit", so the title column keeps ~175 px (~150 px at

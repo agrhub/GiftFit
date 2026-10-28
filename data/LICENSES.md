@@ -87,6 +87,17 @@ true, Live2D must be notified and a Publication License Agreement concluded, or 
 Live2D and Cubism are trademarks or registered trademarks of Live2D Inc. GiftFit is not made, certified
 or endorsed by Live2D Inc.
 
+One derived still IS committed, and it is not MIT either: `public/widget/mark-kun-avatar.webp` (128 x 128 WebP,
+about 5 KB), the panel-header avatar. It is one frame of the unmodified Mark-kun model as drawn by the widget's own
+Live2D runtime (Core 5-r.5, Framework 5-r.5, his Idle motion), cropped to his head and shoulders and scaled down;
+nothing is redrawn, recoloured or reshaped. Basis: FMLA §1.9 "Distribute" includes "publications containing the
+Derivative Work and Output File that are produced using the Material", which §2.1.3 grants for Live2D Original
+Characters (commercial use for General Users and Small-Scale Enterprises, §2.1.3.1). A rendered frame is such an
+output, not a "duplicate of the Material" (§1.10, §4.1.1: the moc3, texture and motion files, which stay
+uncommitted). It keeps Mark-kun's cartoon look as his individual terms require, is not a user-made illustration
+(FMLA §4.1.7), and falls under the credit and the small-scale condition above. If the character is removed, remove
+this file too.
+
 The fallback SVG gift-box mascot (`components/widget/character/Mascot.tsx`) is original artwork made for GiftFit (MIT).
 
 ## Voice (P8.3, ADR-052/053/059)

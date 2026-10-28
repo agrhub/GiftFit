@@ -73,6 +73,10 @@ const nextConfig: NextConfig = {
       })),
       { source: "/embed/:path*", headers: [{ key: "Content-Security-Policy", value: `frame-ancestors ${embedAncestors}` }] },
       { source: "/embed", headers: [{ key: "Content-Security-Policy", value: `frame-ancestors ${embedAncestors}` }] },
+      // Live2D (A20): Core, shaders and Mark-kun are pinned (SDK 5-r.5, sha256-checked model), so a day
+      // of caching is safe. Next's default (max-age=0) made the widget frame revalidate all 22 files after
+      // the landing's warm-up, and the Framework re-fetch its 13 shaders, one round trip per file.
+      { source: "/live2d/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=86400" }] },
     ];
   },
   // The seeded judge demo (ADR-038) reads committed AI-model fixtures from disk at runtime; make sure

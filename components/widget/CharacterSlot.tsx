@@ -68,8 +68,9 @@ export function PlaceholderCharacter({ state, mouth = 0, tip, onActivate, reduce
 
 /**
  * The slot the widget renders (ADR-050): the launcher gets A4's Character (Live2D Mark-kun, with the
- * SVG gift-box mascot as fallback); `compact` (the panel header) always uses the SVG mascot, so only
- * one WebGL context and one Live2D model are ever loaded.
+ * SVG gift-box mascot as fallback); `compact` always uses the SVG mascot, so only one WebGL context
+ * and one Live2D model are ever loaded. The panel header shows a still of Mark-kun instead
+ * (character/MarkAvatar.tsx) and falls back to this compact mascot.
  */
 export function CharacterSlot({ compact = false, forceMascot = false, ...props }: CharacterProps & { compact?: boolean; dismissLabel?: string; forceMascot?: boolean }) {
   // forceMascot: a preview owner chose the SVG mascot in Admin v0 (ADR-055).

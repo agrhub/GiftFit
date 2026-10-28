@@ -13,7 +13,7 @@ export const es: Record<WidgetMessageKey, string> = {
   "launcher.tipReady": "Buenas noticias: ¡tu Fit Report está listo!",
   "launcher.tipDismiss": "Cerrar",
 
-  "panel.title": "Asistente de regalos",
+  "panel.title": "Guía de regalos",
   "panel.subtitle": "de GiftFit",
   "panel.close": "Cerrar",
   "panel.notAllowed": "GiftFit aún no está activado en este sitio.",

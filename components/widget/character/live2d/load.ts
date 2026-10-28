@@ -8,6 +8,7 @@
  * and our runtime are code-split and fetched only after Core is in, i.e. when a launcher mounts.
  */
 import type { CharacterState } from "../types";
+import type { CubismModel, CubismShader_WebGL } from "./framework";
 
 export const CORE_SRC = "/live2d/core/live2dcubismcore.min.js";
 export const MODEL_DIR = "/live2d/models/Mark/";
@@ -46,6 +47,31 @@ export async function prefetchShaders(signal?: AbortSignal): Promise<void> {
   );
 }
 
+/**
+ * The Framework compiles a program for every Cubism 5.3 colour x alpha blend pair (16 x 5 x 3 masks =
+ * 237 programs) in one synchronous burst before the first frame, whether the model uses them or not.
+ * On Windows (ANGLE/D3D11) that burst was most of the wait for Mark-kun, and it froze the frame and
+ * the page around it. Keep only the pairs this model draws with: none for Mark (his moc3 predates
+ * blend modes), so only the base and copy programs are built. A model that uses blend modes still
+ * gets every pair it draws with. Called after renderer.startUp() and before loadShaders().
+ */
+export function limitBlendShaders(shader: Pick<CubismShader_WebGL, "_colorBlendValues" | "_alphaBlendValues">, model: CubismModel): void {
+  const colors = new Set<number>();
+  const alphas = new Set<number>();
+  if (model.isBlendModeEnabled()) {
+    for (let i = 0; i < model.getDrawableCount(); i++) {
+      colors.add(model.getDrawableColorBlend(i));
+      alphas.add(model.getDrawableAlphaBlend(i));
+    }
+    for (let i = 0; i < model.getOffscreenCount(); i++) {
+      colors.add(model.getOffscreenColorBlend(i));
+      alphas.add(model.getOffscreenAlphaBlend(i));
+    }
+  }
+  shader._colorBlendValues = shader._colorBlendValues.filter((v) => colors.has(v));
+  shader._alphaBlendValues = shader._alphaBlendValues.filter((v) => alphas.has(v));
+}
+
 export type FallbackReason = "reduced-motion" | "no-webgl" | "core" | "model" | "timeout" | "error";
 
 export class Live2DLoadError extends Error {
@@ -56,6 +82,15 @@ export class Live2DLoadError extends Error {
     super(message);
     this.name = "Live2DLoadError";
   }
+}
+
+let fellBack: FallbackReason | null = null;
+/** Remembers that Live2D failed in this frame, so the panel header shows the SVG mascot too. */
+export function noteFallback(reason: FallbackReason): void {
+  fellBack = reason;
+}
+export function live2dFailed(): boolean {
+  return fellBack !== null;
 }
 
 /** Live2D only with motion allowed and WebGL 2 present; otherwise the SVG mascot. */
@@ -99,8 +134,106 @@ export function loadCore(src = CORE_SRC): Promise<void> {
   return corePromise;
 }
 
+/** Downloads started early by warmLive2D(), handed over once to fetchAsset. */
+const warm = new Map<string, Promise<ArrayBuffer>>();
+
+/** The files Mark.model3.json lists (moc3, textures, physics, Idle motions), relative to MODEL_DIR. */
+export function modelFiles(json: unknown): string[] {
+  const refs = (json as { FileReferences?: { Moc?: unknown; Textures?: unknown; Physics?: unknown; Motions?: { Idle?: unknown } } })?.FileReferences;
+  if (!refs) return [];
+  const idle = Array.isArray(refs.Motions?.Idle) ? (refs.Motions.Idle as Array<{ File?: unknown }>).map((m) => m?.File) : [];
+  const all = [refs.Moc, ...(Array.isArray(refs.Textures) ? refs.Textures : []), refs.Physics, ...idle];
+  return all.filter((f): f is string => typeof f === "string" && f.length > 0 && !f.includes(".."));
+}
+
+const getBytes = (url: string) =>
+  fetch(url, { credentials: "same-origin" }).then((r) => {
+    if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
+    return r.arrayBuffer();
+  });
+
+let warming: Promise<void> | null = null;
+/**
+ * Starts every Live2D download at once (Core, the 13 shaders, model3.json and then the files it
+ * lists), so no step waits for the one before it to ask for its bytes. In the widget frame the bytes
+ * go to fetchAsset (no second request); on the landing they fill the HTTP cache the same-origin widget
+ * frame reads after Run. Once per document; never rejects (a failure here just means a normal load).
+ */
+export function warmLive2D(): Promise<void> {
+  if (warming || typeof fetch !== "function") return warming ?? Promise.resolve();
+  const keep = (url: string, p: Promise<ArrayBuffer>) => {
+    warm.set(url, p);
+    p.catch(() => warm.delete(url));
+    return p;
+  };
+  const core = getBytes(CORE_SRC);
+  const shaders = SHADER_FILES.map((n) => keep(SHADER_PATH + n, getBytes(SHADER_PATH + n)));
+  const model = keep(MODEL_DIR + MODEL_FILE, getBytes(MODEL_DIR + MODEL_FILE)).then((buf) =>
+    Promise.all(modelFiles(JSON.parse(new TextDecoder().decode(buf))).map((f) => keep(MODEL_DIR + f, getBytes(MODEL_DIR + f)))),
+  );
+  warming = Promise.allSettled([core, model, ...shaders]).then(() => undefined);
+  return warming;
+}
+
+/**
+ * Runs `task` after the first paint, when the main thread is idle (requestIdleCallback, or a short
+ * timeout where it is missing). Returns a cancel function.
+ */
+export function afterFirstPaintIdle(task: () => void, idleTimeoutMs = 2000): () => void {
+  let cancelled = false;
+  let raf = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let idle: number | undefined;
+  const run = () => {
+    if (!cancelled) task();
+  };
+  const schedule = () => {
+    // rAF fires before the next paint; the timeout after it lands after that paint.
+    timer = setTimeout(() => {
+      if (typeof requestIdleCallback === "function") idle = requestIdleCallback(run, { timeout: idleTimeoutMs });
+      else timer = setTimeout(run, 200);
+    }, 0);
+  };
+  if (typeof requestAnimationFrame === "function") raf = requestAnimationFrame(schedule);
+  else schedule();
+  return () => {
+    cancelled = true;
+    if (raf && typeof cancelAnimationFrame === "function") cancelAnimationFrame(raf);
+    clearTimeout(timer);
+    if (idle !== undefined && typeof cancelIdleCallback === "function") cancelIdleCallback(idle);
+  };
+}
+
+/**
+ * The landing's warm-up (A20): after first paint and when idle, and only where the widget would show
+ * Mark-kun (WebGL 2, motion allowed) and the visitor has not asked to save data, download Live2D so
+ * Run shows him without waiting on the network. Never throws, also without WebGL.
+ */
+export function scheduleLive2DWarmup(): () => void {
+  return afterFirstPaintIdle(() => {
+    try {
+      const nav = typeof navigator !== "undefined" ? (navigator as Navigator & { connection?: { saveData?: boolean } }) : undefined;
+      if (nav?.connection?.saveData) return;
+      const reduce = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (pickCharacter({ reducedMotion: reduce, webgl: hasWebGL2() }) !== "live2d") return;
+      void warmLive2D();
+    } catch {
+      /* a warm-up is optional */
+    }
+  });
+}
+
 /** Fetches a model asset as bytes; any non-2xx is reason "model". */
 export async function fetchAsset(url: string, signal?: AbortSignal): Promise<ArrayBuffer> {
+  const early = warm.get(url);
+  if (early) {
+    warm.delete(url);
+    try {
+      return await early;
+    } catch {
+      /* fetch it again below, with the caller's error mapping */
+    }
+  }
   let res: Response;
   try {
     res = await fetch(url, { signal, credentials: "same-origin" });
@@ -155,7 +288,8 @@ export function withTimeout<T>(p: Promise<T>, ms: number, onLate?: (value: T) =>
 
 /**
  * Loads Core, then the Framework + runtime chunk, then the one model, and starts rendering into
- * `canvas`. Takes no model URL by design.
+ * `canvas`. The model and shader downloads start with Core (warmLive2D) instead of after it. Takes
+ * no model URL by design.
  */
 export function loadLive2D(canvas: HTMLCanvasElement, frame: () => Live2DFrame, signal: AbortSignal): Promise<Live2DHandle> {
   const run = async () => {
@@ -163,6 +297,7 @@ export function loadLive2D(canvas: HTMLCanvasElement, frame: () => Live2DFrame, 
     const log = (step: string) => {
       if (process.env.NODE_ENV !== "production") console.debug(`[live2d] +${Math.round(performance.now() - t0)}ms ${step}`);
     };
+    void warmLive2D();
     await loadCore();
     log("core");
     const { startLive2D } = await import("./runtime");

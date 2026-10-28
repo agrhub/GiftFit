@@ -15,6 +15,14 @@ export interface CubismModel {
   loadParameters(): void;
   saveParameters(): void;
   update(): void;
+  /** Cubism 5.3 blend modes (false for older models such as Mark, whose moc3 is version 3). */
+  isBlendModeEnabled(): boolean;
+  getDrawableCount(): number;
+  getDrawableColorBlend(index: number): number;
+  getDrawableAlphaBlend(index: number): number;
+  getOffscreenCount(): number;
+  getOffscreenColorBlend(index: number): number;
+  getOffscreenAlphaBlend(index: number): number;
 }
 
 export declare class CubismMatrix44 {
@@ -121,8 +129,19 @@ export declare class CubismBreath {
   updateParameters(model: CubismModel, deltaTimeSeconds: number): void;
 }
 
-/** The renderer fetches its shaders asynchronously; `_isShaderLoaded` turns true once they compiled. */
+/**
+ * The per-context shader set. The renderer fetches its sources asynchronously; `_isShaderLoaded` turns
+ * true once they compiled. `_colorBlendValues` x `_alphaBlendValues` are the blend pairs that
+ * registerBlendShader() compiles a program for (read nowhere else in the Framework).
+ */
+export interface CubismShader_WebGL {
+  _isShaderLoaded: boolean;
+  _isShaderLoading: boolean;
+  _colorBlendValues: number[];
+  _alphaBlendValues: number[];
+}
+
 export declare class CubismShaderManager_WebGL {
   static getInstance(): CubismShaderManager_WebGL;
-  getShader(gl: WebGL2RenderingContext): { _isShaderLoaded: boolean; _isShaderLoading: boolean };
+  getShader(gl: WebGL2RenderingContext): CubismShader_WebGL | undefined;
 }

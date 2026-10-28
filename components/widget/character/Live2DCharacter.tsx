@@ -50,6 +50,8 @@ export function Live2DCharacter(props: CharacterProps & { onFallback(reason: Fal
         if (ac.signal.aborted) return h.dispose();
         handle = h;
         setReady(true);
+        // "Time to Mark-kun visible" for tests and DevTools (with data-live2d="ready" on the canvas).
+        performance.mark?.("giftfit:live2d-visible");
       },
       (err: unknown) => {
         if (ac.signal.aborted) return;
@@ -70,6 +72,7 @@ export function Live2DCharacter(props: CharacterProps & { onFallback(reason: Fal
         ref={canvas}
         aria-hidden="true"
         data-testid="live2d-canvas"
+        data-live2d={ready ? "ready" : "loading"}
         style={{ width: CSS_W, height: CSS_H }}
         className={ready ? "block rounded-[27px]" : "pointer-events-none absolute inset-0 opacity-0"}
       />

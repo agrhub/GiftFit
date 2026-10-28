@@ -19,7 +19,7 @@ import {
   type CubismModel,
   type CubismMotion,
 } from "./framework";
-import { fetchAsset, Live2DLoadError, MODEL_DIR, MODEL_FILE, prefetchShaders, SHADER_PATH, type Live2DFrame, type Live2DHandle } from "./load";
+import { fetchAsset, limitBlendShaders, Live2DLoadError, MODEL_DIR, MODEL_FILE, prefetchShaders, SHADER_PATH, type Live2DFrame, type Live2DHandle } from "./load";
 
 const PRIORITY_IDLE = 1;
 const ZOOM = 1.45;
@@ -169,6 +169,9 @@ export async function startLive2D(canvas: HTMLCanvasElement, frame: () => Live2D
     mark.createRenderer(canvas.width, canvas.height);
     const renderer = mark.getRenderer();
     renderer.startUp(gl);
+    const shaders = CubismShaderManager_WebGL.getInstance().getShader(gl);
+    if (!shaders) throw new Live2DLoadError("error", "Live2D renderer did not register its shaders");
+    limitBlendShaders(shaders, mark.getModel());
     renderer.loadShaders(SHADER_PATH);
     renderer.setIsPremultipliedAlpha(true);
     images.forEach((img, i) => {
@@ -211,7 +214,6 @@ export async function startLive2D(canvas: HTMLCanvasElement, frame: () => Live2D
 
     // Resolve only once Mark has really been drawn (shaders fetched and compiled), so the canvas
     // never replaces the SVG placeholder while it is still blank.
-    const shaders = CubismShaderManager_WebGL.getInstance().getShader(gl);
     let drawn = false;
     let onDrawn!: () => void;
     let onAbort!: (reason: unknown) => void;

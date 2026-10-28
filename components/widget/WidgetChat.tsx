@@ -53,11 +53,45 @@ export interface WidgetChatProps {
   giftable?: boolean;
 }
 
-/** Store images on a preview are the merchant's own URLs: plain <img>, no Referer, never proxied. */
-function ProductImage({ src, size = 56 }: { src: string; size?: number }) {
+/**
+ * A small rendition of a store image for a 56 px thumbnail: Shopify's CDN (cdn.shopify.com, or a store's own
+ * /cdn/shop/ path) resizes on `width`. Other hosts keep the original URL.
+ */
+export function thumbnailUrl(src: string, px = 160): string {
+  try {
+    const u = new URL(src);
+    if (u.protocol !== "https:" || !(u.hostname === "cdn.shopify.com" || u.pathname.startsWith("/cdn/shop/"))) return src;
+    u.searchParams.set("width", String(px));
+    return u.toString();
+  } catch {
+    return src;
+  }
+}
+
+/**
+ * Store images on a preview are the merchant's own URLs: plain <img>, no Referer, never proxied. Loaded eagerly at a
+ * small size (a reply has a few cards; full-size lazy images stayed blank in a recorded take); if the small rendition
+ * fails the original is tried once, then a neutral tile shows instead of an empty box.
+ */
+export function ProductImage({ src, size = 56 }: { src: string; size?: number }) {
+  const small = thumbnailUrl(src);
+  const [attempt, setAttempt] = useState<"small" | "original" | "failed">(small === src ? "original" : "small");
   if (src.startsWith("/")) return <Image src={src} alt="" width={size} height={size} className="h-14 w-14 shrink-0 object-contain" />;
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt="" width={size} height={size} loading="lazy" referrerPolicy="no-referrer" className="h-14 w-14 shrink-0 rounded object-cover" />;
+  if (attempt === "failed") return <span aria-hidden="true" data-testid="product-image-fallback" className="h-14 w-14 shrink-0 rounded bg-cream" />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={attempt === "small" ? small : src}
+      alt=""
+      width={size}
+      height={size}
+      loading="eager"
+      decoding="async"
+      referrerPolicy="no-referrer"
+      onError={() => setAttempt(attempt === "small" ? "original" : "failed")}
+      className="h-14 w-14 shrink-0 rounded bg-cream object-cover"
+    />
+  );
 }
 
 function errorKey(err: ConciergeTurnError): MessageKey {
@@ -84,10 +118,29 @@ export function WidgetChat({ locale, tr, context, productTitle, onBrief, onUserM
   /** Indexes of user turns that came from the mic. */
   const [voiceTurns, setVoiceTurns] = useState<ReadonlySet<number>>(new Set());
 
+  // Scrolling: a new question scrolls to the bottom; a reply is followed until its top reaches the top of
+  // the log, then stays there so the words are read first (cards and the brief are a scroll away). Once the
+  // giver scrolls by hand, the log stops following until the next question.
+  const follow = useRef(true);
+  const autoTop = useRef<number | null>(null);
   useEffect(() => {
     const el = logRef.current;
-    if (el && typeof el.scrollTo === "function") el.scrollTo({ top: el.scrollHeight });
+    const t = turns[turns.length - 1];
+    if (!el || typeof el.scrollTo !== "function" || !follow.current) return;
+    const bottom = el.scrollHeight - el.clientHeight;
+    const art = t?.role === "assistant" && t.text ? el.querySelector<HTMLElement>(`[data-turn="${t.id}"]`) : null;
+    const top = art ? Math.min(bottom, el.scrollTop + art.getBoundingClientRect().top - el.getBoundingClientRect().top - 12) : bottom;
+    if (Math.abs(top - el.scrollTop) < 1) return;
+    autoTop.current = top;
+    el.scrollTo({ top });
   }, [turns]);
+  const onLogScroll = () => {
+    const el = logRef.current;
+    if (!el) return;
+    if (autoTop.current !== null && Math.abs(el.scrollTop - autoTop.current) < 2) return;
+    autoTop.current = null;
+    follow.current = false;
+  };
 
   // Spoken replies: hand each finished reply to the voice layer once.
   const spokenFor = useRef(0);
@@ -120,6 +173,7 @@ export function WidgetChat({ locale, tr, context, productTitle, onBrief, onUserM
     if (!text || busy) return;
     onUserMessage?.(text, spokenLang);
     voiceRef.current?.onSend();
+    follow.current = true;
     if (viaVoice) setVoiceTurns((s) => new Set(s).add(turns.length));
     setDraft("");
     void send(text);
@@ -136,7 +190,7 @@ export function WidgetChat({ locale, tr, context, productTitle, onBrief, onUserM
       );
     const final = t.final;
     return (
-      <article key={t.id} aria-label={tr("chat.assistant")} className="mr-4 flex flex-col gap-2 self-start rounded-2xl rounded-bl-sm border border-line bg-white px-3 py-2 text-sm text-ink">
+      <article key={t.id} data-turn={t.id} aria-label={tr("chat.assistant")} className="mr-4 flex flex-col gap-2 self-start rounded-2xl rounded-bl-sm border border-line bg-white px-3 py-2 text-sm text-ink">
         <p className="whitespace-pre-wrap">
           <span className="sr-only">{tr("chat.assistant")}: </span>
           {t.text || (t.pending ? <span className="text-muted">{tr("chat.thinking")}</span> : t.stopped ? tr("chat.stopped") : null)}
@@ -213,7 +267,7 @@ export function WidgetChat({ locale, tr, context, productTitle, onBrief, onUserM
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" onKeyDown={(e) => e.key === "Escape" && busy && (e.stopPropagation(), stop())}>
-      <div ref={logRef} role="log" aria-live="polite" aria-relevant="additions text" aria-busy={busy} aria-label={tr("chat.log")} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-ivory p-3">
+      <div ref={logRef} onScroll={onLogScroll} role="log" aria-live="polite" aria-relevant="additions text" aria-busy={busy} aria-label={tr("chat.log")} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-ivory p-3">
         <p className="mr-4 self-start rounded-2xl rounded-bl-sm border border-line bg-white px-3 py-2 text-sm text-ink" data-testid="widget-intro">
           {productTitle ? tr("chat.introPdp", { title: productTitle }) : (greeting ?? tr("chat.intro"))}
         </p>

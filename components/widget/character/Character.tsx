@@ -4,7 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { Live2DCharacter } from "./Live2DCharacter";
 import { Mascot } from "./Mascot";
 import type { CharacterProps } from "./types";
-import { hasWebGL2, pickCharacter, type FallbackReason } from "./live2d/load";
+import { hasWebGL2, noteFallback, pickCharacter, type FallbackReason } from "./live2d/load";
 
 export type { CharacterProps, CharacterState } from "./types";
 
@@ -24,6 +24,7 @@ export function Character(props: CharacterProps & { onFallback?(reason: Fallback
     <Live2DCharacter
       {...rest}
       onFallback={(reason) => {
+        noteFallback(reason);
         setFailed(reason);
         onFallback?.(reason);
       }}

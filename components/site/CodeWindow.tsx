@@ -4,6 +4,7 @@
  * Copy, and Run, which mounts the real widget on this page (components/site/runWidget.ts).
  */
 import { useEffect, useId, useRef, useState } from "react";
+import { scheduleLive2DWarmup } from "@/components/widget/character/live2d/load";
 import type { CodeLabels } from "./labels";
 import { CopyButton } from "./CodeBlock";
 import { openChat, runWidget, whenReady } from "./runWidget";
@@ -26,6 +27,8 @@ export function CodeWindow({ origin, labels: l }: { origin: string; labels: Code
   const cancel = useRef<(() => void) | undefined>(undefined);
   const statusId = useId();
   useEffect(() => () => cancel.current?.(), []);
+  // Run shows Mark-kun: download Live2D once the landing has painted and gone idle (A20).
+  useEffect(() => scheduleLive2DWarmup(), []);
 
   const snippet = giftfitSnippet(origin, { langs, widget });
 
