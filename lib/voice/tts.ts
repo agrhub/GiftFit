@@ -11,7 +11,8 @@
  *      counter is unreachable, or when a sentence overruns VOICE_SUPERTONIC_SENTENCE_BUDGET_MS (the
  *      synthesis is aborted between model runs and the whole chunk goes to Google).
  *   2. google (or mock): as before, on the `voice-tts-<day>` character cap.
- * Languages Supertonic doesn't speak (zh, th; config ttsRoute) skip step 1, even when forced.
+ * Languages Supertonic doesn't speak (zh, th, he, ms … any language with only a Google voice; config
+ * ttsRoute) skip step 1, even when forced.
  * One per-session slot per request either way.
  *
  * Spike mode (VOICE_SPIKE=1 on the service AND `Authorization: Bearer $CRON_SECRET`): no per-IP or

@@ -9,12 +9,13 @@
  * The message starts as the occasion's default in the card language (card.defaultMessage.<occasion>)
  * and follows occasion and card-language changes until the giver edits it. The step scrolls; the
  * e-card never shrinks (shrink-0), since a flex child with overflow-hidden would collapse to its border.
- * Card languages are en/vi only (CARD_LANGS: the e-mail, the recipient page and the occasion headlines
- * exist in those two); a giver using another UI language starts with an English card.
+ * The card starts in the widget's language, which follows the giver's conversation (ADR-057: one of the
+ * ten widget languages, English for any other); the picker offers all ten (CARD_LANGS), and the e-card,
+ * share text and e-mails use the one picked.
  */
 import { useEffect, useId, useMemo, useState } from "react";
 import type { CreateFitRequestResponse } from "@/lib/contracts/api";
-import { CARD_LANGS, type CardLang } from "@/lib/email/templates";
+import { CARD_LANGS, normalizeLang, type CardLang } from "@/lib/email/templates";
 import { formatMoney, t as translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { cardTheme, cleanMessage, cleanName, MAX_CARD_MESSAGE, MAX_GIVER_NAME, shareLinks } from "@/lib/widget/share";
 import { QrCode } from "@/components/gift/QrCode";
@@ -43,7 +44,7 @@ async function postJson(fetchImpl: typeof fetch, url: string, body: unknown): Pr
 export function GiftCardStep({ locale, tr, result, occasion, baseUrl, facebookAppId, onNewGift, fetchImpl }: GiftCardStepProps) {
   const ids = { lang: useId(), msg: useId(), name: useId(), to: useId(), me: useId() };
   const doFetch = fetchImpl ?? fetch;
-  const [cardLang, setCardLang] = useState<CardLang>((CARD_LANGS as readonly string[]).includes(locale) ? (locale as CardLang) : "en");
+  const [cardLang, setCardLang] = useState<CardLang>(normalizeLang(locale));
   /** null until the giver edits the message: until then it is the occasion's default. */
   const [edited, setEdited] = useState<string | null>(null);
   const [giverName, setGiverName] = useState("");

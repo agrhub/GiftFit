@@ -1,6 +1,6 @@
 /**
  * POST /api/voice/stt handler (owner: A13, ADR-052); contract in lib/voice/server.ts. Clip → Google
- * Speech-to-Text V2 chirp_3 (us) → {text, lang}. JSON only, through giverJson. The clip is held in
+ * Speech-to-Text V2 chirp_3 (us, automatic language identification by default) → {text, lang, detectedLang?}. JSON only, through giverJson. The clip is held in
  * memory for the one call and never stored or logged.
  */
 import { giverJson } from "@/lib/privacy/giver-guard";
@@ -42,8 +42,10 @@ export async function handleStt(req: Request, deps: VoiceServerDeps = defaultVoi
   try {
     const r = await engine.transcribe({ audio: body.bytes, lang });
     await cap.settle(r.billedSeconds ?? reserveSeconds);
-    deps.log(`[voice] stt engine=${engine.name} lang=${lang} container=${clip.container} bytes=${clip.bytes} clip_s=${clip.seconds?.toFixed(1) ?? "?"} billed_s=${r.billedSeconds ?? "?"} chars=${charCount(r.text)} ms=${deps.now() - t0} outcome=ok`);
-    return giverJson({ text: r.text, lang }, { headers: { [VOICE_ENGINE_HEADER]: engine.name } });
+    deps.log(`[voice] stt engine=${engine.name} lang=${lang} detected=${r.language ?? "-"} container=${clip.container} bytes=${clip.bytes} clip_s=${clip.seconds?.toFixed(1) ?? "?"} billed_s=${r.billedSeconds ?? "?"} chars=${charCount(r.text)} ms=${deps.now() - t0} outcome=ok`);
+    // `lang` echoes the widget's language; `detectedLang` is the spoken language chirp_3 reported (any language).
+    const detected = r.language && /^[a-z]{2,3}$/.test(r.language) ? { detectedLang: r.language } : {};
+    return giverJson({ text: r.text, lang, ...detected }, { headers: { [VOICE_ENGINE_HEADER]: engine.name } });
   } catch (e) {
     await cap.refund();
     deps.log(`[voice] stt engine=${engine.name} lang=${lang} ms=${deps.now() - t0} outcome=error code=${(e as { code?: string }).code ?? "unknown"}`);

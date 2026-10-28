@@ -3,9 +3,10 @@
  * Voice state for the widget panel (owner: A4, P8.3): the mute toggle (remembered per viewer, OFF by
  * default), the speaker (spoken replies with the fallback ladder), and the optional in-browser
  * Supertonic "natural voice" (offered only for Supertonic's languages). WidgetApp owns one instance.
+ * Each reply is spoken in its own language (detectLanguage), else the conversation's, else the UI's.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { localeFromText, type Locale } from "@/lib/i18n";
+import { detectLanguage, type Locale } from "@/lib/i18n";
 import { VoiceAudio } from "./audio";
 import { naturalVoiceAvailable } from "./capability";
 import { naturalDismissed, naturalOptedIn, setNaturalDismissed, setNaturalOptedIn, setVoiceOn, voiceOn, voiceSessionId } from "./prefs";
@@ -16,20 +17,22 @@ import type { ExecutionProvider, ReadyTimings } from "./supertonic/protocol";
 
 export interface VoiceTiming {
   engine: EngineName;
-  lang: Locale;
+  lang: string;
   chars: number;
   ms: number;
 }
 
 export interface UseVoiceOptions {
   locale: Locale;
+  /** The conversation's language (any code): replies whose own language is unclear are spoken in it. */
+  conversationLang?: string;
   /** Panel open: closing it stops speech. */
   open: boolean;
   fetchImpl?: typeof fetch;
   /** Test seams. */
   audio?: VoiceAudio;
   natural?: { available?: () => Promise<boolean>; client?: (onStatus: (s: NaturalStatus) => void, onReady: (t: ReadyTimings & { ep: ExecutionProvider }) => void) => SupertonicClient };
-  browserSpeak?: ((text: string, lang: Locale, signal: AbortSignal) => Promise<void>) | null;
+  browserSpeak?: ((text: string, lang: string, signal: AbortSignal) => Promise<void>) | null;
   /** Bench: denoising steps for Supertonic. */
   steps?: number;
   /** Bench: force the WASM execution provider. */
@@ -63,7 +66,7 @@ export interface Voice {
   benchLocal(text: string, lang: Locale): Promise<number | null>;
 }
 
-export function useVoice({ locale, open, fetchImpl, audio: audioIn, natural: naturalSeams, browserSpeak, steps, forceEp }: UseVoiceOptions): Voice {
+export function useVoice({ locale, conversationLang, open, fetchImpl, audio: audioIn, natural: naturalSeams, browserSpeak, steps, forceEp }: UseVoiceOptions): Voice {
   const [on, setOn] = useState(false);
   const [state, setState] = useState<SpeakerState>(IDLE);
   const [sessionId, setSessionId] = useState("");
@@ -77,9 +80,11 @@ export function useVoice({ locale, open, fetchImpl, audio: audioIn, natural: nat
   const client = useRef<SupertonicClient | null>(null);
   const speakerRef = useRef<Speaker | null>(null);
   const localeRef = useRef(locale);
+  const convRef = useRef(conversationLang);
   useEffect(() => {
     localeRef.current = locale;
-  }, [locale]);
+    convRef.current = conversationLang;
+  }, [locale, conversationLang]);
 
   // Preferences and the session id live in the iframe origin's storage: read after mount.
   useEffect(() => {
@@ -174,7 +179,7 @@ export function useVoice({ locale, open, fetchImpl, audio: audioIn, natural: nat
 
   const speak = useCallback((text: string) => {
     if (!onRef.current) return;
-    const lang = localeFromText(text) ?? localeRef.current;
+    const lang = detectLanguage(text) ?? convRef.current ?? localeRef.current;
     void speakerRef.current?.speak(text, lang);
   }, []);
 

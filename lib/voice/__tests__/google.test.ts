@@ -47,14 +47,16 @@ describe("voice config", () => {
 });
 
 describe("Speech-to-Text V2 request shape", () => {
-  it("uses the implicit us recognizer, chirp_3, autoDecodingConfig and one forced language", () => {
+  it("uses the implicit us recognizer, chirp_3, autoDecodingConfig and automatic language identification", () => {
     const content = new Uint8Array([1, 2, 3]);
     expect(buildRecognizeRequest("gcp-project-405602", "vi", content)).toEqual({
       recognizer: "projects/gcp-project-405602/locations/us/recognizers/_",
-      config: { autoDecodingConfig: {}, model: "chirp_3", languageCodes: ["vi-VN"], features: { enableAutomaticPunctuation: true } },
+      config: { autoDecodingConfig: {}, model: "chirp_3", languageCodes: ["auto"], features: { enableAutomaticPunctuation: true } },
       content,
     });
-    expect(buildRecognizeRequest("gcp-project-405602", "en", content).config.languageCodes).toEqual(["en-US"]);
+    // VOICE_STT_LANGUAGE=fixed: one forced language, the widget's.
+    expect(buildRecognizeRequest("gcp-project-405602", "vi", content, "fixed").config.languageCodes).toEqual(["vi-VN"]);
+    expect(buildRecognizeRequest("gcp-project-405602", "en", content, "fixed").config.languageCodes).toEqual(["en-US"]);
     expect(() => recognizerPath("../other")).toThrow();
   });
 

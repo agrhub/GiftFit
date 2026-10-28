@@ -6,10 +6,14 @@
  *   → server TTS (/api/voice/tts: server Supertonic, Google or mock) → the browser's speechSynthesis
  *   (rhythm mouth) → text only
  *
+ * The language is the reply's own (any language, ADR-057). A language Google has no voice for
+ * (lib/voice/voices.ts) and Supertonic doesn't speak is never sent anywhere: the reply stays text only.
+ *
  * `cancel()` (new message, mic press, panel close, mute) stops playback at once and drops anything
  * still being synthesised: every async step checks a generation counter.
  */
-import type { Locale } from "@/lib/i18n";
+import { isLocale, type Locale } from "@/lib/i18n";
+import { hasGoogleTtsVoice } from "@/lib/voice/voices";
 import { synthesize, VoiceHttpError, type ServerEngine } from "./api";
 import type { VoiceAudio } from "./audio";
 import { NoBrowserVoiceError, speakWithBrowser } from "./browserTts";
@@ -36,15 +40,20 @@ export interface SpeakerState {
 
 export const IDLE: SpeakerState = { speaking: false, preparing: false, engine: null, analysed: false };
 
+/** True when some engine can voice `lang`: a Google voice exists or Supertonic speaks it. Else text only. */
+export function canSpeak(lang: string): boolean {
+  return hasGoogleTtsVoice(lang) || isSupertonicLang(lang);
+}
+
 export interface SpeakerDeps {
   audio: VoiceAudio;
   sessionId: string;
   fetchImpl?: typeof fetch;
   local?: () => LocalEngine | null;
   /** speechSynthesis stand-in for tests; null disables the browser fallback. */
-  browserSpeak?: ((text: string, lang: Locale, signal: AbortSignal) => Promise<void>) | null;
+  browserSpeak?: ((text: string, lang: string, signal: AbortSignal) => Promise<void>) | null;
   /** Bench / diagnostics: one call per synthesised chunk. */
-  onTiming?(t: { engine: EngineName; lang: Locale; chars: number; ms: number }): void;
+  onTiming?(t: { engine: EngineName; lang: string; chars: number; ms: number }): void;
 }
 
 type Clip = { kind: "audio"; buffer: AudioBuffer; engine: EngineName } | { kind: "browser"; text: string };
@@ -57,7 +66,7 @@ export class Speaker {
   private state: SpeakerState = IDLE;
   /** The server said "cap reached" (429): don't ask again in this page session. */
   private serverCapped = false;
-  private browserMissing = new Set<Locale>();
+  private browserMissing = new Set<string>();
 
   constructor(
     private readonly deps: SpeakerDeps,
@@ -84,8 +93,9 @@ export class Speaker {
   }
 
   /** Speaks a reply (cancelling any previous one). Resolves when it is done or cancelled. */
-  async speak(text: string, lang: Locale): Promise<void> {
+  async speak(text: string, lang: string): Promise<void> {
     this.cancel();
+    if (!canSpeak(lang)) return;
     const chunks = chunksForSpeech(text);
     if (!chunks.length) return;
     const gen = this.gen;
@@ -117,7 +127,7 @@ export class Speaker {
     }
   }
 
-  private async speakBrowser(text: string, lang: Locale, signal: AbortSignal): Promise<boolean> {
+  private async speakBrowser(text: string, lang: string, signal: AbortSignal): Promise<boolean> {
     const say = this.deps.browserSpeak === undefined ? speakWithBrowser : this.deps.browserSpeak;
     if (!say) return false;
     try {
@@ -130,9 +140,9 @@ export class Speaker {
   }
 
   /** Audio for one chunk from the best engine available; never throws. */
-  private async prepare(text: string, lang: Locale, signal: AbortSignal): Promise<Clip | null> {
+  private async prepare(text: string, lang: string, signal: AbortSignal): Promise<Clip | null> {
     const local = this.deps.local?.();
-    if (local?.ready() && isSupertonicLang(lang)) {
+    if (local?.ready() && isSupertonicLang(lang) && isLocale(lang)) {
       const t0 = now();
       try {
         const { pcm, sampleRate } = await local.synth(text, lang, signal);

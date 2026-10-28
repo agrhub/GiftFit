@@ -16,6 +16,7 @@ import { RecipientTransparencyCard } from "@/components/trust/TransparencyCard";
 import type { UndertoneValue } from "@/components/trust/UndertoneEstimateCard";
 import { OCCASION_LABELS } from "@/components/store/format";
 import { ApiError, type GiftApi, friendlyError, loadGiftApi } from "../api";
+import { useExpiredLines } from "../expiredLines";
 import { setGiftStoreName, storeNameFor } from "../giftStore";
 import { HandIcon, HeartIcon, ShieldIcon } from "../icons";
 import { AiModelBadge } from "./AiModelBadge";
@@ -196,6 +197,7 @@ function PrivacyDetails({
 }
 
 export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
+  const expired = useExpiredLines();
   const [step, setStep] = useState<Step>({ kind: "loading" });
   const [session, setSession] = useState<RecipientSessionResponse | null>(null);
   const [capture, setCapture] = useState<CaptureResponse | null>(null);
@@ -718,9 +720,8 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
             This gift came from a store preview, which is no longer available,
             so its pieces can&apos;t be shown.
           </p>
-          <p className="mt-3 text-ink-soft" lang="vi">
-            Bản xem trước của cửa hàng này đã hết hạn, nên không thể hiển thị
-            các món quà nữa.
+          <p className="mt-3 text-ink-soft" lang={expired.lang}>
+            {expired.lines.recipient}
           </p>
           <PrivacyDetails
             tryOn={!noTryOn}

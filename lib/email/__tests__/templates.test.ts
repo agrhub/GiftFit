@@ -72,13 +72,13 @@ describe("giftCardEmail", () => {
     expect(m.text).not.toMatch(/<[a-z]/i);
   });
 
-  it("renders Vietnamese cards and falls back to English for unknown languages", () => {
+  it("renders Vietnamese cards and falls back to English for languages outside the ten", () => {
     const vi = giftCardEmail({ occasion: "wedding", lang: "vi", giverName: "Minh", recipientToken: "t", baseUrl: BASE });
     expect(vi.subject).toBe("Minh đã gửi bạn một thiệp quà");
     expect(vi.html).toContain('lang="vi"');
     expect(vi.html).toContain("Chúc mừng ngày cưới");
     expect(vi.text).toContain("72 giờ");
-    expect(giftCardEmail({ occasion: "wedding", lang: "fr", recipientToken: "t", baseUrl: BASE }).html).toContain('lang="en"');
+    for (const l of ["pt", "it-IT", "xx", "", undefined]) expect(giftCardEmail({ occasion: "wedding", lang: l, recipientToken: "t", baseUrl: BASE }).html).toContain('lang="en"');
   });
 
   it("unknown occasions use the just_because theme; no giver name still reads well", () => {

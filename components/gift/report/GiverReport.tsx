@@ -20,6 +20,7 @@ import { GiverTransparencyCard, Disclaimer } from "@/components/trust";
 import { METAL_LABELS, METAL_SWATCH, formatExpiry, formatPrice, productPath } from "@/components/store/format";
 import { ApiError, type GiftApi, type GiverReportView, friendlyError, loadGiftApi } from "../api";
 import { setGiftStoreName, storeNameFor } from "../giftStore";
+import { useExpiredLines } from "../expiredLines";
 import { HeartIcon, ShieldIcon } from "../icons";
 
 export const REPORT_POLL_MS = 5000;
@@ -247,6 +248,7 @@ export interface GiverReportProps {
 type View = { kind: "loading" } | { kind: "error"; message: string } | { kind: "gone"; expired: boolean } | { kind: "report"; report: GiverReportView };
 
 export function GiverReport({ token, api: apiProp, products: productsProp, pollMs = REPORT_POLL_MS }: GiverReportProps) {
+  const expired = useExpiredLines();
   const [view, setView] = useState<View>({ kind: "loading" });
   const [products, setProducts] = useState<Record<string, ProductInfo>>(productsProp ?? {});
   const [announce, setAnnounce] = useState("");
@@ -376,9 +378,8 @@ export function GiverReport({ token, api: apiProp, products: productsProp, pollM
             This gift came from a store preview that is no longer available.{" "}
             {report.results.length ? "Your report below was saved before it expired." : "Their pieces can't be scored any more."}
           </p>
-          <p className="mt-2 text-sm leading-6 text-ink-soft" lang="vi">
-            Bản xem trước của cửa hàng này đã hết hạn.{" "}
-            {report.results.length ? "Báo cáo bên dưới đã được lưu trước khi hết hạn." : "Không thể chấm điểm các món này nữa."}
+          <p className="mt-2 text-sm leading-6 text-ink-soft" lang={expired.lang}>
+            {expired.lines.reportLead} {report.results.length ? expired.lines.reportSaved : expired.lines.reportGone}
           </p>
         </div>
       ) : null}

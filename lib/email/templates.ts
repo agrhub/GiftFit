@@ -6,19 +6,23 @@
  * - No images, no remote resources, no tracking pixels, no click-tracking redirects: the only
  *   links are the CTA (built from appBaseUrl) and nothing else.
  * - Footer: "Didn't expect this? Ignore it — the link expires in 72 h. Report abuse: reply to this email."
+ * - Languages (ADR-057): the ten widget languages (copy.ts), English for anything else.
  */
 import type { Occasion } from "../contracts/giftfit";
 import { sanitizeHeaderText } from "./address";
 import { cleanText, escapeHtml, escapeMultiline, safeHref } from "./escape";
 import { appBaseUrl, giverReportUrl, recipientUrl } from "./links";
+import { LOCALES, normalizeLocale, type Locale } from "@/lib/i18n";
+import { EMAIL_COPY, HEADLINES, LINK_TTL_HOURS } from "./copy";
 
-export type CardLang = "en" | "vi";
-export const CARD_LANGS: readonly CardLang[] = ["en", "vi"];
+/** Card / e-mail language: any widget language (the giver's conversation language, ADR-057). */
+export type CardLang = Locale;
+export const CARD_LANGS: readonly CardLang[] = LOCALES;
+export { LINK_TTL_HOURS };
 
 export const MAX_GIVER_NAME = 60;
 export const MAX_RECIPIENT_NAME = 60;
 export const MAX_PERSONAL_MESSAGE = 600;
-export const LINK_TTL_HOURS = 72;
 
 export interface RenderedEmail {
   subject: string;
@@ -32,69 +36,31 @@ interface Theme {
   headline: Record<CardLang, string>;
 }
 
-export const OCCASION_THEMES: Record<Occasion, Theme> = {
-  anniversary: { accent: "#b4234d", tint: "#fdf0f3", headline: { en: "Happy anniversary", vi: "Chúc mừng kỷ niệm" } },
-  birthday: { accent: "#c2410c", tint: "#fff4ec", headline: { en: "Happy birthday", vi: "Chúc mừng sinh nhật" } },
-  wedding: { accent: "#8a6d3b", tint: "#faf6ee", headline: { en: "Congratulations on your wedding", vi: "Chúc mừng ngày cưới" } },
-  holiday: { accent: "#2b7a3e", tint: "#eff8f1", headline: { en: "Happy holidays", vi: "Chúc mừng ngày lễ" } },
-  graduation: { accent: "#1c4e80", tint: "#eef4fa", headline: { en: "Congratulations, graduate", vi: "Chúc mừng tốt nghiệp" } },
-  thank_you: { accent: "#5f3dc4", tint: "#f4f0fd", headline: { en: "Thank you", vi: "Cảm ơn bạn" } },
-  just_because: { accent: "#0b7285", tint: "#ecf8fa", headline: { en: "A little something for you", vi: "Một món quà nhỏ dành cho bạn" } },
+const THEME_COLORS: Record<Occasion, { accent: string; tint: string }> = {
+  anniversary: { accent: "#b4234d", tint: "#fdf0f3" },
+  birthday: { accent: "#c2410c", tint: "#fff4ec" },
+  wedding: { accent: "#8a6d3b", tint: "#faf6ee" },
+  holiday: { accent: "#2b7a3e", tint: "#eff8f1" },
+  graduation: { accent: "#1c4e80", tint: "#eef4fa" },
+  thank_you: { accent: "#5f3dc4", tint: "#f4f0fd" },
+  just_because: { accent: "#0b7285", tint: "#ecf8fa" },
 };
+
+export const OCCASION_THEMES: Record<Occasion, Theme> = Object.fromEntries(
+  (Object.keys(THEME_COLORS) as Occasion[]).map((o) => [o, { ...THEME_COLORS[o], headline: HEADLINES[o] }]),
+) as Record<Occasion, Theme>;
 
 export function themeFor(occasion: string | null | undefined): Theme & { occasion: Occasion } {
   const key = (occasion && occasion in OCCASION_THEMES ? occasion : "just_because") as Occasion;
   return { ...OCCASION_THEMES[key], occasion: key };
 }
 
+/** Any language tag → its card language: one of the ten widget languages, else English. */
 export function normalizeLang(lang: unknown): CardLang {
-  return lang === "vi" ? "vi" : "en";
+  return normalizeLocale(lang) ?? "en";
 }
 
-const COPY = {
-  en: {
-    footer: `Didn't expect this? Ignore it — the link expires in ${LINK_TTL_HOURS} h. Report abuse: reply to this email.`,
-    footerNoList: "This is a one-off message about a single gift. We have not added you to any mailing list.",
-    giftSubject: (giver: string) => (giver ? `${giver} sent you a gift card` : "You've received a GiftFit gift card"),
-    giftIntro: (giver: string, recipient: string) =>
-      `${recipient ? `Hi ${recipient}, ` : ""}${giver || "Someone"} would like to find the jewelry that suits you best.`,
-    giftBody: (giver: string) =>
-      `Try a few pieces on with your phone camera and heart the ones you love. ${giver || "The sender"} sees only which pieces suit you, never your photos.`,
-    giftBodyNoTryOn: (giver: string) => `Look through a few pieces from the store and heart the ones you love. No photo is needed; ${giver || "the sender"} sees only which pieces you hearted.`,
-    giftMessageLabel: (giver: string) => `A message from ${giver || "the sender"}`,
-    giftCta: "Open your gift",
-    reportSubject: (recipient: string) => (recipient ? `${recipient}'s Fit Report is ready` : "Your Fit Report is ready"),
-    reportIntro: (giver: string, recipient: string) =>
-      `${giver ? `Hi ${giver}, ` : ""}${recipient || "Your recipient"} has finished trying on. Your Fit Report shows which pieces suit them best and why.`,
-    reportIntroNoTryOn: (giver: string, recipient: string) =>
-      `${giver ? `Hi ${giver}, ` : ""}${recipient || "Your recipient"} has sent their hearts. Your Fit Report shows which pieces they loved and why.`,
-    reportBody: "Their photos are never shared with you; the report contains scores and short reasons only.",
-    reportBodyNoTryOn: "No photo of them was taken; the report contains their hearts, scores and short reasons only.",
-    reportCta: "See the Fit Report",
-    linkFallback: "If the button does not work, copy this link into your browser:",
-  },
-  vi: {
-    footer: `Không mong đợi email này? Hãy bỏ qua — liên kết hết hạn sau ${LINK_TTL_HOURS} giờ. Báo cáo lạm dụng: trả lời email này.`,
-    footerNoList: "Đây là thư gửi một lần cho một món quà. Chúng tôi không thêm bạn vào danh sách thư nào.",
-    giftSubject: (giver: string) => (giver ? `${giver} đã gửi bạn một thiệp quà` : "Bạn nhận được một thiệp quà GiftFit"),
-    giftIntro: (giver: string, recipient: string) =>
-      `${recipient ? `Chào ${recipient}, ` : ""}${giver || "Một người"} muốn tìm món trang sức hợp với bạn nhất.`,
-    giftBody: (giver: string) =>
-      `Hãy thử vài món bằng camera điện thoại và thả tim những món bạn thích. ${giver || "Người gửi"} chỉ biết món nào hợp với bạn, không bao giờ thấy ảnh của bạn.`,
-    giftBodyNoTryOn: (giver: string) => `Hãy xem vài món của cửa hàng và thả tim những món bạn thích. Không cần chụp ảnh; ${giver || "người gửi"} chỉ biết bạn đã thả tim món nào.`,
-    giftMessageLabel: (giver: string) => `Lời nhắn từ ${giver || "người gửi"}`,
-    giftCta: "Mở quà của bạn",
-    reportSubject: (recipient: string) => (recipient ? `Fit Report của ${recipient} đã sẵn sàng` : "Fit Report của bạn đã sẵn sàng"),
-    reportIntro: (giver: string, recipient: string) =>
-      `${giver ? `Chào ${giver}, ` : ""}${recipient || "Người nhận"} đã thử xong. Fit Report cho biết món nào hợp nhất và vì sao.`,
-    reportIntroNoTryOn: (giver: string, recipient: string) =>
-      `${giver ? `Chào ${giver}, ` : ""}${recipient || "Người nhận"} đã thả tim xong. Fit Report cho biết họ thích món nào và vì sao.`,
-    reportBody: "Ảnh của người nhận không bao giờ được chia sẻ với bạn; báo cáo chỉ có điểm số và lý do ngắn gọn.",
-    reportBodyNoTryOn: "Không có ảnh nào của người nhận được chụp; báo cáo chỉ có món họ thả tim, điểm số và lý do ngắn gọn.",
-    reportCta: "Xem Fit Report",
-    linkFallback: "Nếu nút không hoạt động, hãy sao chép liên kết này vào trình duyệt:",
-  },
-} as const;
+const COPY = EMAIL_COPY;
 
 /** Name for subjects and greetings: one line, no control characters, capped. */
 function cleanName(v: unknown, max: number): string {

@@ -5,15 +5,17 @@
  *   t(locale, "chat.introPdp", { title: "Halo Drop Earrings" });
  *
  * Detection order (first supported AND allowed wins): the host page's <html lang>, the browser's
- * languages, the store default (`data-lang`), then the first allowed locale. Once the shopper writes
- * their first message, `localeFromText` may switch the UI to the language they actually use.
- * The Concierge itself replies in the shopper's language whatever the UI locale is.
+ * languages, the store default (`data-lang`), then the first allowed locale. Each shopper message whose
+ * language is clear (detectLanguage, any language) then switches the UI to it when it is one of the ten,
+ * else to English (uiLocaleFor). The Concierge replies in the language of the shopper's latest message
+ * whatever the UI locale is.
  *
  * Widget locales (ADR-057): en and vi are reviewed; ja, ko, zh (Simplified), th, id, es, fr and de are
  * machine-translated and not yet reviewed by native speakers. They define every WidgetMessageKey; the
  * site, landing and preview-store pages stay en/vi (SITE_LOCALES) and their keys fall back to English.
  */
 import { de } from "./de";
+import { detectLanguage } from "./detect";
 import { en, type MessageKey, type WidgetMessageKey } from "./en";
 import { es } from "./es";
 import { fr } from "./fr";
@@ -25,6 +27,7 @@ import { vi } from "./vi";
 import { zh } from "./zh";
 
 export type { MessageKey, WidgetMessageKey } from "./en";
+export { baseLanguage, conversationLanguage, detectLanguage, languageName, type LanguageCode } from "./detect";
 
 export const LOCALES = ["en", "vi", "ja", "ko", "zh", "th", "id", "es", "fr", "de"] as const;
 export type Locale = (typeof LOCALES)[number];
@@ -90,59 +93,18 @@ export function detectLocale(input: DetectLocaleInput): Locale {
 }
 
 /**
- * Vietnamese-only letters (ă đ ơ ư and the dotted/hooked tone letters). â ê ô are left out: French
- * uses them too. Plain ASCII Vietnamese is caught by common words.
- */
-const VI_LETTERS = /[ăđơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịĩọỏốồổỗộớờởỡợụủũứừửữựỳỵỷỹ]/i;
-const VI_WORDS = new Set(["toi", "minh", "tang", "qua", "cho", "me", "vo", "chong", "ban", "sinh", "nhat", "khoang", "trieu", "nghin", "em", "anh", "chi"]);
-
-/**
- * Common, distinctive words per Latin-script language (stop words plus gift vocabulary). Words shared
- * by two candidates (de, la, en, que, un, a, budget…) are left out on purpose.
- */
-const LATIN_WORDS: Record<"en" | "id" | "es" | "fr" | "de", ReadonlySet<string>> = {
-  en: new Set(["the", "and", "for", "my", "is", "i", "im", "i'm", "to", "of", "with", "her", "his", "him", "she", "he", "gift", "present", "birthday", "anniversary", "under", "want", "looking", "need", "something", "wife", "husband", "mom", "mum", "mother", "sister", "girlfriend", "boyfriend", "what", "can", "you", "please", "help", "earrings", "necklace", "around", "about", "maybe", "some", "this", "that", "would", "like"]),
-  id: new Set(["untuk", "yang", "dan", "saya", "aku", "ini", "itu", "ada", "dengan", "hadiah", "kado", "ulang", "tahun", "ibu", "istri", "suami", "adik", "kakak", "pacar", "mau", "ingin", "cari", "mencari", "buat", "anggaran", "sekitar", "ke", "dari", "tidak", "bisa", "apa", "perhiasan", "cincin", "kalung", "anting", "gelang", "juta", "ribu", "dong", "tolong", "bantu"]),
-  es: new Set(["el", "los", "las", "una", "para", "mi", "mis", "con", "por", "es", "y", "del", "regalo", "cumpleaños", "aniversario", "esposa", "esposo", "mamá", "madre", "hermana", "novia", "novio", "quiero", "busco", "buscando", "menos", "hasta", "algo", "collar", "pendientes", "aretes", "anillo", "pulsera", "presupuesto", "ayúdame", "ayuda", "dólares", "hola", "gracias", "cuánto"]),
-  fr: new Set(["le", "les", "des", "du", "une", "pour", "mon", "ma", "mes", "est", "et", "avec", "je", "cadeau", "anniversaire", "femme", "mari", "mère", "maman", "sœur", "soeur", "copine", "cherche", "moins", "boucles", "oreilles", "collier", "bague", "voudrais", "veux", "offrir", "quelque", "chose", "bonjour", "merci", "aidez", "aide", "noël", "fête"]),
-  de: new Set(["der", "die", "das", "und", "für", "mein", "meine", "meiner", "meinen", "ist", "ich", "ein", "eine", "einen", "mit", "geschenk", "geburtstag", "jahrestag", "frau", "mann", "mutter", "mama", "schwester", "freundin", "suche", "unter", "bis", "etwas", "ohrringe", "kette", "halskette", "armband", "möchte", "zum", "zur", "von", "nicht", "hallo", "danke", "hilf", "bitte", "weihnachten"]),
-};
-
-/** Letters that point to one Latin-script language. */
-const LATIN_HINTS: Array<["es" | "fr" | "de", RegExp]> = [
-  ["es", /[ñ¿¡]/i],
-  ["fr", /[çœèàùûîï]|\bêtre\b/i],
-  ["de", /[ßäö]/i],
-];
-
-/**
- * The language of a shopper's message, when it is clear enough to switch the UI; undefined when it
- * is not (too short, mixed, or a language the widget doesn't offer), so the UI stays where it is.
- *   - scripts: Hangul → ko, kana (with or without kanji) → ja, Thai → th, Han without kana → zh;
- *   - Vietnamese letters, or two or more unaccented Vietnamese words → vi;
- *   - other Latin text: a small stop-word count (plus ñ/ç/ß-style letters) for en, id, es, fr, de;
- *     the best score wins, a tie or no hit is undefined.
+ * The shopper's message as a widget locale, when its language is clear AND one of the ten (./detect
+ * detectLanguage reads any language); undefined otherwise, so the UI never switches to a locale it
+ * doesn't have. Callers decide what an unoffered language means (the widget shows English: uiLocaleFor).
  */
 export function localeFromText(text: string): Locale | undefined {
-  const s = text.normalize("NFC").trim();
-  const letters = (s.match(/\p{L}/gu) ?? []).length;
-  if (letters < 2) return undefined;
-  const share = (re: RegExp) => (s.match(re) ?? []).length / letters;
-  if (share(/\p{Script=Hangul}/gu) >= 0.3) return "ko";
-  const kana = share(/[\p{Script=Hiragana}\p{Script=Katakana}]/gu);
-  if (kana > 0 && kana + share(/\p{Script=Han}/gu) >= 0.3) return "ja";
-  if (share(/\p{Script=Thai}/gu) >= 0.3) return "th";
-  if (share(/\p{Script=Han}/gu) >= 0.3) return "zh";
+  const l = detectLanguage(text);
+  return isLocale(l) ? l : undefined;
+}
 
-  if (s.length < 3 || share(/\p{Script=Latin}/gu) < 0.7) return undefined;
-  if (VI_LETTERS.test(s)) return "vi";
-  const words = s.toLowerCase().replace(/[’‘]/g, "'").split(/[^\p{L}']+/u).filter(Boolean);
-  if (words.filter((w) => VI_WORDS.has(w)).length >= 2) return "vi";
-  const scores = Object.entries(LATIN_WORDS).map(([l, set]) => [l, words.filter((w) => set.has(w) || w.split("'").some((part) => set.has(part))).length] as [Locale, number]);
-  for (const [l, re] of LATIN_HINTS) if (re.test(s)) scores.find(([x]) => x === l)![1] += 2;
-  scores.sort((x, y) => y[1] - x[1]);
-  const [[best, top], [, second]] = scores;
-  return top > 0 && top > second ? best : undefined;
+/** The widget locale for any language tag or detected code: itself when it is one of the ten, else English. */
+export function uiLocaleFor(lang: string | null | undefined): Locale {
+  return normalizeLocale(lang ?? undefined) ?? DEFAULT_LOCALE;
 }
 
 /** Interpolates {name} placeholders; unknown placeholders are left as is. */

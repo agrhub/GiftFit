@@ -3,7 +3,7 @@
  * for the language exists. Its output cannot be routed into Web Audio, so the character's mouth
  * follows the typing rhythm instead of the sound (CharacterProps.mouth left undefined).
  */
-import { INTL_LOCALES, type Locale } from "@/lib/i18n";
+import { INTL_LOCALES, isLocale } from "@/lib/i18n";
 
 export class NoBrowserVoiceError extends Error {
   constructor() {
@@ -20,11 +20,11 @@ export function speechSynth(): SpeechSynthesis | null {
   }
 }
 
-/** The first installed voice for `lang` (exact "vi-VN" / "zh-CN" style tag preferred), or null. */
-export function pickVoice(voices: readonly SpeechSynthesisVoice[], lang: Locale): SpeechSynthesisVoice | null {
-  const tag = (INTL_LOCALES[lang] ?? "en-US").toLowerCase();
+/** The first installed voice for `lang` (exact "vi-VN" / "zh-CN" style tag preferred for the widget locales), or null. */
+export function pickVoice(voices: readonly SpeechSynthesisVoice[], lang: string): SpeechSynthesisVoice | null {
+  const tag = isLocale(lang) ? INTL_LOCALES[lang].toLowerCase() : null;
   const norm = (v: SpeechSynthesisVoice) => v.lang.toLowerCase().replace("_", "-");
-  return voices.find((v) => norm(v) === tag) ?? voices.find((v) => norm(v).startsWith(lang)) ?? null;
+  return (tag ? voices.find((v) => norm(v) === tag) : undefined) ?? voices.find((v) => norm(v) === lang || norm(v).startsWith(`${lang}-`)) ?? null;
 }
 
 /** Voices load asynchronously in Chrome; wait briefly for `voiceschanged`. */
@@ -43,7 +43,7 @@ async function voicesOf(synth: SpeechSynthesis): Promise<SpeechSynthesisVoice[]>
 }
 
 /** Speaks `text`; resolves on end, cancel or abort; rejects when no voice exists for the language. */
-export async function speakWithBrowser(text: string, lang: Locale, signal?: AbortSignal, synth = speechSynth()): Promise<void> {
+export async function speakWithBrowser(text: string, lang: string, signal?: AbortSignal, synth = speechSynth()): Promise<void> {
   if (!synth) throw new NoBrowserVoiceError();
   const voice = pickVoice(await voicesOf(synth), lang);
   if (!voice) throw new NoBrowserVoiceError();

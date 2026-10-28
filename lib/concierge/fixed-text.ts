@@ -2,7 +2,7 @@
  * The Concierge's few fixed replies in every widget language (owner: A14, ADR-057). Claude answers in
  * the shopper's language on its own; these cover the code paths that never reach it (topic refusal,
  * the closing line after a tool-only turn, the generic-store fallback). Longer deterministic answers
- * (fallback.ts fallbackAnswer) stay en/vi, with English for every other language.
+ * (fallback.ts fallbackAnswer) are in fallback-text.ts, also in the ten languages with English for any other.
  * The ja, ko, zh, th, id, es, fr and de lines are machine-translated, not yet reviewed by native speakers.
  * The "Use this brief" button name comes from the widget catalog so the line matches the button.
  */

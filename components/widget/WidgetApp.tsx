@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CreateFitRequestBody, CreateFitRequestResponse, GiftBrief } from "@/lib/contracts/api";
 import type { ConciergePageContext } from "@/lib/concierge/types";
-import { detectLocale, localeFromText, translator, type Locale } from "@/lib/i18n";
+import { detectLanguage, detectLocale, translator, uiLocaleFor, type Locale } from "@/lib/i18n";
 import { checkReadyReport, markAnnounced, saveGift, type KeyValueStore, type ReportStatus, type SavedGift } from "@/lib/widget/giver-store";
 import { parentMatchesAncestor, type HostMessage, type PdpSummary } from "@/lib/widget/protocol";
 import { ApiError, httpGiftApi } from "@/components/gift/api";
@@ -148,6 +148,8 @@ function Widget({ store, preview, tryOn, parentOrigin, preferredLang, allowedLan
   const [hostLang, setHostLang] = useState<string | undefined>();
   const [navLangs, setNavLangs] = useState<readonly string[]>([]);
   const [textLocale, setTextLocale] = useState<Locale | undefined>();
+  /** The conversation's language (any code, ADR-057): the newest message whose language was clear. */
+  const [convLang, setConvLang] = useState<string | undefined>();
   const [reducedMotion, setReducedMotion] = useState(false);
   const [character, setCharacter] = useState<{ state: CharacterState; mouth: number }>({ state: "idle", mouth: 0 });
   const [product, setProduct] = useState<PdpSummary | null>(null);
@@ -164,7 +166,7 @@ function Widget({ store, preview, tryOn, parentOrigin, preferredLang, allowedLan
 
   const locale = textLocale ?? detectLocale({ hostLang, navigatorLanguages: navLangs, preferred: preferredLang, allowed: allowedLangs });
   const tr = useMemo(() => translator(locale), [locale]);
-  const voice = useVoice({ locale, open, steps: bench.steps, forceEp: bench.ep });
+  const voice = useVoice({ locale, conversationLang: convLang, open, steps: bench.steps, forceEp: bench.ep });
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -362,9 +364,16 @@ function Widget({ store, preview, tryOn, parentOrigin, preferredLang, allowedLan
           greeting={preview?.settings.greeting}
           accent={accent}
           giftable={preview ? preview.giftable : true}
-          onFirstMessage={(text) => {
-            const l = localeFromText(text);
-            if (l && allowedLangs.includes(l)) setTextLocale(l);
+          langHint={convLang || hostLang || navLangs[0] || locale}
+          onUserMessage={(text, spokenLang) => {
+            // Each clear message moves the UI to its language: one of the ten, else English (ADR-057);
+            // unclear ones ("ok", "$150", a product name) leave it where it is. For the mic, the language
+            // chirp_3 heard decides when the transcript alone is unclear.
+            const l = detectLanguage(text) ?? spokenLang;
+            if (!l) return;
+            setConvLang(l);
+            const ui = uiLocaleFor(l);
+            if (allowedLangs.includes(ui)) setTextLocale(ui);
           }}
           onActivity={(state, mouth) => setCharacter({ state, mouth })}
           voice={{ lang: locale, sessionId: voice.sessionId, onMicStart: voice.onMicStart, onMicPhase: setMicPhase, onReply: voice.speak, onSend: voice.cancel }}

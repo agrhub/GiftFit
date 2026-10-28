@@ -13,7 +13,7 @@
  */
 import type { Occasion } from "@/lib/contracts/giftfit";
 import { OCCASION_THEMES, type CardLang } from "@/lib/email/templates";
-import { t, type Locale } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 
 export const MAX_CARD_MESSAGE = 600;
 export const MAX_GIVER_NAME = 60;
@@ -67,7 +67,7 @@ export interface ShareTextInput {
 export function shareText(i: ShareTextInput): string {
   const link = assertHttpUrl(i.link);
   const message = cleanMessage(i.message);
-  return t(i.lang as Locale, "share.text", { headline: cardTheme(i.occasion, i.lang).headline, message: message ? `${message}\n` : "", link });
+  return t(i.lang, "share.text", { headline: cardTheme(i.occasion, i.lang).headline, message: message ? `${message}\n` : "", link });
 }
 
 export function whatsappShareUrl(text: string): string {

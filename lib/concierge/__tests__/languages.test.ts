@@ -1,7 +1,7 @@
 /**
- * The Concierge in the widget's languages (ADR-057): the shopper's language is detected for every widget
- * locale; the fixed replies (refusal, closing line, generic-store lines) exist in all of them and fall
- * back to English for anything else; the longer deterministic fallback answer stays en/vi.
+ * The Concierge in the widget's languages (ADR-057): the shopper's language is detected for any language;
+ * the fixed replies (refusal, closing line, generic-store lines) and the longer deterministic fallback
+ * answer exist in the ten widget languages and fall back to English for anything else.
  */
 import { describe, expect, it, vi } from "vitest";
 import { LOCALES, t } from "@/lib/i18n";
@@ -30,7 +30,7 @@ describe("shopper language", () => {
     ["Un cadeau pour ma mère", "fr"],
     ["Ein Geschenk für meine Mutter", "de"],
     ["Aster studs", "en"],
-    ["Подарок для мамы", "en"],
+    ["Подарок для мамы", "ru"],
   ] as const)("%s → %s", (text, lang) => {
     expect(detectLang(text)).toBe(lang);
   });
@@ -71,10 +71,16 @@ describe("fixed replies", () => {
     expect(text).toBe(closingBriefText("de"));
   });
 
-  it("the longer deterministic answer stays English for languages other than en/vi", () => {
+  it("the longer deterministic answer is in the ten widget languages, English for any other", () => {
     const de = fallbackAnswer(user("Ein Geburtstagsgeschenk für meine Mutter, Ohrringe, bis $300"), catalog);
-    expect(de.text).toMatch(/^Here are \d ideas/);
+    // The keyword parser reads the German compound: the occasion is the birthday, not the default ("Einfach so").
+    expect(de.text).toMatch(/^Hier sind \d Ideen für den Anlass „Geburtstag“/);
+    expect(de.notes).toEqual([]);
+    expect(fallbackAnswer(user("Ohrringe für meine Mutter, bis $300"), catalog).notes).toContain("Kein Anlass genannt: „Einfach so“");
+    expect(de.text).toContain(`„${t("de", "chat.useBrief")}“`);
     const vi = fallbackAnswer(user("Quà sinh nhật cho mẹ, bông tai, 5 triệu"), catalog);
     expect(vi.text).toMatch(/^Đây là/);
+    const pt = fallbackAnswer(user("Quero um presente de aniversário para a minha mãe, brincos, até $300"), catalog);
+    expect(pt.text).toMatch(/^Here are \d ideas/);
   });
 });

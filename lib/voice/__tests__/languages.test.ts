@@ -31,8 +31,8 @@ describe("speech-to-text languages", () => {
     expect(STT_LANGUAGE_CODES).toEqual({
       en: "en-US", vi: "vi-VN", ja: "ja-JP", ko: "ko-KR", zh: "cmn-Hans-CN", th: "th-TH", id: "id-ID", es: "es-US", fr: "fr-FR", de: "de-DE",
     });
-    expect(buildRecognizeRequest("giftfit-test", "zh", new Uint8Array([1])).config).toMatchObject({ model: "chirp_3", languageCodes: ["cmn-Hans-CN"] });
-    expect(buildRecognizeRequest("giftfit-test", "th", new Uint8Array([1])).config.languageCodes).toEqual(["th-TH"]);
+    expect(buildRecognizeRequest("giftfit-test", "zh", new Uint8Array([1]), "fixed").config).toMatchObject({ model: "chirp_3", languageCodes: ["cmn-Hans-CN"] });
+    expect(buildRecognizeRequest("giftfit-test", "th", new Uint8Array([1]), "fixed").config.languageCodes).toEqual(["th-TH"]);
   });
 
   it("has a mock transcript in every language", () => {
@@ -68,7 +68,7 @@ describe("text-to-speech routing", () => {
     expect(ttsVoices("th", {})).toEqual(["th-TH-Chirp3-HD-Charon", "th-TH-Neural2-C"]);
     expect(ttsVoices("ja", { VOICE_TTS_FALLBACK_VOICE_JA: "off" })).toEqual(["ja-JP-Chirp3-HD-Charon"]);
     expect(() => ttsVoices("zh", { VOICE_TTS_VOICE_ZH: "zh-CN-Chirp3-HD-Charon" })).toThrow(/cmn-CN/);
-    // Languages outside the widget keep the previous default: Chirp 3 HD Charon only.
-    expect(ttsVoices("it", {})).toEqual(["it-IT-Chirp3-HD-Charon"]);
+    // Languages outside the widget: Chirp 3 HD Charon plus the table's Neural2/Standard fallback (voices.ts).
+    expect(ttsVoices("it", {})).toEqual(["it-IT-Chirp3-HD-Charon", "it-IT-Neural2-F"]);
   });
 });

@@ -16,6 +16,7 @@
  * never contains an address, a token or an id.
  */
 import { z } from "zod";
+import { LOCALES, normalizeLocale, type Locale } from "@/lib/i18n";
 import { appBaseUrl, assertEmailRate, EmailRateLimitError, EmailValidationError, fitReportReadyEmail, getEmailSender, giftCardEmail, isValidAddress, type EmailSender } from "@/lib/email";
 import { clientKey } from "@/lib/privacy/client-ip";
 import { giverJson } from "@/lib/privacy/giver-guard";
@@ -50,7 +51,9 @@ export const defaultWidgetDeps: WidgetServerDeps = {
   now: () => new Date(),
 };
 
-const Lang = z.enum(["en", "vi"]).catch("en");
+// The card / e-mail language: one of the ten widget languages (the giver's conversation language; a region
+// tag such as "ja-JP" counts as its language), else English.
+const Lang = z.preprocess((v): Locale => normalizeLocale(v) ?? "en", z.enum(LOCALES));
 const Token = z.string().max(128);
 const SendCardBody = z.object({
   giverToken: Token,

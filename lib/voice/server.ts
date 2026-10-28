@@ -4,10 +4,12 @@
  *
  *   POST /api/voice/stt   body: the raw clip (Content-Type audio/webm;codecs=opus | audio/ogg | audio/mp4),
  *                         headers x-voice-lang: a widget locale (en vi ja ko zh th id es fr de),
- *                         x-voice-session: <uuid>; ≤ 1 MiB, ≤ 15 s.
- *                         200 {text, lang} | 400 {error: bad_audio|too_long|too_large|bad_lang|bad_session}
+ *                         x-voice-session: <uuid>; ≤ 1 MiB, ≤ 15 s. chirp_3 identifies the spoken
+ *                         language itself (VOICE_STT_LANGUAGE=fixed: the header's language only).
+ *                         200 {text, lang (the header's), detectedLang? (base code chirp_3 reported, any language)} | 400 {error: bad_audio|too_long|too_large|bad_lang|bad_session}
  *                         | 429 {error: rate_limited|session_cap|daily_cap} | 503 {error: voice_unavailable}
- *   POST /api/voice/tts   JSON {text ≤ 400 chars, lang: one of Supertonic's 31, or zh/th (Google only)}, header x-voice-session: <uuid>.
+ *   POST /api/voice/tts   JSON {text ≤ 400 chars, lang: any language with a Google voice (lib/voice/voices.ts;
+ *                         Supertonic's 31 may use Supertonic first)}, header x-voice-session: <uuid>.
  *                         200 audio bytes + x-voice-engine: supertonic-server (audio/wav, 22.05 kHz; when
  *                         VOICE_SERVER_SUPERTONIC=on and the engine is ready, not overloaded and in budget)
  *                         | google (audio/mpeg) | mock (audio/wav)

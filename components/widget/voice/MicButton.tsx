@@ -31,7 +31,8 @@ export interface MicButtonProps {
   /** Recording starts: stop speech, turn voice on, unlock audio (a user gesture). */
   onStart(): void;
   onPhase?(p: MicPhase): void;
-  onTranscript(text: string): void;
+  /** The transcript, and the spoken language chirp_3 identified when the server reports one (any code). */
+  onTranscript(text: string, spokenLang?: string): void;
   /** Test seams. */
   record?: () => Promise<Recording>;
   requestMic?: () => Promise<void>;
@@ -117,10 +118,10 @@ export function MicButton({ tr, lang, sessionId, disabled, fetchImpl, onStart, o
     const ctrl = new AbortController();
     abort.current = ctrl;
     try {
-      const { text } = await transcribe(clip, lang, { fetchImpl, sessionId, signal: ctrl.signal });
+      const { text, detected } = await transcribe(clip, lang, { fetchImpl, sessionId, signal: ctrl.signal });
       if (ctrl.signal.aborted) return;
       if (!text) setError("voice.notHeard");
-      else cb.current.onTranscript(text);
+      else cb.current.onTranscript(text, detected);
     } catch (err) {
       if (!ctrl.signal.aborted) setError(sttErrorKey(err));
     } finally {

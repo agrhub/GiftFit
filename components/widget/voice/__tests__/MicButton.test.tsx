@@ -87,7 +87,7 @@ describe("MicButton", () => {
     expect(screen.queryByTestId("voice-mic-ready")).toBeNull();
     now += 2000;
     fireEvent.pointerDown(s.btn()); // second tap: stop and send
-    await waitFor(() => expect(s.onTranscript).toHaveBeenCalledWith("Gift for my mum, about $100"));
+    await waitFor(() => expect(s.onTranscript).toHaveBeenCalledWith("Gift for my mum, about $100", undefined));
     const [url, init] = s.fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("/api/voice/stt");
     expect(init.headers).toMatchObject({ "x-voice-lang": "vi", "x-voice-session": "sess-abc12345", "Content-Type": "audio/webm;codecs=opus" });

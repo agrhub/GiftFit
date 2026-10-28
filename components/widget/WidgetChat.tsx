@@ -17,12 +17,12 @@ import { MicButton, type MicPhase } from "./voice/MicButton";
 import { micSupported } from "./voice/recorder";
 
 export interface WidgetChatVoice {
-  /** Language of the transcription request (the widget's UI language). */
+  /** The widget's UI language, sent with each clip (chirp_3 identifies the spoken language itself). */
   lang: Locale;
   sessionId: string;
   onMicStart(): void;
   onMicPhase(p: MicPhase): void;
-  /** A reply finished streaming (not stopped, no error): speak it if voice is on. */
+  /** A reply finished streaming (not stopped, no error): speak it if voice is on, in its own language. */
   onReply(text: string): void;
   /** The shopper sent a new message: stop any speech. */
   onSend(): void;
@@ -35,8 +35,10 @@ export interface WidgetChatProps {
   /** Title of the matched product (quick replies "Gift this piece" / "Help me choose"). */
   productTitle?: string;
   onBrief(brief: GiftBrief, suggestionTitles: string[]): void;
-  /** The shopper's first message (UI language detection). */
-  onFirstMessage?(text: string): void;
+  /** Every message the shopper sends (the UI follows its language when that is clear); `spokenLang` for the mic's. */
+  onUserMessage?(text: string, spokenLang?: string): void;
+  /** The page / browser language (BCP 47) sent to the Concierge for messages whose language is unclear. */
+  langHint?: string;
   /** Character state + mouth amplitude while replies stream. */
   onActivity?(state: CharacterState, mouth: number): void;
   fetchImpl?: typeof fetch;
@@ -62,12 +64,12 @@ function errorKey(err: ConciergeTurnError): MessageKey {
   return err.kind === "rate_limited" ? "chat.errorRate" : err.kind === "too_long" ? "chat.errorTooLong" : "chat.errorGeneric";
 }
 
-export function WidgetChat({ locale, tr, context, productTitle, onBrief, onFirstMessage, onActivity, fetchImpl, voice, store, greeting, accent, giftable = true }: WidgetChatProps) {
+export function WidgetChat({ locale, tr, context, productTitle, onBrief, onUserMessage, langHint, onActivity, fetchImpl, voice, store, greeting, accent, giftable = true }: WidgetChatProps) {
   const ids = { input: useId(), hint: useId() };
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState("");
-  const { turns, busy, send, stop } = useConciergeChat({ fetchImpl, context, store, onSettled: () => inputRef.current?.focus() });
+  const { turns, busy, send, stop } = useConciergeChat({ fetchImpl, context, store, lang: langHint ?? locale, onSettled: () => inputRef.current?.focus() });
   const activity = useRef(onActivity);
   useEffect(() => {
     activity.current = onActivity;
@@ -113,10 +115,10 @@ export function WidgetChat({ locale, tr, context, productTitle, onBrief, onFirst
     return () => clearTimeout(t);
   }, [busy, lastLen]);
 
-  const submit = (raw: string, viaVoice = false) => {
+  const submit = (raw: string, viaVoice = false, spokenLang?: string) => {
     const text = raw.trim();
     if (!text || busy) return;
-    if (turns.length === 0) onFirstMessage?.(text);
+    onUserMessage?.(text, spokenLang);
     voiceRef.current?.onSend();
     if (viaVoice) setVoiceTurns((s) => new Set(s).add(turns.length));
     setDraft("");
@@ -271,7 +273,7 @@ export function WidgetChat({ locale, tr, context, productTitle, onBrief, onFirst
             fetchImpl={fetchImpl}
             onStart={voice.onMicStart}
             onPhase={voice.onMicPhase}
-            onTranscript={(text) => submit(text, true)}
+            onTranscript={(text, spokenLang) => submit(text, true, spokenLang)}
           />
         )}
         {busy ? (

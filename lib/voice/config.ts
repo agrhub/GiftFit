@@ -9,13 +9,17 @@
  *                                 evident (not on Cloud Run and no GOOGLE_APPLICATION_CREDENTIALS);
  *                                 live on Cloud Run (K_SERVICE is set there).
  *   GOOGLE_CLOUD_PROJECT          project for the STT recognizer path (else resolved through ADC)
- *   VOICE_TTS_VOICE_<LANG>        Google TTS voice per language (EN, VI, JA, …; defaults in
- *                                 DEFAULT_TTS_VOICES: <locale>-Chirp3-HD-Charon)
- *   VOICE_TTS_FALLBACK_VOICE_<LANG>  voice tried once when the primary call fails (defaults in
- *                                 DEFAULT_TTS_FALLBACK_VOICES: a male Neural2 or Standard voice where the
- *                                 locale has one); "off" disables the fallback. Setting the primary
- *                                 to a Neural2 voice is how to switch tiers once the Chirp 3 HD free
- *                                 tier is used up.
+ *   VOICE_STT_LANGUAGE=auto|fixed default auto: chirp_3 identifies the spoken language itself
+ *                                 (languageCodes ["auto"]) and the route returns it; fixed = the
+ *                                 widget's UI language only (STT_LANGUAGE_CODES), as before ADR-057's
+ *                                 "any language" decision.
+ *   VOICE_TTS_VOICE_<LANG>        Google TTS voice per language (EN, VI, PT, …; defaults in lib/voice/voices.ts
+ *                                 GOOGLE_TTS_VOICES: <locale>-Chirp3-HD-Charon where Chirp 3 HD has the
+ *                                 locale, else Neural2, else Standard)
+ *   VOICE_TTS_FALLBACK_VOICE_<LANG>  voice tried once when the primary call fails (defaults in the same
+ *                                 table: a male Neural2 or Standard voice where the locale has one);
+ *                                 "off" disables the fallback. Setting the primary to a Neural2 voice
+ *                                 is how to switch tiers once the Chirp 3 HD free tier is used up.
  *   VOICE_STT_DAILY_SECONDS       daily Speech-to-Text cap in billed audio seconds (default 3600 = 60 min)
  *   VOICE_TTS_DAILY_CHARS         daily Google TTS cap in characters (default 150000)
  *   VOICE_SESSION_STT_MAX / _TTS_MAX   per widget session (default 12 each)
@@ -33,14 +37,18 @@
  *   VOICE_SPIKE=1                       honour `x-voice-engine-force` and skip per-IP/session limits for
  *                                       requests with `Authorization: Bearer $CRON_SECRET` (spike only)
  *
- * Languages (ADR-057 multi-language): Speech-to-Text takes the widget's UI languages (VOICE_LANGS =
- * lib/i18n LOCALES) with the chirp_3 codes below. TTS takes Supertonic's 31 plus zh and th; zh and th are
- * never sent to Supertonic (it doesn't speak them) and always use Google. Codes and voice names were
- * checked against Google's chirp_3 language table and the Text-to-Speech voice list (2026-10-28).
+ * Languages (ADR-057 multi-language, "any language"): Speech-to-Text runs chirp_3 with automatic
+ * language identification (languageCodes ["auto"]; docs.cloud.google.com/speech-to-text/v2/docs/chirp_3-model:
+ * "Language-agnostic audio transcription", GA in us and eu) and returns the language it reports; the
+ * x-voice-lang header (a widget locale) only picks the code in fixed mode. TTS takes every language with
+ * a Google voice (lib/voice/voices.ts); Supertonic's 31 may use Supertonic first, every other language
+ * (zh, th, he, ms …) always uses Google. Codes and voice names were checked against Google's chirp_3
+ * language table and the Text-to-Speech voice list (2026-10-28).
  */
 import { LOCALES, type Locale } from "@/lib/i18n";
 import type { Env } from "@/lib/store/config";
-import { isSupertonicLang, SUPERTONIC_LANGS, type SupertonicLang } from "./supertonic/inference";
+import { isSupertonicLang } from "./supertonic/inference";
+import { GOOGLE_TTS_VOICES, hasGoogleTtsVoice, type GoogleTtsLang } from "./voices";
 
 /** Languages the mic accepts: the widget's UI languages. */
 export type VoiceLang = Locale;
@@ -56,6 +64,15 @@ export const STT_MODEL = "chirp_3";
 export const STT_LANGUAGE_CODES: Record<VoiceLang, string> = {
   en: "en-US", vi: "vi-VN", ja: "ja-JP", ko: "ko-KR", zh: "cmn-Hans-CN", th: "th-TH", id: "id-ID", es: "es-US", fr: "fr-FR", de: "de-DE",
 };
+/** chirp_3's language-agnostic mode: the model identifies the most prevalent spoken language. */
+export const STT_AUTO_LANGUAGE = "auto";
+
+export type SttLanguageMode = "auto" | "fixed";
+
+/** VOICE_STT_LANGUAGE: "fixed" forces the widget's UI language; anything else is automatic detection. */
+export function sttLanguageMode(env: Env = process.env): SttLanguageMode {
+  return env.VOICE_STT_LANGUAGE?.trim().toLowerCase() === "fixed" ? "fixed" : "auto";
+}
 /** Generous: the first call after a cold start also creates the gRPC channel and fetches an ADC token (smoke test: ~4 s STT, ~9.7 s TTS cold; 0.2–2 s warm). */
 export const STT_TIMEOUT_MS = 20_000;
 export const TTS_TIMEOUT_MS = 20_000;
@@ -65,15 +82,14 @@ export const MAX_TTS_CHARS = 400;
 /** Longest transcript returned (a 15 s clip is far shorter). */
 export const MAX_TRANSCRIPT_CHARS = 1_000;
 
-/** Languages Supertonic doesn't speak: /api/voice/tts accepts them and always uses Google. */
-export const GOOGLE_ONLY_TTS_LANGS = ["zh", "th"] as const;
-export type GoogleOnlyTtsLang = (typeof GOOGLE_ONLY_TTS_LANGS)[number];
-
-/** Languages /api/voice/tts accepts: Supertonic 3's 31 (Google serves them too, as fallback) plus zh and th. */
-export type TtsLang = SupertonicLang | GoogleOnlyTtsLang;
-export const TTS_LANGS: readonly TtsLang[] = [...SUPERTONIC_LANGS, ...GOOGLE_ONLY_TTS_LANGS];
+/**
+ * Languages /api/voice/tts accepts: every language with a Google voice (lib/voice/voices.ts), which
+ * includes all of Supertonic's 31. Any other language has no audio: the widget shows the text only.
+ */
+export type TtsLang = GoogleTtsLang;
+export const TTS_LANGS: readonly TtsLang[] = Object.keys(GOOGLE_TTS_VOICES) as TtsLang[];
 export function isTtsLang(v: unknown): v is TtsLang {
-  return isSupertonicLang(v) || (GOOGLE_ONLY_TTS_LANGS as readonly unknown[]).includes(v);
+  return hasGoogleTtsVoice(v);
 }
 
 /** The engine family a language can use on the server: Supertonic (when on) then Google, or Google only. */
@@ -82,28 +98,11 @@ export function ttsRoute(lang: TtsLang): "supertonic" | "google" {
 }
 
 /** Google TTS locale per language (es-US like the mic; cmn-CN is Google's Mandarin TTS locale). */
-export const TTS_LOCALES: Record<TtsLang, string> = {
-  en: "en-US", ko: "ko-KR", ja: "ja-JP", ar: "ar-XA", bg: "bg-BG", cs: "cs-CZ", da: "da-DK", de: "de-DE",
-  el: "el-GR", es: "es-US", et: "et-EE", fi: "fi-FI", fr: "fr-FR", hi: "hi-IN", hr: "hr-HR", hu: "hu-HU",
-  id: "id-ID", it: "it-IT", lt: "lt-LT", lv: "lv-LV", nl: "nl-NL", pl: "pl-PL", pt: "pt-BR", ro: "ro-RO",
-  ru: "ru-RU", sk: "sk-SK", sl: "sl-SI", sv: "sv-SE", tr: "tr-TR", uk: "uk-UA", vi: "vi-VN", zh: "cmn-CN", th: "th-TH",
-};
+export const TTS_LOCALES = Object.fromEntries(TTS_LANGS.map((l) => [l, GOOGLE_TTS_VOICES[l].locale])) as Record<TtsLang, string>;
 
-/**
- * Google voices for the widget languages, each checked in the Text-to-Speech voice list
- * (docs.cloud.google.com/text-to-speech/docs/list-voices-and-types): Chirp 3 HD Charon (male, like the
- * mascot) as the primary; the fallback is a male Neural2 voice, or a male Standard voice where the
- * locale has no male Neural2 (cmn-CN, id-ID). th-TH has no male Neural2 or Standard voice, so its
- * fallback is the female th-TH-Neural2-C.
- */
-export const DEFAULT_TTS_VOICES: Record<VoiceLang, string> = {
-  en: "en-US-Chirp3-HD-Charon", vi: "vi-VN-Chirp3-HD-Charon", ja: "ja-JP-Chirp3-HD-Charon", ko: "ko-KR-Chirp3-HD-Charon", zh: "cmn-CN-Chirp3-HD-Charon",
-  th: "th-TH-Chirp3-HD-Charon", id: "id-ID-Chirp3-HD-Charon", es: "es-US-Chirp3-HD-Charon", fr: "fr-FR-Chirp3-HD-Charon", de: "de-DE-Chirp3-HD-Charon",
-};
-export const DEFAULT_TTS_FALLBACK_VOICES: Record<VoiceLang, string> = {
-  en: "en-US-Neural2-D", vi: "vi-VN-Neural2-D", ja: "ja-JP-Neural2-C", ko: "ko-KR-Neural2-C", zh: "cmn-CN-Standard-B",
-  th: "th-TH-Neural2-C", id: "id-ID-Standard-B", es: "es-US-Neural2-B", fr: "fr-FR-Neural2-G", de: "de-DE-Neural2-H",
-};
+/** The widget languages' default voices (Chirp 3 HD Charon) and fallbacks, from the table in voices.ts. */
+export const DEFAULT_TTS_VOICES = Object.fromEntries(VOICE_LANGS.map((l) => [l, GOOGLE_TTS_VOICES[l].primary])) as Record<VoiceLang, string>;
+export const DEFAULT_TTS_FALLBACK_VOICES = Object.fromEntries(VOICE_LANGS.map((l) => [l, GOOGLE_TTS_VOICES[l].fallback])) as Record<VoiceLang, string>;
 
 export const DEFAULT_STT_DAILY_SECONDS = 3_600;
 export const DEFAULT_TTS_DAILY_CHARS = 150_000;
@@ -159,14 +158,16 @@ function voiceFor(raw: string | undefined, lang: TtsLang, d: string): string {
   return v;
 }
 
-/** Primary then fallback voice for `lang` (fallback omitted when "off"; none by default outside the widget languages). */
+/** Primary then fallback voice for `lang` (fallback omitted when "off" or when the locale has a single voice). */
 export function ttsVoices(lang: TtsLang, env: Env = process.env): string[] {
   const suffix = lang.toUpperCase();
-  const primary = voiceFor(env[`VOICE_TTS_VOICE_${suffix}`], lang, isVoiceLang(lang) ? DEFAULT_TTS_VOICES[lang] : `${TTS_LOCALES[lang]}-Chirp3-HD-Charon`);
+  const table = GOOGLE_TTS_VOICES[lang];
+  const primary = voiceFor(env[`VOICE_TTS_VOICE_${suffix}`], lang, table.primary);
   const fbRaw = env[`VOICE_TTS_FALLBACK_VOICE_${suffix}`]?.trim();
   if (fbRaw?.toLowerCase() === "off") return [primary];
-  if (!fbRaw && !isVoiceLang(lang)) return [primary];
-  const fallback = voiceFor(fbRaw, lang, isVoiceLang(lang) ? DEFAULT_TTS_FALLBACK_VOICES[lang] : primary);
+  const fb = "fallback" in table ? table.fallback : undefined;
+  if (!fbRaw && !fb) return [primary];
+  const fallback = voiceFor(fbRaw, lang, fb ?? primary);
   return fallback === primary ? [primary] : [primary, fallback];
 }
 

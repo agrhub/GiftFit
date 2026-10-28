@@ -4,24 +4,30 @@
  *
  * STT: synchronous Recognize on the implicit recognizer `projects/<p>/locations/us/recognizers/_`
  * at us-speech.googleapis.com, model chirp_3, autoDecodingConfig (WebM/Opus, Ogg/Opus, MP4/AAC),
- * one forced language (STT_LANGUAGE_CODES: en-US, vi-VN, ja-JP, cmn-Hans-CN, …), automatic punctuation.
+ * automatic language identification (languageCodes ["auto"]; or, with VOICE_STT_LANGUAGE=fixed, the
+ * widget's language: STT_LANGUAGE_CODES en-US, vi-VN, ja-JP, cmn-Hans-CN, …), automatic punctuation.
+ * The language chirp_3 reports per result (results[].languageCode) is returned as a base code ("pt").
  * V2 has no data-logging programme; the audio is sent inline and kept nowhere by GiftFit.
  * TTS: synthesizeSpeech with a stock voice (Chirp 3 HD by default, Neural2/Standard fallback), MP3 out.
  *
  * The SDKs are imported on first use only (tests and mock mode never load them) and are server
  * externals (next.config.ts). Clients are process-wide on globalThis.
  */
+import { baseLanguage } from "@/lib/i18n";
 import { gcpProjectId, type Env } from "@/lib/store/config";
 import {
   MAX_TRANSCRIPT_CHARS,
   STT_ENDPOINT,
+  STT_AUTO_LANGUAGE,
   STT_LANGUAGE_CODES,
   STT_LOCATION,
   STT_MODEL,
   STT_TIMEOUT_MS,
   TTS_TIMEOUT_MS,
+  sttLanguageMode,
   ttsVoices,
   voiceLanguageCode,
+  type SttLanguageMode,
   type TtsLang,
   type VoiceLang,
 } from "./config";
@@ -70,13 +76,14 @@ export function recognizerPath(projectId: string): string {
   return `projects/${projectId}/locations/${STT_LOCATION}/recognizers/_`;
 }
 
-export function buildRecognizeRequest(projectId: string, lang: VoiceLang, content: Uint8Array): RecognizeRequest {
+/** `mode` "auto": chirp_3 identifies the language; "fixed": the widget's UI language only. */
+export function buildRecognizeRequest(projectId: string, lang: VoiceLang, content: Uint8Array, mode: SttLanguageMode = "auto"): RecognizeRequest {
   return {
     recognizer: recognizerPath(projectId),
     config: {
       autoDecodingConfig: {},
       model: STT_MODEL,
-      languageCodes: [STT_LANGUAGE_CODES[lang]],
+      languageCodes: [mode === "auto" ? STT_AUTO_LANGUAGE : STT_LANGUAGE_CODES[lang]],
       features: { enableAutomaticPunctuation: true },
     },
     content,
@@ -86,6 +93,19 @@ export function buildRecognizeRequest(projectId: string, lang: VoiceLang, conten
 export function transcriptFromResponse(resp: RecognizeResponseLike): string {
   const parts = (resp.results ?? []).map((r) => r.alternatives?.[0]?.transcript?.trim() ?? "").filter(Boolean);
   return [...parts.join(" ").replace(/\s+/g, " ").trim()].slice(0, MAX_TRANSCRIPT_CHARS).join("");
+}
+
+/**
+ * The spoken language chirp_3 reports (results[].languageCode, e.g. "pt-br", "cmn-hans-cn") as a base
+ * code ("pt", "zh"): the first result with a transcript; undefined when none reports one.
+ */
+export function languageFromResponse(resp: RecognizeResponseLike): string | undefined {
+  for (const r of resp.results ?? []) {
+    if (!r.alternatives?.[0]?.transcript?.trim()) continue;
+    const l = baseLanguage(r.languageCode ?? undefined);
+    if (l) return l;
+  }
+  return undefined;
 }
 
 /** Billed seconds from V2 metadata (each request rounds up to 1 s), else null. */
@@ -113,6 +133,8 @@ export function audioBytes(content: Uint8Array | string | null | undefined): Uin
 export interface SttResult {
   text: string;
   billedSeconds: number | null;
+  /** The spoken language as detected by the engine (base code), when it reports one. */
+  language?: string;
 }
 
 export interface SttEngine {
@@ -153,8 +175,9 @@ export function googleSttEngine(client: () => Promise<SpeechV2ClientLike>, env: 
       try {
         const c = await client();
         project ??= await c.getProjectId();
-        const [resp] = await c.recognize(buildRecognizeRequest(project, lang, audio), { timeout: STT_TIMEOUT_MS });
-        return { text: transcriptFromResponse(resp), billedSeconds: billedSecondsFromResponse(resp) };
+        const [resp] = await c.recognize(buildRecognizeRequest(project, lang, audio, sttLanguageMode(env)), { timeout: STT_TIMEOUT_MS });
+        const language = languageFromResponse(resp);
+        return { text: transcriptFromResponse(resp), billedSeconds: billedSecondsFromResponse(resp), ...(language ? { language } : {}) };
       } catch (err) {
         throw new VoiceEngineError(errCode(err));
       }

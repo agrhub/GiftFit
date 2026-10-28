@@ -27,6 +27,11 @@ export interface ConciergeRequestBody {
    * suggestions only, no brief). Unknown or not-ready previews → 404 store_not_found.
    */
   store?: string;
+  /**
+   * The widget's page / browser / UI language as a BCP 47 tag (ADR-057): only used while the shopper's own
+   * language is unclear ("ok", "$150", a product name). Malformed values are ignored.
+   */
+  lang?: string;
 }
 
 /** A suggested product from a non-jewelry preview store (no Fit Request for these). */

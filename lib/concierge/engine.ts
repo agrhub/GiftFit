@@ -9,6 +9,10 @@
  *     tool_choice none) stream live; any other turn is held and emitted only if it ends without a tool
  *     call (a clarifying question). A leading meta sentence is dropped as defence in depth (meta-filter).
  *   - Prompt caching: system prompt + tool definitions (stable prefix) and the growing tool loop.
+ *   - Language (ADR-057): Claude answers in the language of the shopper's latest message (any language).
+ *     When that message shows none (a number, "ok", an emoji, a product name), an uncached note names the
+ *     conversation's language (earlier messages, else the widget's page/browser language hint). Fixed
+ *     and fallback texts use the same language when it is one of the ten widget locales, else English.
  *   - Every call: reserveClaudeSpend → call → settle(usage). Spend cap refused, API error, refusal, or
  *     no key with CONCIERGE_MOCK=0 → deterministic fallback, flagged degraded.
  *   - Mock mode (no key, or CONCIERGE_MOCK=1): replays a recorded fixture through the same loop, tools
@@ -18,7 +22,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { DEFAULT_CLAUDE_MODEL, reserveClaudeSpend, type ClaudeUsage, type SpendDecision } from "@/lib/anthropic/budget";
 import type { GiftBrief } from "@/lib/contracts/api";
 import { defaultConciergeCatalog, type ConciergeCatalog } from "./catalog";
-import { detectLang, fallbackAnswer, isOffTopic, refusalText, type Lang } from "./fallback";
+import { detectLanguage, languageName } from "@/lib/i18n";
+import { fallbackAnswer, isOffTopic, refusalText, shopperLanguage, type Lang } from "./fallback";
 import { closingBriefText, fixedText } from "./fixed-text";
 import { GroundingLedger, ProseScrubber, scrubProse } from "./grounding";
 import { LeadingMetaFilter, stripLeadingMeta } from "./meta-filter";
@@ -61,6 +66,8 @@ export interface ConciergeDeps {
   signal?: AbortSignal;
   /** Store page context from the embeddable widget (A6): becomes a labelled, uncached system data note. */
   pageContext?: ConciergePageContext;
+  /** The widget's page / browser / UI language (BCP 47): the language to use while the shopper's own is unclear. */
+  lang?: string;
   /**
    * false for a store without try-on (store-URL previews, ADR-055): an uncached system note tells the
    * model the recipient only hearts product photos, and the fallback text never promises a try-on.
@@ -71,6 +78,15 @@ export interface ConciergeDeps {
 /** Uncached system note for stores without try-on (after the cached prefix, so the cache still hits). */
 export const NO_TRYON_NOTE =
   "This store is a GiftFit preview without try-on: the recipient looks at the store's product photos and hearts favourites. No photo of them is taken. Never mention try-ons, AI previews of them, photos, skin tone, undertone or face shape. Speak to the shopper directly; never describe your plan or mention tools.";
+
+/**
+ * Uncached system note when the shopper's latest message shows no language of its own: the reply keeps
+ * the conversation's language. null when the latest message is clear (the prompt's rule covers it).
+ */
+export function languageNote(lastUser: string, conversationLang: Lang | undefined): string | null {
+  if (detectLanguage(lastUser) || !conversationLang) return null;
+  return `The shopper's latest message doesn't show which language they use. Reply in ${languageName(conversationLang)}, the language of this conversation so far, unless the message itself clearly asks for another language.`;
+}
 
 /** "mock" when CONCIERGE_MOCK=1, or no key unless CONCIERGE_MOCK=0 (then the degraded fallback answers). */
 export function conciergeMode(env: Env = process.env): "claude" | "mock" | "no_key" {
@@ -119,10 +135,10 @@ export async function* runConcierge(input: readonly ConciergeChatMessage[], deps
   const catalog = deps.catalog ?? defaultConciergeCatalog();
   const history = capHistory(input);
   const lastUser = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
-  const lang = detectLang(lastUser);
+  const lang = shopperLanguage(history, deps.lang);
 
   const fallback = function* (reason: ConciergeDegradeReason | undefined, alreadyText: boolean): Generator<ConciergeEvent> {
-    const a = fallbackAnswer(history, catalog, { tryOn: deps.tryOn !== false });
+    const a = fallbackAnswer(history, catalog, { tryOn: deps.tryOn !== false, lang: deps.lang });
     yield { type: "text", delta: (alreadyText ? "\n\n" : "") + a.text };
     yield {
       type: "final",
@@ -174,11 +190,13 @@ export async function* runConcierge(input: readonly ConciergeChatMessage[], deps
     yield { type: "start", source };
 
     const note = pageContextNote(deps.pageContext, catalog);
-    // The cached prefix (tools + frozen system prompt) is unchanged; the page note follows it uncached.
+    const langNote = languageNote(lastUser, lang);
+    // The cached prefix (tools + frozen system prompt) is unchanged; the page and language notes follow it uncached.
     const system: Anthropic.TextBlockParam[] = [
       ...SYSTEM,
       ...(deps.tryOn === false ? [{ type: "text" as const, text: NO_TRYON_NOTE }] : []),
       ...(note ? [{ type: "text" as const, text: note }] : []),
+      ...(langNote ? [{ type: "text" as const, text: langNote }] : []),
     ];
     const ledger = new GroundingLedger();
     const convo: Anthropic.MessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
@@ -204,7 +222,7 @@ export async function* runConcierge(input: readonly ConciergeChatMessage[], deps
 
       let reservation: Extract<SpendDecision, { ok: true }> | null = null;
       if (spend) {
-        const decision = await spend({ model, inputTokens: estimateInputTokens(convo) + Math.ceil((note?.length ?? 0) / 3), maxTokens: CONCIERGE_MAX_TOKENS });
+        const decision = await spend({ model, inputTokens: estimateInputTokens(convo) + Math.ceil(((note?.length ?? 0) + (langNote?.length ?? 0)) / 3), maxTokens: CONCIERGE_MAX_TOKENS });
         if (!decision.ok) {
           console.warn("[concierge] Claude spend refused:", decision.reason);
           if (draft) break;
