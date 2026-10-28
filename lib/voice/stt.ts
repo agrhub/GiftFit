@@ -7,7 +7,7 @@ import { giverJson } from "@/lib/privacy/giver-guard";
 import { giverRateLimit } from "@/lib/privacy/rate-limit";
 import { checkClip, MAX_CLIP_SECONDS, readBodyLimited } from "./audio";
 import { reserveVoice } from "./caps";
-import { charCount, isVoiceLang, voiceEnabled } from "./config";
+import { charCount, isVoiceLang, supertonicServerEnabled, voiceEnabled } from "./config";
 import { capFailure, defaultVoiceDeps, VOICE_ENGINE_HEADER, VOICE_LANG_HEADER, type VoiceServerDeps } from "./server";
 import { voiceSessionKey } from "./session";
 
@@ -23,6 +23,8 @@ export async function handleStt(req: Request, deps: VoiceServerDeps = defaultVoi
   if (!isVoiceLang(lang)) return fail(400, "bad_lang");
   const session = voiceSessionKey(req, deps.env);
   if (!session) return fail(400, "bad_session");
+  // First voice use warms the server Supertonic engine (ADR-057) while the shopper is still talking.
+  if (supertonicServerEnabled(deps.env)) deps.supertonic?.()?.ensureLoaded();
 
   const body = await readBodyLimited(req);
   if (!body.ok) return fail(400, body.error);

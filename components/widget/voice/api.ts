@@ -3,7 +3,8 @@
  * in the browser: the server talks to Google with its service account.
  *
  *   POST /api/voice/stt   raw MediaRecorder audio, `x-voice-lang: en|vi` → { text, lang } | { error }
- *   POST /api/voice/tts   { text (≤ 400), lang } → audio bytes + `x-voice-engine` | JSON error
+ *   POST /api/voice/tts   { text (≤ 400), lang } → audio bytes + `x-voice-engine` (supertonic-server |
+ *                         google | mock) | JSON error
  *
  * Both carry `x-voice-session` (a random id per page session, see prefs.ts) for the per-session caps.
  */
@@ -67,6 +68,7 @@ export async function synthesize(text: string, lang: Locale, o: VoiceApiOptions)
   const type = res.headers.get("content-type") ?? "";
   if (!res.ok || type.includes("application/json")) throw res.ok ? new VoiceHttpError(503, "no_audio") : await errorFrom(res);
   const e = res.headers.get("x-voice-engine");
-  const engine: ServerEngine = e === "supertonic" || e === "mock" ? e : "google";
+  // `supertonic-server` = Supertonic 3 on GiftFit's server (A13, ADR-057); labelled like "supertonic".
+  const engine: ServerEngine = e === "supertonic" || e === "supertonic-server" ? "supertonic" : e === "mock" ? "mock" : "google";
   return { bytes: await res.arrayBuffer(), engine };
 }

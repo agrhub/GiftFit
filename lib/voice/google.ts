@@ -22,6 +22,7 @@ import {
   TTS_TIMEOUT_MS,
   ttsVoices,
   voiceLanguageCode,
+  type TtsLang,
   type VoiceLang,
 } from "./config";
 
@@ -127,7 +128,7 @@ export interface TtsResult {
 
 export interface TtsEngine {
   readonly name: "google" | "mock";
-  synthesize(input: { text: string; lang: VoiceLang }): Promise<TtsResult>;
+  synthesize(input: { text: string; lang: TtsLang }): Promise<TtsResult>;
 }
 
 /** Error carrying only a gRPC status code / short reason, never request content. */

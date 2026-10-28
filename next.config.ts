@@ -37,6 +37,8 @@ const SERVER_EXTERNALS = [
   // Voice (A13, ADR-052): Speech-to-Text V2 and Text-to-Speech via ADC (gRPC; loaded on first use).
   "@google-cloud/speech",
   "@google-cloud/text-to-speech",
+  // Server-side Supertonic 3 (A13, ADR-057): native onnxruntime binding, loaded on first voice use.
+  "onnxruntime-node",
   "nodemailer",
   "pgvector",
   "robots-parser",
@@ -83,6 +85,9 @@ const nextConfig: NextConfig = {
     "/api/health": ["./fixtures/youcam/ai-demo/showcase/manifest.json"],
     "/api/ingest/**": ["./fixtures/ingest/**/*"],
     "/giftfit.js": ["./packages/plugin/giftfit.js"],
+    // onnxruntime-node's binding is required through a computed path and needs its shared library next
+    // to it; ship the linux-x64 pair explicitly (the image builds on linux/amd64). The Dockerfile checks it.
+    "/api/voice/**": ["./node_modules/onnxruntime-node/bin/napi-v6/linux/x64/*"],
   },
   // Local-only trees that file tracing must never walk into a deployment bundle.
   outputFileTracingExcludes: {
@@ -102,6 +107,12 @@ const nextConfig: NextConfig = {
       "node_modules/playwright/**",
       "node_modules/playwright-core/**",
       "node_modules/@playwright/**",
+      // Supertonic weights (≈ 380 MiB) are copied with public/, never traced into the server bundle; the
+      // other platforms' onnxruntime binaries are never needed on Cloud Run.
+      "public/voice/**",
+      "node_modules/onnxruntime-node/bin/napi-v6/darwin/**",
+      "node_modules/onnxruntime-node/bin/napi-v6/win32/**",
+      "node_modules/onnxruntime-node/bin/napi-v6/linux/arm64/**",
     ],
   },
 };

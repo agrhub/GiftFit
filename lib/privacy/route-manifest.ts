@@ -151,8 +151,13 @@ export const ROUTE_MANIFEST: Record<string, RouteManifestEntry> = {
   "app/api/voice/tts/route.ts": {
     audience: "giver",
     owner: "A13",
-    description: "Reply text (≤ 400 chars, en|vi) → MP3 from Google TTS (or mock WAV); 40/h, 150/day per IP; 12 per widget session; daily character cap",
+    description: "Reply text (≤ 400 chars, one of Supertonic's 31 languages) → WAV from server Supertonic (when on) or MP3 from Google TTS (or mock WAV); 40/h, 150/day per IP; 12 per widget session; daily character and synthesis caps",
     audioResponse: "audio bytes synthesized from the shopper-facing reply text; errors through giverJson",
+  },
+  "app/api/voice/metrics/route.ts": {
+    audience: "internal",
+    owner: "A13",
+    description: "Voice spike metrics (ADR-057): process RSS/heap, server Supertonic load time, queue and timings; Bearer CRON_SECRET; no text, audio or session data",
   },
   // A5 recipient
   "app/api/recipient/session/route.ts": {

@@ -11,8 +11,11 @@ ARG NODE_IMAGE=node:22-slim
 # ---- deps: full install (dev deps are needed by `next build`) ------------------------------------
 FROM ${NODE_IMAGE} AS deps
 WORKDIR /app
+# ONNXRUNTIME_NODE_INSTALL=skip: onnxruntime-node's postinstall must not fetch CUDA binaries (CPU only;
+# the name is from its script/install.js; ONNXRUNTIME_NODE_INSTALL_CUDA is the deprecated alias).
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
-    NEXT_TELEMETRY_DISABLED=1
+    NEXT_TELEMETRY_DISABLED=1 \
+    ONNXRUNTIME_NODE_INSTALL=skip
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
@@ -40,7 +43,11 @@ COPY . .
 RUN npx next build \
  && test -f .next/standalone/server.js \
  && test ! -d .next/standalone/node_modules/playwright-core \
- && test ! -d .next/standalone/fixtures/youcam/real
+ && test ! -d .next/standalone/fixtures/youcam/real \
+ && test -f .next/standalone/node_modules/onnxruntime-node/bin/napi-v6/linux/x64/onnxruntime_binding.node \
+ && test -f .next/standalone/node_modules/onnxruntime-node/bin/napi-v6/linux/x64/libonnxruntime.so.1 \
+ && test ! -d .next/standalone/node_modules/onnxruntime-node/bin/napi-v6/win32 \
+ && test ! -d .next/standalone/public/voice
 
 # ---- runtime -------------------------------------------------------------------------------------
 FROM ${NODE_IMAGE} AS runtime

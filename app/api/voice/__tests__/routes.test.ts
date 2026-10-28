@@ -189,7 +189,7 @@ describe("POST /api/voice/tts", () => {
     ["invalid JSON", "{nope", "bad_request"],
     ["missing text", { lang: "en" }, "bad_request"],
     ["blank text", { text: "   ", lang: "en" }, "bad_request"],
-    ["bad language", { text: "Hi", lang: "fr" }, "bad_lang"],
+    ["bad language", { text: "Hi", lang: "zh" }, "bad_lang"],
     ["over 400 characters", { text: "a".repeat(401), lang: "en" }, "text_too_long"],
     ["huge body", { text: "a".repeat(20_000), lang: "en" }, "text_too_long"],
   ])("400 for %s", async (_n, body, error) => {
