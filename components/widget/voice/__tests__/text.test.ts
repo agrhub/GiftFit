@@ -9,6 +9,8 @@ describe("speech text", () => {
   it("splits sentences, Vietnamese included", () => {
     expect(sentences("Hi! How are you? Fine.\nNext line")).toEqual(["Hi!", "How are you?", "Fine.", "Next line"]);
     expect(sentences("Chào bạn! Mình gợi ý ba món.")).toEqual(["Chào bạn!", "Mình gợi ý ba món."]);
+    expect(sentences("軽いピアスです！毎日つけられますか？「はい」。")).toEqual(["軽いピアスです！", "毎日つけられますか？", "「はい」。"]);
+    expect(sentences("这对耳环很轻。你喜欢吗？")).toEqual(["这对耳环很轻。", "你喜欢吗？"]);
   });
 
   it("chunks at most 400 chars, on sentence boundaries, first sentence alone when long enough", () => {

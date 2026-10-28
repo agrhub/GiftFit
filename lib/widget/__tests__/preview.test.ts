@@ -10,6 +10,7 @@ import { adminKeyOf, OWNER_COOKIE, ownerCookie, verifyOwner } from "../preview-a
 import { reingestPreview, removeProduct, restoreProducts, saveWidgetSettings } from "../preview-admin-ops";
 import { fixturePreview } from "../preview-fixtures";
 import { contrastRatio, validateSettings, widgetSettingsFrom } from "../preview-settings";
+import { LOCALES } from "@/lib/i18n";
 
 const BASE = "https://giftfit.example";
 const repo = defaultPreviewRepo() as MemoryPreviewRepo;
@@ -83,17 +84,21 @@ describe("widget settings", () => {
       ok: true,
       settings: { character: "mascot", languages: ["vi"], defaultLanguage: "vi", accentColor: "#1f6f5c", greeting: "Xin chào!" },
     });
-    const bad = validateSettings({ character: "live2d-upload", languages: ["fr"], accentColor: "#ffff00", greeting: "<b>hi</b> https://x.example" });
+    const bad = validateSettings({ character: "live2d-upload", languages: ["pt"], accentColor: "#ffff00", greeting: "<b>hi</b> https://x.example" });
     expect(bad).toEqual({ ok: false, errors: ["character", "languages", "defaultLanguage", "accentContrast", "greeting"] });
     expect(validateSettings({ accentColor: "red" })).toMatchObject({ ok: false, errors: ["accentColor"] });
     expect(validateSettings({ greeting: "x".repeat(141) })).toMatchObject({ ok: false, errors: ["greeting"] });
     expect(validateSettings({ languages: ["en", "vi"], defaultLanguage: "vi" })).toMatchObject({ ok: true });
+    expect(validateSettings({ languages: ["ja", "zh", "th", "de"], defaultLanguage: "th" })).toMatchObject({ ok: true, settings: { languages: ["ja", "zh", "th", "de"], defaultLanguage: "th" } });
+    expect(validateSettings({ languages: "ko,es fr,id" })).toMatchObject({ ok: true, settings: { languages: ["ko", "es", "fr", "id"], defaultLanguage: "ko" } });
+    expect(validateSettings({ languages: ["ja", "xx"] })).toMatchObject({ ok: false, errors: ["languages"] });
+    expect(validateSettings({ languages: ["ja"], defaultLanguage: "en" })).toMatchObject({ ok: false, errors: ["defaultLanguage"] });
     expect(contrastRatio("#000000", "#ffffff")).toBeCloseTo(21, 0);
   });
 
   it("stored junk falls back to defaults field by field", () => {
     expect(widgetSettingsFrom({ character: "x", languages: ["vi"], defaultLanguage: "vi", accentColor: "#eeeeee", greeting: "Hello" })).toEqual({ character: "mark-kun", languages: ["vi"], defaultLanguage: "vi", greeting: "Hello" });
-    expect(widgetSettingsFrom(undefined)).toEqual({ character: "mark-kun", languages: ["en", "vi"], defaultLanguage: "en" });
+    expect(widgetSettingsFrom(undefined)).toEqual({ character: "mark-kun", languages: [...LOCALES], defaultLanguage: "en" });
   });
 });
 

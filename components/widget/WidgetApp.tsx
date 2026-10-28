@@ -288,25 +288,41 @@ function Widget({ store, preview, parentOrigin, preferredLang, allowedLangs, bas
 
   return (
     <div role="dialog" aria-modal={!standalone} aria-label={tr("panel.title")} className={`flex flex-col overflow-hidden bg-ivory text-ink ${standalone ? "mx-auto h-dvh max-w-md border-x border-line" : "fixed inset-0 rounded-2xl border border-line shadow-2xl"}`} data-testid="widget-panel">
-      <header className="flex items-center gap-2 border-b border-line bg-white px-3 py-2" style={accent ? { borderTop: `4px solid ${accent}` } : undefined} data-accent={accent}>
+      <header className="flex items-center gap-1.5 border-b border-line bg-white px-3 py-2" style={accent ? { borderTop: `4px solid ${accent}` } : undefined} data-accent={accent}>
         <div className="h-14 w-14 shrink-0 overflow-hidden">
           <div className="origin-top-left scale-[0.7]">
             <SpeakingCharacter compact analyser={voice.analyser} state={charState} mouth={charMouth} onActivate={() => setView("chat")} reducedMotion={reducedMotion} label={tr("panel.title")} />
           </div>
         </div>
+        {/* One line at the usual ~400 px panel: About is an icon (its full name is the accessible name and
+            tooltip) and the subtitle is just "by GiftFit", so the title column keeps ~175 px (~150 px at
+            375 px). Long titles (de "Geschenkassistent", th) still hyphenate or wrap rather than overflow;
+            CJK and Thai titles are one step smaller (their glyphs run larger). */}
         <div className="min-w-0 flex-1">
-          <h1 className="font-display text-xl leading-tight">{preview ? preview.storeName : tr("panel.title")}</h1>
-          <div className="flex min-w-0 items-center gap-2">
+          <h1 className="font-display text-lg leading-tight hyphens-auto [overflow-wrap:anywhere] [:root:is(:lang(ja),:lang(ko),:lang(zh),:lang(th))_&]:text-base">{preview ? preview.storeName : tr("panel.title")}</h1>
+          <div className="flex min-w-0 items-center gap-1.5">
             <p className="min-w-0 truncate text-xs text-muted">{preview ? tr("preview.subtitle", { domain: preview.domain }) : tr("panel.subtitle")}</p>
             {voice.on && <AiVoiceLabel tr={tr} speaking={speaking} engine={voice.state.engine} />}
           </div>
         </div>
         <VoiceToggle tr={tr} on={voice.on} onToggle={voice.toggle} />
-        <button type="button" onClick={() => setView(view === "about" ? "chat" : "about")} className="min-h-11 rounded-full px-3 text-xs text-ink-soft underline-offset-2 hover:underline" aria-pressed={view === "about"}>
-          {tr("about.open")}
+        <button
+          type="button"
+          onClick={() => setView(view === "about" ? "chat" : "about")}
+          aria-label={tr("about.open")}
+          title={tr("about.open")}
+          aria-pressed={view === "about"}
+          data-testid="widget-about-open"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink hover:bg-ivory focus-visible:outline-2 focus-visible:outline-ink"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 11v5.5" />
+            <circle cx="12" cy="7.8" r="0.6" fill="currentColor" />
+          </svg>
         </button>
         {!standalone && (
-          <button type="button" onClick={closePanel} aria-label={tr("panel.close")} className="flex h-11 w-11 items-center justify-center rounded-full text-2xl leading-none text-ink hover:bg-ivory" data-testid="widget-close">
+          <button type="button" onClick={closePanel} aria-label={tr("panel.close")} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-2xl leading-none text-ink hover:bg-ivory" data-testid="widget-close">
             ×
           </button>
         )}

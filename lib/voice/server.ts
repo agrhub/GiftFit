@@ -3,10 +3,11 @@
  * handlers are lib/voice/stt.ts (JSON only) and lib/voice/tts.ts (audio bytes). Contract for the widget (A4):
  *
  *   POST /api/voice/stt   body: the raw clip (Content-Type audio/webm;codecs=opus | audio/ogg | audio/mp4),
- *                         headers x-voice-lang: en|vi, x-voice-session: <uuid>; ≤ 1 MiB, ≤ 15 s.
+ *                         headers x-voice-lang: a widget locale (en vi ja ko zh th id es fr de),
+ *                         x-voice-session: <uuid>; ≤ 1 MiB, ≤ 15 s.
  *                         200 {text, lang} | 400 {error: bad_audio|too_long|too_large|bad_lang|bad_session}
  *                         | 429 {error: rate_limited|session_cap|daily_cap} | 503 {error: voice_unavailable}
- *   POST /api/voice/tts   JSON {text ≤ 400 chars, lang: one of Supertonic's 31}, header x-voice-session: <uuid>.
+ *   POST /api/voice/tts   JSON {text ≤ 400 chars, lang: one of Supertonic's 31, or zh/th (Google only)}, header x-voice-session: <uuid>.
  *                         200 audio bytes + x-voice-engine: supertonic-server (audio/wav, 22.05 kHz; when
  *                         VOICE_SERVER_SUPERTONIC=on and the engine is ready, not overloaded and in budget)
  *                         | google (audio/mpeg) | mock (audio/wav)

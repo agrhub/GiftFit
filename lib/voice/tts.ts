@@ -11,6 +11,7 @@
  *      counter is unreachable, or when a sentence overruns VOICE_SUPERTONIC_SENTENCE_BUDGET_MS (the
  *      synthesis is aborted between model runs and the whole chunk goes to Google).
  *   2. google (or mock): as before, on the `voice-tts-<day>` character cap.
+ * Languages Supertonic doesn't speak (zh, th; config ttsRoute) skip step 1, even when forced.
  * One per-session slot per request either way.
  *
  * Spike mode (VOICE_SPIKE=1 on the service AND `Authorization: Bearer $CRON_SECRET`): no per-IP or
@@ -25,7 +26,7 @@ import { reserveDaily, reserveSessionSlot } from "./caps";
 import { charCount, isTtsLang, MAX_TTS_CHARS, supertonicServerEnabled, supertonicSettings, voiceEnabled, voiceSpikeEnabled, type TtsLang } from "./config";
 import { capFailure, defaultVoiceDeps, VOICE_ENGINE_HEADER, type VoiceServerDeps } from "./server";
 import { voiceSessionKey } from "./session";
-import { splitSentences, SynthAbortedError } from "./supertonic/inference";
+import { isSupertonicLang, splitSentences, SynthAbortedError, type SupertonicLang } from "./supertonic/inference";
 import { speechWav } from "./wav";
 
 const MAX_TTS_BODY_BYTES = 8 * 1024;
@@ -85,7 +86,7 @@ function audioResponse(bytes: Uint8Array, contentType: string, engine: string, e
 
 type SupertonicOutcome = { ok: true; response: Response } | { ok: false; reason: "off" | "cold" | "failed" | "queue" | "cap" | "budget" | "error" };
 
-async function trySupertonic(text: string, lang: TtsLang, deps: VoiceServerDeps, t0: number, forced: boolean): Promise<SupertonicOutcome> {
+async function trySupertonic(text: string, lang: SupertonicLang, deps: VoiceServerDeps, t0: number, forced: boolean): Promise<SupertonicOutcome> {
   const engine = deps.supertonic?.() ?? null;
   if (!engine) return { ok: false, reason: "off" };
   const settings = supertonicSettings(deps.env);
@@ -142,8 +143,8 @@ export async function handleTts(req: Request, deps: VoiceServerDeps = defaultVoi
     return fail(capFailure(slot).status, capFailure(slot).error);
   }
 
-  // 1. Server Supertonic (when on, or forced by the spike).
-  if (force === "supertonic" || (force !== "google" && supertonicServerEnabled(deps.env))) {
+  // 1. Server Supertonic (when on, or forced by the spike), only for the languages it speaks.
+  if (isSupertonicLang(body.lang) && (force === "supertonic" || (force !== "google" && supertonicServerEnabled(deps.env)))) {
     const st = await trySupertonic(body.text, body.lang, deps, t0, force === "supertonic");
     if (st.ok) {
       deps.log(`[voice] tts engine=supertonic-server lang=${body.lang} chars=${chars} ms=${deps.now() - t0} outcome=ok`);

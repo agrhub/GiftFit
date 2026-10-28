@@ -47,8 +47,20 @@ export interface OrtLike {
   env?: { wasm?: { wasmPaths?: unknown; numThreads?: number; proxy?: boolean }; logLevel?: string };
 }
 
-export const SUPERTONIC_LANGS = ["en", "vi"] as const;
+/**
+ * The 31 languages of Supertonic 3 (helper.js AVAILABLE_LANGS without "na"), the same list as the
+ * server engine (lib/voice/supertonic/inference.ts). Widget locales outside it (zh, th) never use the
+ * in-browser voice: they go to the server, which routes them to Google TTS (ADR-057).
+ */
+export const SUPERTONIC_LANGS = [
+  "en", "ko", "ja", "ar", "bg", "cs", "da", "de", "el", "es", "et", "fi", "fr", "hi", "hr", "hu",
+  "id", "it", "lt", "lv", "nl", "pl", "pt", "ro", "ru", "sk", "sl", "sv", "tr", "uk", "vi",
+] as const;
 export type SupertonicLang = (typeof SUPERTONIC_LANGS)[number];
+
+export function isSupertonicLang(v: unknown): v is SupertonicLang {
+  return typeof v === "string" && (SUPERTONIC_LANGS as readonly string[]).includes(v);
+}
 
 export interface SupertonicConfig {
   ae: { sample_rate: number; base_chunk_size: number };
@@ -88,7 +100,7 @@ const REPLACEMENTS: Array<[string, string]> = [
 
 /** helper.js UnicodeProcessor.preprocessText. */
 export function preprocessText(input: string, lang: SupertonicLang): string {
-  if (!SUPERTONIC_LANGS.includes(lang)) throw new Error(`Invalid language: ${lang}`);
+  if (!isSupertonicLang(lang)) throw new Error(`Invalid language: ${lang}`);
   let text = input.normalize("NFKD").replace(EMOJI, "");
   for (const [k, v] of REPLACEMENTS) text = text.replaceAll(k, v);
   text = text.replace(/[♥☆♡©\\]/g, "");

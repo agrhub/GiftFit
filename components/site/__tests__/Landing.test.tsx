@@ -29,7 +29,7 @@ describe("Landing", () => {
     expect(screen.getByTestId("cta-merchants").getAttribute("href")).toBe("/merchants");
     expect(screen.getByTestId("code-snippet").textContent).toBe(`<script src="${ORIGIN}/giftfit.js" data-store="aurum" data-langs="en,vi" async></script>`);
     const features = within(screen.getByTestId("features")).getAllByRole("listitem");
-    expect(features.map((li) => li.querySelector("h3")!.textContent)).toEqual(["Help me choose", "Private try-on", "Fit Report", "Voice, in English and Vietnamese"]);
+    expect(features.map((li) => li.querySelector("h3")!.textContent)).toEqual(["Help me choose", "Private try-on", "Fit Report", "Voice, in the shopper's language"]);
     for (const li of features) expect(li.querySelector("svg")).toBeTruthy();
     expect(features[1].textContent).toContain("never shown to the giver");
     expect(screen.getByTestId("how-steps").querySelectorAll("li")).toHaveLength(3);

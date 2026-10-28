@@ -10,7 +10,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CopyText } from "@/components/preview/CopyText";
 import { expiresInHours, MerchantImage } from "@/components/preview/PreviewChrome";
-import { formatMoney, LOCALES } from "@/lib/i18n";
+import { formatMoney, LOCALES, t, type MessageKey } from "@/lib/i18n";
 import { siteOrigin } from "@/lib/site/snippet";
 import { previewStoreView } from "@/lib/widget/preview";
 import { OWNER_COOKIE, verifyOwner } from "@/lib/widget/preview-admin";
@@ -31,7 +31,7 @@ const ERRORS: Record<string, string> = {
   accentColor: "The accent colour must be a hex colour like #1f6f5c.",
   accentContrast: "That accent colour is too light for white text (contrast below 4.5:1). Pick a darker one.",
   greeting: `The greeting must be plain text, at most ${MAX_GREETING} characters, without links.`,
-  languages: "Pick at least one language (English or Vietnamese).",
+  languages: "Pick at least one language.",
   defaultLanguage: "The default language must be one of the allowed languages.",
   character: "Pick Mark-kun or the gift-box mascot.",
   rate_limited: "You've made the 5 previews (or re-reads) allowed per day from this network. Try again tomorrow.",
@@ -108,7 +108,8 @@ export default async function PreviewAdminPage({ params, searchParams }: { param
             <legend className={label}>Languages</legend>
             {LOCALES.map((l) => (
               <label key={l} className="mt-2 mr-4 inline-flex items-center gap-2 text-sm">
-                <input type="checkbox" name="languages" value={l} defaultChecked={settings.languages.includes(l)} data-testid={`admin-lang-${l}`} /> {l === "en" ? "English" : "Tiếng Việt"}
+                <input type="checkbox" name="languages" value={l} defaultChecked={settings.languages.includes(l)} data-testid={`admin-lang-${l}`} /> {t("en", `lang.${l}` as MessageKey)}
+                {l !== "en" && l !== "vi" ? <span className="text-xs text-muted">(machine-translated)</span> : null}
               </label>
             ))}
             <label className="mt-3 block text-sm">
@@ -116,7 +117,7 @@ export default async function PreviewAdminPage({ params, searchParams }: { param
               <select name="defaultLanguage" defaultValue={settings.defaultLanguage} className="ml-2 rounded-lg border border-line-strong px-2 py-1" data-testid="admin-default-lang">
                 {LOCALES.map((l) => (
                   <option key={l} value={l}>
-                    {l === "en" ? "English" : "Tiếng Việt"}
+                    {t("en", `lang.${l}` as MessageKey)}
                   </option>
                 ))}
               </select>

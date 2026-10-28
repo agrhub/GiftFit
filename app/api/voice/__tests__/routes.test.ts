@@ -10,6 +10,7 @@ import { setRateLimitOverride } from "@/lib/privacy/rate-limit";
 import { MemoryDailyCounterStore, type DailyCounterStore } from "@/lib/store/daily-counter";
 import { dailyKey, sessionCounterKey } from "@/lib/voice/caps";
 import { VoiceEngineError, type SttEngine, type TtsEngine } from "@/lib/voice/google";
+import { VOICE_LANGS } from "@/lib/voice/config";
 import { MOCK_TRANSCRIPTS } from "@/lib/voice/mock";
 import { mockSttEngine, mockTtsEngine, type VoiceServerDeps } from "@/lib/voice/server";
 import { handleStt } from "@/lib/voice/stt";
@@ -50,7 +51,7 @@ function ttsReq(body: unknown, headers: Record<string, string> = {}) {
 describe("POST /api/voice/stt", () => {
   it("mock mode: canned transcript per language, engine header, giver-safe JSON, never cached", async () => {
     const { deps } = makeDeps();
-    for (const lang of ["en", "vi"] as const) {
+    for (const lang of VOICE_LANGS) {
       const res = await handleStt(sttReq(clip5s(), { "x-voice-lang": lang }), deps);
       expect(res.status).toBe(200);
       expect(res.headers.get("x-voice-engine")).toBe("mock");
@@ -69,7 +70,8 @@ describe("POST /api/voice/stt", () => {
 
   it.each([
     ["missing language", { "x-voice-lang": "" }, clip5s(), "bad_lang"],
-    ["unsupported language", { "x-voice-lang": "fr" }, clip5s(), "bad_lang"],
+    ["unsupported language", { "x-voice-lang": "pt" }, clip5s(), "bad_lang"],
+    ["region tag instead of a widget code", { "x-voice-lang": "fr-FR" }, clip5s(), "bad_lang"],
     ["missing session", { "x-voice-session": "" }, clip5s(), "bad_session"],
     ["non-UUID session", { "x-voice-session": "giver-token-abc" }, clip5s(), "bad_session"],
     ["wrong content type", { "content-type": "audio/wav" }, clip5s(), "bad_audio"],
@@ -189,7 +191,7 @@ describe("POST /api/voice/tts", () => {
     ["invalid JSON", "{nope", "bad_request"],
     ["missing text", { lang: "en" }, "bad_request"],
     ["blank text", { text: "   ", lang: "en" }, "bad_request"],
-    ["bad language", { text: "Hi", lang: "zh" }, "bad_lang"],
+    ["bad language", { text: "Hi", lang: "zh-CN" }, "bad_lang"],
     ["over 400 characters", { text: "a".repeat(401), lang: "en" }, "text_too_long"],
     ["huge body", { text: "a".repeat(20_000), lang: "en" }, "text_too_long"],
   ])("400 for %s", async (_n, body, error) => {

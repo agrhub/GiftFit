@@ -14,7 +14,7 @@ export const en = {
   "launcher.tipDismiss": "Dismiss",
 
   "panel.title": "Gift assistant",
-  "panel.subtitle": "by GiftFit · they try on privately",
+  "panel.subtitle": "by GiftFit",
   "panel.close": "Close",
   "panel.notAllowed": "GiftFit isn't enabled on this site yet.",
 
@@ -248,7 +248,7 @@ export const en = {
   "landing.f2Text": "The recipient tries pieces on with an AI preview on their own phone. Their photos are deleted after the try-on and never shown to the giver or the store.",
   "landing.f3Title": "Fit Report",
   "landing.f3Text": "The giver gets fit scores, short reasons and the pieces that were hearted: enough to buy with confidence, without spoiling the surprise.",
-  "landing.f4Title": "Voice, in English and Vietnamese",
+  "landing.f4Title": "Voice, in the shopper's language",
   "landing.f4Text": "Shoppers can talk to the assistant and hear it answer. Voice stays off until they turn it on, and audio is never stored.",
   "landing.docsTitle": "Quick start",
   "landing.docsText": "Add GiftFit anywhere you can paste a script tag. On product pages the script reads the product from its JSON-LD or Open Graph tags; no catalog upload is needed to start.",
@@ -258,7 +258,7 @@ export const en = {
   "landing.docsMeaning": "What it does",
   "landing.attrStore": "Your store key. Default: aurum, the demo catalog.",
   "landing.attrLang": "Fallback UI language, used when neither the page's lang nor the browser names an allowed one. Example: vi.",
-  "landing.attrLangs": "Languages the assistant may use, comma-separated. Default: all (en,vi).",
+  "landing.attrLangs": "Languages the assistant may use, comma-separated. Default: all (en,vi,ja,ko,zh,th,id,es,fr,de).",
   "landing.attrWidget": "\"off\" hides the floating assistant.",
   "landing.attrButton": "\"off\" hides the \"Gift it right\" button on product pages.",
   "landing.docsShopify": "In Shopify admin: Online Store → Themes → … → Edit code. Open layout/theme.liquid, paste the tag just before </body> and save. The Liquid below passes the shopper's current store language.",
@@ -347,6 +347,20 @@ export const en = {
   "card.pieces": "The pieces they'll see",
   "lang.en": "English",
   "lang.vi": "Tiếng Việt",
+  "lang.ja": "日本語",
+  "lang.ko": "한국어",
+  "lang.zh": "简体中文",
+  "lang.th": "ไทย",
+  "lang.id": "Bahasa Indonesia",
+  "lang.es": "Español",
+  "lang.fr": "Français",
+  "lang.de": "Deutsch",
 } as const;
 
 export type MessageKey = keyof typeof en;
+
+/**
+ * The keys the embeddable widget renders: everything but the GiftFit site, landing and preview-store
+ * pages (those stay en/vi). Every widget locale defines all of these; the rest fall back to English.
+ */
+export type WidgetMessageKey = Exclude<MessageKey, `site.${string}` | `landing.${string}` | `pstore.${string}`>;

@@ -4,7 +4,7 @@
  * widget for `data-store="preview:<key>"`.
  *
  *   character        "mark-kun" (Live2D, the one fixed model; SVG mascot as its fallback) | "mascot" (SVG only)
- *   languages        allowed UI languages ⊆ en, vi (≥ 1); defaultLanguage ∈ languages
+ *   languages        allowed UI languages ⊆ LOCALES (en vi ja ko zh th id es fr de; ≥ 1); defaultLanguage ∈ languages
  *   accentColor      #rrggbb whose contrast with white text is ≥ 4.5:1 (WCAG AA for the buttons)
  *   greeting         ≤ 140 chars of plain text (control characters, tags and URLs are refused)
  */

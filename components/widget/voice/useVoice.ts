@@ -2,7 +2,7 @@
 /**
  * Voice state for the widget panel (owner: A4, P8.3): the mute toggle (remembered per viewer, OFF by
  * default), the speaker (spoken replies with the fallback ladder), and the optional in-browser
- * Supertonic "natural voice". WidgetApp owns one instance.
+ * Supertonic "natural voice" (offered only for Supertonic's languages). WidgetApp owns one instance.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { localeFromText, type Locale } from "@/lib/i18n";
@@ -11,6 +11,7 @@ import { naturalVoiceAvailable } from "./capability";
 import { naturalDismissed, naturalOptedIn, setNaturalDismissed, setNaturalOptedIn, setVoiceOn, voiceOn, voiceSessionId } from "./prefs";
 import { IDLE, Speaker, type EngineName, type SpeakerState } from "./speaker";
 import { SupertonicClient, type NaturalStatus } from "./supertonic/client";
+import { isSupertonicLang } from "./supertonic/inference";
 import type { ExecutionProvider, ReadyTimings } from "./supertonic/protocol";
 
 export interface VoiceTiming {
@@ -177,9 +178,11 @@ export function useVoice({ locale, open, fetchImpl, audio: audioIn, natural: nat
     void speakerRef.current?.speak(text, lang);
   }, []);
 
+  // The in-browser voice is only offered in Supertonic's languages (not zh or th: those use the server).
+  const naturalAvailable = available && isSupertonicLang(locale);
   const natural = useMemo(
     () => ({
-      available,
+      available: naturalAvailable,
       status,
       dismissed,
       download: () => {
@@ -198,7 +201,7 @@ export function useVoice({ locale, open, fetchImpl, audio: audioIn, natural: nat
       },
       retry: () => void client.current?.probe(),
     }),
-    [available, status, dismissed, audio],
+    [naturalAvailable, status, dismissed, audio],
   );
 
   const benchLocal = useCallback(async (text: string, lang: Locale) => {

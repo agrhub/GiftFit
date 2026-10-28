@@ -272,10 +272,12 @@ export function MicButton({ tr, lang, sessionId, disabled, fetchImpl, onStart, o
   const busy = phase === "transcribing";
   const sec = Math.min(MAX_CLIP_MS, elapsed) / 1000;
 
+  // The popovers anchor to the composer (WidgetChat's form is `relative`), not to the button: the Send
+  // button's width varies by language, and a popover pinned to the mic could leave the panel on the left.
   return (
-    <div className="relative">
+    <div>
       {phase === "notice" && (
-        <div role="dialog" aria-labelledby={ids.notice} className="absolute right-0 bottom-full z-10 mb-2 w-72 rounded-2xl border border-line bg-white p-4 text-left text-sm text-ink shadow-xl" data-testid="voice-mic-notice">
+        <div role="dialog" aria-labelledby={ids.notice} className="absolute right-3 bottom-[calc(100%-2.5rem)] z-10 w-72 max-w-[calc(100%-1.5rem)] rounded-2xl border border-line bg-white p-4 text-left text-sm text-ink shadow-xl" data-testid="voice-mic-notice">
           <p id={ids.notice} className="mb-1 font-semibold">
             {tr("voice.noticeTitle")}
           </p>
@@ -297,7 +299,7 @@ export function MicButton({ tr, lang, sessionId, disabled, fetchImpl, onStart, o
         </div>
       )}
       {(recording || busy || error || info) && (
-        <div id={ids.status} role="status" className="absolute right-0 bottom-full mb-2 w-64 rounded-xl border border-line bg-white px-3 py-2 text-xs text-ink shadow-lg" data-testid="voice-mic-status">
+        <div id={ids.status} role="status" className="absolute right-3 bottom-[calc(100%-2.5rem)] w-64 max-w-[calc(100%-1.5rem)] rounded-xl border border-line bg-white px-3 py-2 text-xs text-ink shadow-lg" data-testid="voice-mic-status">
           {recording ? (
             <div className="flex items-center gap-2">
               <span aria-hidden="true" className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-rose" />

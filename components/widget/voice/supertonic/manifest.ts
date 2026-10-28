@@ -87,9 +87,9 @@ export function parseManifest(raw: unknown): Manifest {
 
 export const totalBytes = (m: Manifest) => m.files.reduce((n, f) => n + f.size, 0);
 
-/** "398 MB" (decimal megabytes, as download sizes are usually shown). */
-export function formatBytes(n: number, locale: "en" | "vi" = "en"): string {
+/** "398 MB" (decimal megabytes, as download sizes are usually shown); `intlLocale` is a BCP 47 tag. */
+export function formatBytes(n: number, intlLocale = "en-US"): string {
   const mb = n / 1_000_000;
-  const fmt = new Intl.NumberFormat(locale === "vi" ? "vi-VN" : "en-US", { maximumFractionDigits: mb < 10 ? 1 : 0 });
+  const fmt = new Intl.NumberFormat(intlLocale, { maximumFractionDigits: mb < 10 ? 1 : 0 });
   return `${fmt.format(mb)} MB`;
 }

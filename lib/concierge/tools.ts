@@ -240,7 +240,8 @@ export function runConciergeTool(name: string, input: unknown, catalog: Concierg
           result: {
             ok: true,
             status: "draft",
-            note: "Nothing was created. The giver reviews this brief and taps 'Use this brief' to continue.",
+            // The button is not named: its label is translated in the widget, and a quoted English name leaks into other languages.
+            note: "Nothing was created. The giver reviews this brief in the panel and confirms it with the button below it to continue.",
             brief: v.brief,
             suggestions: s.suggestions.map((x) => ({ catalogId: x.catalogId, title: x.title, eligibleMetals: x.eligibleMetals })),
             ...(notes.length ? { notes } : {}),

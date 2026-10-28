@@ -1,4 +1,5 @@
 /** Messages between the widget and the Supertonic voice worker (owner: A4, P8.3). */
+import type { SupertonicLang } from "./inference";
 import type { WeightsErrorCode } from "./weights";
 
 export type ExecutionProvider = "webgpu" | "wasm";
@@ -17,7 +18,7 @@ export type ToWorker =
       steps?: number;
     }
   | { type: "cancel" }
-  | { type: "synth"; id: number; text: string; lang: "en" | "vi"; steps?: number; speed?: number }
+  | { type: "synth"; id: number; text: string; lang: SupertonicLang; steps?: number; speed?: number }
   | { type: "drop"; id: number };
 
 export type InitErrorCode = WeightsErrorCode | "ort" | "storage";

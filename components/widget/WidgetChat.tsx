@@ -232,7 +232,7 @@ export function WidgetChat({ locale, tr, context, productTitle, onBrief, onFirst
           e.preventDefault();
           submit(draft);
         }}
-        className="flex items-end gap-2 border-t border-line bg-white p-3"
+        className="relative flex items-end gap-2 border-t border-line bg-white p-3"
       >
         <div className="min-w-0 flex-1">
           <label htmlFor={ids.input} className="sr-only">

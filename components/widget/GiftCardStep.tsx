@@ -9,10 +9,13 @@
  * The message starts as the occasion's default in the card language (card.defaultMessage.<occasion>)
  * and follows occasion and card-language changes until the giver edits it. The step scrolls; the
  * e-card never shrinks (shrink-0), since a flex child with overflow-hidden would collapse to its border.
+ * Card languages are en/vi only (CARD_LANGS: the e-mail, the recipient page and the occasion headlines
+ * exist in those two); a giver using another UI language starts with an English card.
  */
 import { useEffect, useId, useMemo, useState } from "react";
 import type { CreateFitRequestResponse } from "@/lib/contracts/api";
-import { formatMoney, LOCALES, t as translate, type Locale, type MessageKey } from "@/lib/i18n";
+import { CARD_LANGS, type CardLang } from "@/lib/email/templates";
+import { formatMoney, t as translate, type Locale, type MessageKey } from "@/lib/i18n";
 import { cardTheme, cleanMessage, cleanName, MAX_CARD_MESSAGE, MAX_GIVER_NAME, shareLinks } from "@/lib/widget/share";
 import { QrCode } from "@/components/gift/QrCode";
 
@@ -40,7 +43,7 @@ async function postJson(fetchImpl: typeof fetch, url: string, body: unknown): Pr
 export function GiftCardStep({ locale, tr, result, occasion, baseUrl, facebookAppId, onNewGift, fetchImpl }: GiftCardStepProps) {
   const ids = { lang: useId(), msg: useId(), name: useId(), to: useId(), me: useId() };
   const doFetch = fetchImpl ?? fetch;
-  const [cardLang, setCardLang] = useState<Locale>(locale);
+  const [cardLang, setCardLang] = useState<CardLang>((CARD_LANGS as readonly string[]).includes(locale) ? (locale as CardLang) : "en");
   /** null until the giver edits the message: until then it is the occasion's default. */
   const [edited, setEdited] = useState<string | null>(null);
   const [giverName, setGiverName] = useState("");
@@ -123,6 +126,8 @@ export function GiftCardStep({ locale, tr, result, occasion, baseUrl, facebookAp
   }
 
   const field = "w-full rounded-xl border border-line-strong bg-white px-3 py-2 text-base text-ink placeholder:text-muted focus-visible:outline-2 focus-visible:outline-ink";
+  // An address field beside its button: at least 10rem wide, else the button (long in de, fr, id) wraps below it.
+  const inlineField = "min-w-0 flex-[1_1_10rem]";
   const pill = "inline-flex min-h-11 items-center justify-center rounded-full border border-line-strong bg-white px-4 text-sm text-ink hover:border-ink";
 
   return (
@@ -135,8 +140,8 @@ export function GiftCardStep({ locale, tr, result, occasion, baseUrl, facebookAp
       <div className="grid grid-cols-1 gap-3">
         <label htmlFor={ids.lang} className="text-sm font-medium text-ink">
           {tr("card.language")}
-          <select id={ids.lang} value={cardLang} onChange={(e) => setCardLang(e.target.value as Locale)} className={`${field} mt-1`} data-testid="widget-card-lang">
-            {LOCALES.map((l) => (
+          <select id={ids.lang} value={cardLang} onChange={(e) => setCardLang(e.target.value as CardLang)} className={`${field} mt-1`} data-testid="widget-card-lang">
+            {CARD_LANGS.map((l) => (
               <option key={l} value={l}>
                 {tr(`lang.${l}` as MessageKey)}
               </option>
@@ -236,8 +241,8 @@ export function GiftCardStep({ locale, tr, result, occasion, baseUrl, facebookAp
         <label htmlFor={ids.to} className="sr-only">
           {tr("email.to")}
         </label>
-        <div className="flex gap-2">
-          <input id={ids.to} type="email" inputMode="email" autoComplete="off" placeholder={tr("email.to")} value={to} onChange={(e) => setTo(e.target.value)} className={field} data-testid="widget-email-to" />
+        <div className="flex flex-wrap gap-2">
+          <input id={ids.to} type="email" inputMode="email" autoComplete="off" placeholder={tr("email.to")} value={to} onChange={(e) => setTo(e.target.value)} className={`${field} ${inlineField}`} data-testid="widget-email-to" />
           <button type="submit" disabled={emailState.busy || !to.trim()} className="min-h-11 shrink-0 rounded-full bg-ink px-4 text-sm font-medium text-ivory disabled:opacity-50" data-testid="widget-email-send">
             {emailState.busy ? tr("email.sending") : tr("email.send")}
           </button>
@@ -260,8 +265,8 @@ export function GiftCardStep({ locale, tr, result, occasion, baseUrl, facebookAp
           <label htmlFor={ids.me} className="text-sm font-medium text-ink">
             {tr("notify.heading")}
           </label>
-          <div className="flex gap-2">
-            <input id={ids.me} type="email" inputMode="email" autoComplete="email" placeholder={tr("notify.email")} value={me} onChange={(e) => setMe(e.target.value)} className={field} data-testid="widget-notify-email" />
+          <div className="flex flex-wrap gap-2">
+            <input id={ids.me} type="email" inputMode="email" autoComplete="email" placeholder={tr("notify.email")} value={me} onChange={(e) => setMe(e.target.value)} className={`${field} ${inlineField}`} data-testid="widget-notify-email" />
             <button type="submit" disabled={notifyState.busy || !me.trim()} className="min-h-11 shrink-0 rounded-full border border-ink px-4 text-sm font-medium text-ink disabled:opacity-50" data-testid="widget-notify-save">
               {tr("notify.save")}
             </button>

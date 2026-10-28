@@ -18,7 +18,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { DEFAULT_CLAUDE_MODEL, reserveClaudeSpend, type ClaudeUsage, type SpendDecision } from "@/lib/anthropic/budget";
 import type { GiftBrief } from "@/lib/contracts/api";
 import { defaultConciergeCatalog, type ConciergeCatalog } from "./catalog";
-import { detectLang, fallbackAnswer, isOffTopic, refusalText } from "./fallback";
+import { detectLang, fallbackAnswer, isOffTopic, refusalText, type Lang } from "./fallback";
+import { closingBriefText, fixedText } from "./fixed-text";
 import { GroundingLedger, ProseScrubber, scrubProse } from "./grounding";
 import { LeadingMetaFilter, stripLeadingMeta } from "./meta-filter";
 import { loadFixtures, pickFixture, FixtureClient, type ConciergeFixture } from "./mock";
@@ -105,9 +106,8 @@ export function estimateInputTokens(messages: readonly Anthropic.MessageParam[])
   return Math.ceil((CONCIERGE_SYSTEM_PROMPT.length + JSON.stringify(CONCIERGE_TOOLS).length + JSON.stringify(messages).length) / 3);
 }
 
-function closingText(lang: "en" | "vi", hasBrief: boolean): string {
-  if (lang === "vi") return hasBrief ? 'Mình đã soạn sẵn yêu cầu quà. Bạn xem lại rồi bấm "Dùng yêu cầu này" nhé.' : "Bạn muốn tặng ai, dịp gì và ngân sách khoảng bao nhiêu?";
-  return hasBrief ? 'I\'ve drafted a gift brief. Review it and tap "Use this brief".' : "Who is the gift for, what's the occasion, and what's your budget?";
+function closingText(lang: Lang, hasBrief: boolean): string {
+  return hasBrief ? closingBriefText(lang) : fixedText("closingAsk", lang);
 }
 
 /**

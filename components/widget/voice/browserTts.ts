@@ -3,7 +3,7 @@
  * for the language exists. Its output cannot be routed into Web Audio, so the character's mouth
  * follows the typing rhythm instead of the sound (CharacterProps.mouth left undefined).
  */
-import type { Locale } from "@/lib/i18n";
+import { INTL_LOCALES, type Locale } from "@/lib/i18n";
 
 export class NoBrowserVoiceError extends Error {
   constructor() {
@@ -20,9 +20,9 @@ export function speechSynth(): SpeechSynthesis | null {
   }
 }
 
-/** The first installed voice for `lang` (exact "vi-VN" style tag preferred), or null. */
+/** The first installed voice for `lang` (exact "vi-VN" / "zh-CN" style tag preferred), or null. */
 export function pickVoice(voices: readonly SpeechSynthesisVoice[], lang: Locale): SpeechSynthesisVoice | null {
-  const tag = lang === "vi" ? "vi-vn" : "en-us";
+  const tag = (INTL_LOCALES[lang] ?? "en-US").toLowerCase();
   const norm = (v: SpeechSynthesisVoice) => v.lang.toLowerCase().replace("_", "-");
   return voices.find((v) => norm(v) === tag) ?? voices.find((v) => norm(v).startsWith(lang)) ?? null;
 }

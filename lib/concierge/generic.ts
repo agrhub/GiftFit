@@ -19,6 +19,7 @@ import { DEFAULT_CLAUDE_MODEL, reserveClaudeSpend, type SpendDecision } from "@/
 import type { PreviewProduct } from "@/lib/preview/types";
 import { capHistory, conciergeMode, type ConciergeLlm, type Reserve } from "./engine";
 import { detectLang, isOffTopic, parseBudgetUsd, type Lang } from "./fallback";
+import { fixedText } from "./fixed-text";
 import { safeContextTitle } from "./context";
 import { scrubProse, sanitizeReason } from "./grounding";
 import { stripLeadingMeta } from "./meta-filter";
@@ -110,20 +111,20 @@ export function genericFallback(history: readonly ConciergeChatMessage[], store:
   const picks = scored.slice(0, GENERIC_MAX_SUGGESTIONS).map((x) => x.p);
   if (!picks.length) {
     return {
-      text: lang === "vi" ? "Mình chưa thấy món nào trong ngân sách đó. Bạn nới ngân sách một chút được không?" : "I couldn't find something within that budget here. Could you stretch it a little?",
+      text: fixedText("genericNoBudget", lang),
       products: [],
     };
   }
   const reason = (p: PreviewProduct) =>
     lang === "vi" ? `Một lựa chọn${p.categoryText ? ` ${p.categoryText.toLowerCase()}` : ""} của cửa hàng${p.price !== null && budget ? ", trong ngân sách" : ""}.` : `A ${p.categoryText ? `${p.categoryText.toLowerCase()} ` : ""}pick from this store${p.price !== null && budget ? ", within your budget" : ""}.`;
   return {
-    text: lang === "vi" ? "Đây là vài gợi ý từ cửa hàng này:" : "Here are a few ideas from this store:",
+    text: fixedText("genericIdeas", lang),
     products: picks.map((p) => toSuggestion(p, reason(p))),
   };
 }
 
 function refusal(lang: Lang): string {
-  return lang === "vi" ? "Mình chỉ có thể giúp chọn quà từ cửa hàng này. Bạn muốn tặng ai, nhân dịp gì?" : "I can only help you choose a gift from this store. Who is it for, and what's the occasion?";
+  return fixedText("genericRefusal", lang);
 }
 
 /** Runs one turn of the generic assistant. Never throws: failures end in the deterministic answer. */
@@ -226,6 +227,6 @@ export async function* runGenericConcierge(input: readonly ConciergeChatMessage[
     yield* fallback("api_error");
     return;
   }
-  yield { type: "text", delta: text || (lang === "vi" ? "Đây là vài gợi ý từ cửa hàng này:" : "Here are a few ideas from this store:") };
+  yield { type: "text", delta: text || fixedText("genericIdeas", lang) };
   yield { type: "final", suggestions: [], products, source: deps.llm ? "mock" : "claude", degraded: false };
 }

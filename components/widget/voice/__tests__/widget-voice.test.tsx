@@ -219,6 +219,21 @@ describe("widget voice", () => {
     }
   });
 
+  it("natural voice is not offered in a language Supertonic doesn't speak (zh), even on desktop WebGPU", async () => {
+    Object.defineProperty(navigator, "gpu", { configurable: true, value: { requestAdapter: async () => ({}) } });
+    vi.stubGlobal("Worker", class { onmessage = null; onerror = null; postMessage() {} terminate() {} });
+    try {
+      localStorage.setItem(VOICE_ON_KEY, "1");
+      render(<WidgetApp store="aurum" parentOrigin={null} preferredLang="zh" allowedLangs={["zh"]} baseUrl="https://giftfit.example" />);
+      await waitFor(() => expect(screen.getByTestId("voice-toggle").getAttribute("aria-pressed")).toBe("true"));
+      expect(screen.getByLabelText("你的消息")).toBeTruthy();
+      await new Promise((r) => setTimeout(r, 50));
+      expect(screen.queryByTestId("natural-voice")).toBeNull();
+    } finally {
+      delete (navigator as { gpu?: unknown }).gpu;
+    }
+  });
+
   it("mic: listening while recording, the transcript is sent as the shopper's message, and voice turns on", async () => {
     localStorage.setItem(MIC_NOTICE_KEY, "1");
     app();

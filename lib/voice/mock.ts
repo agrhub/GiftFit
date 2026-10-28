@@ -9,6 +9,14 @@ import { charCount } from "./config";
 export const MOCK_TRANSCRIPTS: Record<VoiceLang, string> = {
   en: "I'm looking for a gift for my sister, maybe earrings under 200 dollars.",
   vi: "Tôi đang tìm quà cho chị gái, có thể là bông tai dưới năm triệu đồng.",
+  ja: "姉へのプレゼントを探しています。200ドル以下のピアスがいいかもしれません。",
+  ko: "언니에게 줄 선물을 찾고 있어요. 200달러 이하 귀걸이면 좋겠어요.",
+  zh: "我在给姐姐找礼物，也许是200美元以下的耳环。",
+  th: "กำลังหาของขวัญให้พี่สาว อาจเป็นต่างหูราคาไม่เกิน 200 ดอลลาร์",
+  id: "Saya sedang mencari hadiah untuk kakak perempuan saya, mungkin anting di bawah 200 dolar.",
+  es: "Busco un regalo para mi hermana, quizá unos pendientes de menos de 200 dólares.",
+  fr: "Je cherche un cadeau pour ma sœur, peut-être des boucles d'oreilles à moins de 200 dollars.",
+  de: "Ich suche ein Geschenk für meine Schwester, vielleicht Ohrringe unter 200 Dollar.",
 };
 
 export const MOCK_SAMPLE_RATE = 16_000;

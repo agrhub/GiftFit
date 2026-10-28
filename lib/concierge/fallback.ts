@@ -6,11 +6,14 @@
  */
 import type { GiftBrief, StyleFamily } from "@/lib/contracts/api";
 import type { JewelryCategory, Metal, Occasion } from "@/lib/contracts/giftfit";
+import { localeFromText, type Locale } from "@/lib/i18n";
 import { eligibleMetals, genderMatches, type ConciergeCatalog, type GenderPresentation } from "./catalog";
 import { GroundingLedger, validateBrief, validateSuggestions } from "./grounding";
+import { fixedText } from "./fixed-text";
 import type { ConciergeChatMessage, ConciergeSuggestion } from "./types";
 
-export type Lang = "en" | "vi";
+/** The shopper's language: any widget locale. Fixed texts exist in all of them; longer ones in en/vi. */
+export type Lang = Locale;
 
 /** Approximate VND per USD for budget parsing only (the reply says it is approximate). */
 export const VND_PER_USD = 25_000;
@@ -18,7 +21,13 @@ export const DEFAULT_BUDGET_USD = 250;
 
 const VI_CHARS = /[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i;
 
+/**
+ * Another widget language when the text clearly is one (lib/i18n localeFromText), else Vietnamese on
+ * its letters or a single typical word (as before), else English.
+ */
 export function detectLang(text: string): Lang {
+  const l = localeFromText(text);
+  if (l && l !== "en") return l;
   return VI_CHARS.test(text) || /\b(triệu|cho|tặng|quà|khoảng)\b/i.test(text) ? "vi" : "en";
 }
 
@@ -137,9 +146,7 @@ const OFF_TOPIC: RegExp[] = [
 ];
 
 export function refusalText(lang: Lang): string {
-  return lang === "vi"
-    ? "Mình chỉ có thể giúp chọn quà trang sức của cửa hàng này. Bạn muốn tặng ai, dịp gì và ngân sách khoảng bao nhiêu?"
-    : "I can only help you choose a jewelry gift from this store. Who is it for, what's the occasion, and what's your budget?";
+  return fixedText("refusal", lang);
 }
 
 /** True when the latest message is clearly not about choosing a gift here (or tries to steer the model). */

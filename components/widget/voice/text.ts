@@ -25,11 +25,11 @@ export function cleanForSpeech(text: string): string {
     .trim();
 }
 
-/** Sentences (keeps the terminal punctuation); newlines also end a sentence. */
+/** Sentences (keeps the terminal punctuation, incl. CJK 。！？); newlines also end a sentence. */
 export function sentences(text: string): string[] {
   const out: string[] = [];
   for (const line of text.split(/\n+/)) {
-    const parts = line.match(/[^.!?…。]+(?:[.!?…。]+["')\]]*|$)/g) ?? [];
+    const parts = line.match(/[^.!?…。！？]+(?:[.!?…。！？]+["')\]」』]*|$)/g) ?? [];
     for (const p of parts) {
       const s = p.trim();
       if (s) out.push(s);

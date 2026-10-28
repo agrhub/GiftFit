@@ -13,7 +13,8 @@ describe("Supertonic text processing (port of helper.js)", () => {
     expect(preprocessText("e.g., rings @ $300 !", "en")).toBe("<en>for example, rings at $300!</en>");
     // NFKD: Vietnamese tone marks become combining characters, as in the original.
     expect(preprocessText("Chào bạn", "vi")).toBe(`<vi>${"Chào bạn".normalize("NFKD")}.</vi>`);
-    expect(() => preprocessText("x", "fr" as "en")).toThrow(/Invalid language/);
+    expect(() => preprocessText("x", "zh" as "en")).toThrow(/Invalid language/);
+    expect(() => preprocessText("x", "th" as "en")).toThrow(/Invalid language/);
   });
 
   it("maps code points through the indexer (−1 outside it)", () => {

@@ -137,6 +137,23 @@ describe("Speaker", () => {
     expect(notReady.audio.plays[0].buffer.tag).toMatch(/^server:/);
   });
 
+  it("uses the in-browser Supertonic only for its languages: ja yes; zh and th go to the server", async () => {
+    const local: LocalEngine = { ready: () => true, synth: vi.fn(async () => ({ pcm: new Float32Array(441), sampleRate: 44100 })) };
+    const ja = make({ local });
+    void ja.speaker.speak("軽いピアスです。", "ja");
+    await until(() => ja.audio.plays.length === 1);
+    expect(ja.audio.plays[0].buffer.tag).toBe("local:441@44100");
+
+    for (const lang of ["zh", "th"] as const) {
+      const s = make({ local });
+      void s.speaker.speak(lang === "zh" ? "这对耳环很轻。" : "ต่างหูคู่นี้เบามาก", lang);
+      await until(() => s.audio.plays.length === 1);
+      expect(s.audio.plays[0].buffer.tag).toMatch(/^server:/);
+      expect(JSON.parse(String(s.fetchMock.mock.calls[0][1]?.body))).toMatchObject({ lang });
+    }
+    expect(local.synth).toHaveBeenCalledTimes(1);
+  });
+
   it("server capped (429) → browser speechSynthesis with a rhythm mouth, and the server isn't asked again", async () => {
     const browser = vi.fn(async () => {});
     const { speaker, states, fetchMock, audio } = make({ fetch: ttsFetch(429), browser });

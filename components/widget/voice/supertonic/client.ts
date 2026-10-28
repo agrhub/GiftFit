@@ -7,6 +7,7 @@
 import type { Locale } from "@/lib/i18n";
 import type { LocalEngine } from "../speaker";
 import { CACHE_NAME, ORT_BASE, ORT_MODULE, SUPERTONIC_BASE, totalBytes } from "./manifest";
+import { isSupertonicLang } from "./inference";
 import type { ExecutionProvider, FromWorker, InitErrorCode, ReadyTimings, ToWorker } from "./protocol";
 import { cachedBytes, loadManifest, type CacheLike } from "./weights";
 
@@ -165,6 +166,7 @@ export class SupertonicClient implements LocalEngine {
   synth(text: string, lang: Locale, signal: AbortSignal): Promise<{ pcm: Float32Array; sampleRate: number }> {
     const w = this.worker;
     if (!w || !this.ready()) return Promise.reject(new Error("not ready"));
+    if (!isSupertonicLang(lang)) return Promise.reject(new Error(`unsupported language: ${lang}`));
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => settle(() => reject(new Error("timeout"))), this.o.synthTimeoutMs ?? 30_000);

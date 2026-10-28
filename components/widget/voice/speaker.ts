@@ -2,8 +2,9 @@
  * Spoken replies (owner: A4, P8.3): one reply at a time, chunked (≤ 400 chars), the next chunk
  * synthesised while the current one plays, and a fallback ladder per chunk:
  *
- *   Supertonic in the browser (opted in and ready) → server TTS (/api/voice/tts: Google or mock)
- *   → the browser's speechSynthesis (rhythm mouth) → text only
+ *   Supertonic in the browser (opted in and ready, and only for its languages: not zh or th)
+ *   → server TTS (/api/voice/tts: server Supertonic, Google or mock) → the browser's speechSynthesis
+ *   (rhythm mouth) → text only
  *
  * `cancel()` (new message, mic press, panel close, mute) stops playback at once and drops anything
  * still being synthesised: every async step checks a generation counter.
@@ -12,6 +13,7 @@ import type { Locale } from "@/lib/i18n";
 import { synthesize, VoiceHttpError, type ServerEngine } from "./api";
 import type { VoiceAudio } from "./audio";
 import { NoBrowserVoiceError, speakWithBrowser } from "./browserTts";
+import { isSupertonicLang } from "./supertonic/inference";
 import { chunksForSpeech } from "./text";
 
 export type EngineName = "local" | ServerEngine | "browser";
@@ -130,7 +132,7 @@ export class Speaker {
   /** Audio for one chunk from the best engine available; never throws. */
   private async prepare(text: string, lang: Locale, signal: AbortSignal): Promise<Clip | null> {
     const local = this.deps.local?.();
-    if (local?.ready()) {
+    if (local?.ready() && isSupertonicLang(lang)) {
       const t0 = now();
       try {
         const { pcm, sampleRate } = await local.synth(text, lang, signal);

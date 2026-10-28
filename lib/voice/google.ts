@@ -4,9 +4,9 @@
  *
  * STT: synchronous Recognize on the implicit recognizer `projects/<p>/locations/us/recognizers/_`
  * at us-speech.googleapis.com, model chirp_3, autoDecodingConfig (WebM/Opus, Ogg/Opus, MP4/AAC),
- * one forced language (en-US or vi-VN), automatic punctuation. V2 has no data-logging programme; the
- * audio is sent inline and kept nowhere by GiftFit.
- * TTS: synthesizeSpeech with a stock voice (Chirp 3 HD by default, Neural2 fallback), MP3 out.
+ * one forced language (STT_LANGUAGE_CODES: en-US, vi-VN, ja-JP, cmn-Hans-CN, …), automatic punctuation.
+ * V2 has no data-logging programme; the audio is sent inline and kept nowhere by GiftFit.
+ * TTS: synthesizeSpeech with a stock voice (Chirp 3 HD by default, Neural2/Standard fallback), MP3 out.
  *
  * The SDKs are imported on first use only (tests and mock mode never load them) and are server
  * externals (next.config.ts). Clients are process-wide on globalThis.

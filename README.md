@@ -75,6 +75,11 @@ Traditional Virtual Try-On (VTO) is built for people shopping for themselves. Gi
 - **Retailer Console (`/retailer`):** E-commerce dashboard showing completion funnels, hearted-to-purchased conversion rates, undertone catalog coverage, and estimated return-risk reduction.
 - **Universal Drop-In Plugin (`packages/plugin/giftfit.js`):** A lightweight 1-line script tag injecting an accessible shadow-DOM "Gift it right" trigger into any e-commerce PDP.
 
+### Languages
+
+- **Widget UI:** English and Vietnamese (reviewed), plus Japanese, Korean, Simplified Chinese, Thai, Indonesian, Spanish, French and German (machine-translated, not yet reviewed by native speakers). Stores choose with `data-langs` (e.g. `data-langs="en,ja,de"`; default all) and `data-lang` (fallback); the widget follows the page's or browser's language within that list and switches to the language of the shopper's first message. The GiftFit site and its language switcher stay English/Vietnamese, as do e-cards and e-mails.
+- **Chat and voice:** the Concierge answers in the shopper's language. Speech-to-Text uses Google chirp_3 in each widget language; spoken replies use Supertonic 3 where it speaks the language and Google Cloud Text-to-Speech for Chinese and Thai.
+
 ---
 
 ## 🔮 YouCam AI APIs Integration

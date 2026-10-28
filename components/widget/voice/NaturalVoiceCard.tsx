@@ -4,7 +4,7 @@
  * Shown only on desktop with WebGPU, and only once voice is on. Shows the download size from the
  * manifest; nothing is downloaded until "Download" is clicked; progress bar and Cancel while it runs.
  */
-import type { Locale, MessageKey } from "@/lib/i18n";
+import { INTL_LOCALES, type Locale, type MessageKey } from "@/lib/i18n";
 import type { NaturalStatus } from "./supertonic/client";
 import { formatBytes } from "./supertonic/manifest";
 
@@ -22,7 +22,7 @@ export interface NaturalVoiceCardProps {
 }
 
 export function NaturalVoiceCard({ tr, locale, status, variant, onDownload, onCancel, onDismiss, onTurnOff, onRetry }: NaturalVoiceCardProps) {
-  const size = (n: number) => formatBytes(n, locale);
+  const size = (n: number) => formatBytes(n, INTL_LOCALES[locale]);
   if (status.kind === "unavailable" || status.kind === "checking") return null;
   if (variant === "banner" && status.kind === "ready" && !status.cacheWarning) return null;
 

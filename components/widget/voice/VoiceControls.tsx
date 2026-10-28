@@ -26,7 +26,7 @@ export function VoiceToggle({ tr, on, onToggle }: { tr: Tr; on: boolean; onToggl
       aria-label={on ? tr("voice.turnOff") : tr("voice.turnOn")}
       title={on ? tr("voice.turnOff") : tr("voice.turnOn")}
       data-testid="voice-toggle"
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink hover:bg-ivory focus-visible:outline-2 focus-visible:outline-ink"
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink hover:bg-ivory focus-visible:outline-2 focus-visible:outline-ink"
     >
       <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />

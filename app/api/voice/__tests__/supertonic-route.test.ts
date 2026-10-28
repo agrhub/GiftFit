@@ -140,13 +140,29 @@ describe("POST /api/voice/tts with VOICE_SERVER_SUPERTONIC=on", () => {
     expect(s.engine!.state).toBe("idle");
   });
 
-  it("languages outside Supertonic's 31 are refused; error JSON stays giver-safe", async () => {
+  it("languages outside Supertonic's 31 and zh/th are refused; error JSON stays giver-safe", async () => {
     const { deps } = setup();
-    const res = await handleTts(ttsReq({ text: "你好", lang: "zh" }), deps);
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body).toEqual({ error: "bad_lang" });
-    expect(findGiverLeaks(body)).toEqual([]);
+    for (const lang of ["pt-BR", "xx", "na", "ZH"]) {
+      const res = await handleTts(ttsReq({ text: "Olá", lang }), deps);
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body).toEqual({ error: "bad_lang" });
+      expect(findGiverLeaks(body)).toEqual([]);
+    }
+  });
+
+  it.each(["zh", "th"])("%s always goes to Google: the ready engine is never asked, even when forced", async (lang) => {
+    const { deps, engine, logs, counters } = setup({ env: { VOICE_SPIKE: "1", CRON_SECRET: SECRET } });
+    await engine!.waitReady(1000);
+    const text = lang === "zh" ? "这对耳环很轻。" : "ต่างหูคู่นี้เบามาก";
+    const res = await handleTts(ttsReq({ text, lang }), deps);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("x-voice-engine")).toBe("mock");
+    const forced = await handleTts(ttsReq({ text, lang }, { authorization: `Bearer ${SECRET}`, "x-voice-engine-force": "supertonic" }), deps);
+    expect(forced.headers.get("x-voice-engine")).toBe("mock");
+    expect(engine!.pending()).toBe(0);
+    expect(await counters.get(dailyKey("supertonic", NOW))).toBe(0);
+    expect(logs.join("\n")).not.toMatch(/supertonic-server/);
   });
 
   it("the first STT call warms the engine (lazy load on first voice use)", async () => {
