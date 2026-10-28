@@ -233,6 +233,26 @@ describe("POST /api/voice/tts", () => {
     expect([...counters.counts.entries()].filter(([k]) => k.startsWith("voice-tts-s-")).every(([, v]) => v === 0)).toBe(true);
   });
 
+  it("Google is the only engine (ADR-059): retired engine-override env and headers change nothing, limits still apply", async () => {
+    const calls: string[] = [];
+    const engine: TtsEngine = { name: "google", synthesize: async (i) => (calls.push(i.lang), { audio: new Uint8Array([0xff, 0xfb]), contentType: "audio/mpeg", voice: "en-US-Chirp3-HD-Charon" }) };
+    const env = { VOICE_SPIKE: "1", CRON_SECRET: "spike-secret-for-tests" };
+    const { deps, counters } = makeDeps({ tts: () => engine, env });
+    const forced = { authorization: "Bearer spike-secret-for-tests", "x-voice-engine-force": "local" };
+    for (const lang of ["en", "vi", "ja", "zh", "th", "pt"]) {
+      const res = await handleTts(ttsReq({ text: "Here are three ideas.", lang }, forced), deps);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("x-voice-engine")).toBe("google");
+      expect(res.headers.get("content-type")).toBe("audio/mpeg");
+      expect([...res.headers.keys()].filter((h) => h.startsWith("x-voice-") && h !== "x-voice-engine")).toEqual([]);
+    }
+    expect(calls).toEqual(["en", "vi", "ja", "zh", "th", "pt"]);
+    expect([...counters.counts.keys()].every((k) => k.startsWith("voice-tts-"))).toBe(true);
+    // The bearer secret no longer lifts the per-session cap.
+    for (let i = 6; i < 12; i += 1) expect((await handleTts(ttsReq({ text: "Hi", lang: "en" }, forced), deps)).status).toBe(200);
+    expect((await handleTts(ttsReq({ text: "Hi", lang: "en" }, forced), deps)).status).toBe(429);
+  });
+
   it("per-IP rate limit voice_tts (40/h)", async () => {
     setRateLimitOverride(true);
     const { deps } = makeDeps();

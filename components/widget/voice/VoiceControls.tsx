@@ -4,12 +4,11 @@
  *   VoiceToggle   spoken replies on/off (OFF by default, remembered per viewer)
  *   AiVoiceLabel  "AI voice", shown under the title whenever voice is on and highlighted while audio
  *                 plays; its popover says the speech is machine-generated and names the engine
- *                 (BigScience Open RAIL-M Attachment A(e) disclosure).
+ *                 (Google Cloud Text-to-Speech, the browser's own voice, or the mock tone).
  */
 import { useEffect, useId, useRef, useState } from "react";
 import type { MessageKey } from "@/lib/i18n";
 import type { EngineName } from "./speaker";
-import { SUPERTONIC_LICENSE_URL } from "./supertonic/manifest";
 
 type Tr = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
@@ -86,9 +85,6 @@ export function AiVoiceLabel({ tr, speaking, engine }: { tr: Tr; speaking: boole
           <span className="mb-1 block font-semibold">{tr("voice.aiInfoTitle")}</span>
           <span className="block">{tr("voice.aiInfo")}</span>
           {shown && <span className="mt-1 block text-ink-soft">{tr(engineKey(shown))}</span>}
-          <a href={SUPERTONIC_LICENSE_URL} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block underline underline-offset-2">
-            {tr("voice.licence")}
-          </a>
         </span>
       )}
       {speaking && (

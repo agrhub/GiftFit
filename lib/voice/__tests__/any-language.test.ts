@@ -5,13 +5,12 @@
  */
 import { describe, expect, it } from "vitest";
 import { MemoryDailyCounterStore } from "@/lib/store/daily-counter";
-import { isTtsLang, sttLanguageMode, TTS_LANGS, TTS_LOCALES, ttsRoute, ttsVoices, voiceLanguageCode } from "../config";
+import { isTtsLang, sttLanguageMode, TTS_LANGS, TTS_LOCALES, ttsVoices, voiceLanguageCode } from "../config";
 import { googleSttEngine, googleTtsEngine, languageFromResponse, type RecognizeRequest, type SpeechV2ClientLike, type SttEngine, type SynthesizeRequest, type TtsClientLike } from "../google";
 import { mockSttEngine, mockTtsEngine, type VoiceServerDeps } from "../server";
 import { handleStt } from "../stt";
-import { SUPERTONIC_LANGS } from "../supertonic/inference";
 import { handleTts } from "../tts";
-import { GOOGLE_TTS_VOICES, googleTtsVoiceFor, hasGoogleTtsVoice, type TtsVoiceChoice } from "../voices";
+import { GOOGLE_TTS_VOICES, googleTtsVoiceFor, type TtsVoiceChoice } from "../voices";
 import { webmClip } from "./containers";
 
 const SESSION = "3b241101-e2bb-4255-8caf-4136c566a962";
@@ -96,22 +95,11 @@ describe("text-to-speech voices for any language", () => {
     expect(noChirp).toEqual(["af", "ca", "eu", "fil", "gl", "is", "ms"]);
   });
 
-  it("covers every Supertonic language, so the Google fallback always exists", () => {
-    for (const l of SUPERTONIC_LANGS) expect(hasGoogleTtsVoice(l), l).toBe(true);
-  });
-
   it("accepts any language with a voice; refuses the rest (→ text only in the widget)", () => {
     for (const l of ["pt", "it", "ru", "ar", "hi", "he", "nb", "ms", "yue", "fil"]) expect(isTtsLang(l), l).toBe(true);
     for (const l of ["fa", "ka", "sw", "km", "am", "xx", "pt-BR", "PT", "", null, undefined, "__proto__", "toString"]) expect(isTtsLang(l), String(l)).toBe(false);
     expect(googleTtsVoiceFor("fa")).toBeNull();
     expect(TTS_LANGS.length).toBe(Object.keys(GOOGLE_TTS_VOICES).length);
-  });
-
-  it("routes: Supertonic's languages may use it; everything else is Google only", () => {
-    expect(ttsRoute("pt")).toBe("supertonic");
-    expect(ttsRoute("he")).toBe("google");
-    expect(ttsRoute("zh")).toBe("google");
-    expect(ttsRoute("ms")).toBe("google");
   });
 
   it("picks primary then fallback; single-voice locales have no fallback; env overrides still checked", () => {

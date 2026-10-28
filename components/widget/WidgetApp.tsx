@@ -13,8 +13,8 @@
  * as a page, which is handy for development.
  *
  * Voice (A4, P8.3, components/widget/voice): push-to-talk in the chat, spoken replies (OFF until the
- * shopper turns them on or uses the mic) with the "AI voice" label, and the optional in-browser
- * "natural voice". The character listens while recording, thinks while transcribing and talks, its
+ * shopper turns them on or uses the mic; Google Cloud TTS, else the browser's own voice, ADR-059) with
+ * the "AI voice" label. The character listens while recording, thinks while transcribing and talks, its
  * mouth following the audio, while a reply is spoken.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -31,10 +31,8 @@ import { useHostBridge } from "./useHostBridge";
 import { WidgetAbout } from "./WidgetAbout";
 import { WidgetChat } from "./WidgetChat";
 import type { MicPhase } from "./voice/MicButton";
-import { NaturalVoiceCard } from "./voice/NaturalVoiceCard";
 import { SpeakingCharacter } from "./voice/SpeakingCharacter";
 import { useVoice } from "./voice/useVoice";
-import { benchEnabled, VoiceBench } from "./voice/VoiceBench";
 import { AiVoiceLabel, VoiceToggle } from "./voice/VoiceControls";
 
 /** One product of a store-URL preview, as the frame needs it (ADR-055). */
@@ -162,16 +160,12 @@ function Widget({ store, preview, tryOn, parentOrigin, preferredLang, allowedLan
   const [created, setCreated] = useState<{ result: CreateFitRequestResponse; occasion: string } | null>(null);
   const [chatKey, setChatKey] = useState(0);
   const [micPhase, setMicPhase] = useState<MicPhase>("idle");
-  const [bench, setBench] = useState<{ on: boolean; steps?: number; ep?: "wasm" }>({ on: false });
 
   const locale = textLocale ?? detectLocale({ hostLang, navigatorLanguages: navLangs, preferred: preferredLang, allowed: allowedLangs });
   const tr = useMemo(() => translator(locale), [locale]);
-  const voice = useVoice({ locale, conversationLang: convLang, open, steps: bench.steps, forceEp: bench.ep });
+  const voice = useVoice({ locale, conversationLang: convLang, open });
 
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search);
-    const steps = Number(q.get("voicesteps"));
-    setBench({ on: benchEnabled(), ...(steps >= 1 && steps <= 32 ? { steps } : {}), ...(q.get("voiceep") === "wasm" ? { ep: "wasm" as const } : {}) });
     setNavLangs(navigator.languages?.length ? navigator.languages : [navigator.language]);
     const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
     setReducedMotion(Boolean(mq?.matches));
@@ -250,7 +244,6 @@ function Widget({ store, preview, tryOn, parentOrigin, preferredLang, allowedLan
   const charState: CharacterState = micPhase === "recording" || micPhase === "starting" ? "listening" : micPhase === "transcribing" ? "thinking" : speaking ? "talking" : character.state;
   // speechSynthesis can't be analysed: leave `mouth` undefined and the character uses its rhythm.
   const charMouth = speaking ? undefined : character.mouth;
-  const showNaturalBanner = voice.on && voice.natural.available && (!voice.natural.dismissed || ["downloading", "loading"].includes(voice.natural.status.kind));
 
   const context: ConciergePageContext | undefined = useMemo(() => {
     if (match) return { product: { ...(match.giftable !== false ? { catalogId: match.id } : {}), title: match.title, price: match.price, currency: match.currency } };
@@ -332,20 +325,6 @@ function Widget({ store, preview, tryOn, parentOrigin, preferredLang, allowedLan
         )}
       </header>
 
-      {showNaturalBanner && view === "chat" && (
-        <NaturalVoiceCard
-          tr={tr}
-          locale={locale}
-          variant="banner"
-          status={voice.natural.status}
-          onDownload={voice.natural.download}
-          onCancel={voice.natural.cancel}
-          onDismiss={voice.natural.dismiss}
-          onTurnOff={voice.natural.turnOff}
-          onRetry={voice.natural.retry}
-        />
-      )}
-
       {ready && view === "chat" && (
         <a href={`${baseUrl}/g/${encodeURIComponent(ready.giverToken)}`} target="_blank" rel="noopener noreferrer" className="block border-b border-gold/60 bg-cream px-4 py-3 text-sm font-medium text-ink" data-testid="widget-ready">
           {tr("launcher.tipReady")} {tr("report.open")} →
@@ -388,23 +367,7 @@ function Widget({ store, preview, tryOn, parentOrigin, preferredLang, allowedLan
         <BriefConfirm locale={locale} tr={tr} brief={brief.brief} match={match?.giftable === false ? null : match} previewKey={preview?.key} tryOn={tryOn} suggestionTitles={brief.titles} busy={creating} error={createError} onCreate={(b) => void create(b)} onBack={() => setView("chat")} />
       )}
       {view === "card" && created && <GiftCardStep locale={locale} tr={tr} result={created.result} occasion={created.occasion} baseUrl={baseUrl} facebookAppId={facebookAppId} onNewGift={newGift} />}
-      {view === "about" && (
-        <WidgetAbout tr={tr} onBack={() => setView(created ? "card" : "chat")}>
-          {voice.natural.available && (
-            <NaturalVoiceCard
-              tr={tr}
-              locale={locale}
-              variant="about"
-              status={voice.natural.status}
-              onDownload={voice.natural.download}
-              onCancel={voice.natural.cancel}
-              onTurnOff={voice.natural.turnOff}
-              onRetry={voice.natural.retry}
-            />
-          )}
-        </WidgetAbout>
-      )}
-      {bench.on && <VoiceBench voice={voice} />}
+      {view === "about" && <WidgetAbout tr={tr} onBack={() => setView(created ? "card" : "chat")} />}
     </div>
   );
 }

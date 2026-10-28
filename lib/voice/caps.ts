@@ -7,18 +7,14 @@
  *   voice-tts-<YYYY-MM-DD>    Google TTS characters per UTC day (default cap 150000)
  *   voice-stt-s-<sessionkey>  voice inputs per widget session (default 12)
  *   voice-tts-s-<sessionkey>  spoken replies per widget session (default 12)
- *   voice-supertonic-<YYYY-MM-DD>  sentences synthesised by the server Supertonic engine (default 400;
- *                                  CPU protection, ADR-057). When refused or unreachable → Google.
  *
  * Firestore with STORE=firestore (survives cold starts), process memory otherwise.
  */
 import { isFirestoreStore, type Env } from "@/lib/store/config";
 import { dailyCounterKey, defaultDailyCounterStore, MemoryDailyCounterStore, type DailyCounterStore } from "@/lib/store/daily-counter";
-import { sessionMax, sttDailySeconds, supertonicDailySyntheses, ttsDailyChars } from "./config";
+import { sessionMax, sttDailySeconds, ttsDailyChars } from "./config";
 
 export type VoiceKind = "stt" | "tts";
-/** Daily counters: STT seconds, Google TTS characters, server Supertonic sentences. */
-export type DailyKind = VoiceKind | "supertonic";
 
 const MEMORY_KEY = Symbol.for("giftfit.voice.counters.memory.v1");
 
@@ -28,11 +24,11 @@ export function voiceCounterStore(env: Env = process.env): DailyCounterStore {
   return (g[MEMORY_KEY] ??= new MemoryDailyCounterStore());
 }
 
-export const dailyKey = (kind: DailyKind, nowMs?: number) => dailyCounterKey(`voice-${kind}`, nowMs);
+export const dailyKey = (kind: VoiceKind, nowMs?: number) => dailyCounterKey(`voice-${kind}`, nowMs);
 export const sessionCounterKey = (kind: VoiceKind, sessionKey: string) => `voice-${kind}-s-${sessionKey}`;
 
-function dailyCap(kind: DailyKind, env: Env): number {
-  return kind === "stt" ? sttDailySeconds(env) : kind === "tts" ? ttsDailyChars(env) : supertonicDailySyntheses(env);
+function dailyCap(kind: VoiceKind, env: Env): number {
+  return kind === "stt" ? sttDailySeconds(env) : ttsDailyChars(env);
 }
 
 type CapOpts = { env?: Env; store?: DailyCounterStore; now?: number; log?: (msg: string) => void };
@@ -81,7 +77,7 @@ export interface DailyReservation {
 }
 
 /** Reserves `amount` units of the day's cap for `kind` (fails closed). */
-export async function reserveDaily(kind: DailyKind, amount: number, opts: CapOpts = {}): Promise<DailyReservation | Refused<"daily_cap" | "counter_unavailable">> {
+export async function reserveDaily(kind: VoiceKind, amount: number, opts: CapOpts = {}): Promise<DailyReservation | Refused<"daily_cap" | "counter_unavailable">> {
   const env = opts.env ?? process.env;
   const store = opts.store ?? voiceCounterStore(env);
   const log = opts.log ?? ((m: string) => console.error(m));

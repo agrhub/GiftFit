@@ -5,7 +5,7 @@
  *   POST /api/voice/stt   raw MediaRecorder audio, `x-voice-lang: <widget locale>` → { text, lang, detectedLang? }
  *                         | { error }  (detectedLang: the spoken language chirp_3 identified, any language)
  *   POST /api/voice/tts   { text (≤ 400), lang: any language with a Google voice } → audio bytes +
- *                         `x-voice-engine` (supertonic-server | google | mock) | JSON error
+ *                         `x-voice-engine` (google | mock) | JSON error
  *
  * Both carry `x-voice-session` (a random id per page session, see prefs.ts) for the per-session caps.
  */
@@ -57,7 +57,7 @@ export async function transcribe(clip: Blob, lang: Locale, o: VoiceApiOptions): 
   return { text: typeof j.text === "string" ? j.text.trim() : "", lang: isLocale(j.lang) ? j.lang : lang, ...(detected ? { detected } : {}) };
 }
 
-export type ServerEngine = "supertonic" | "google" | "mock";
+export type ServerEngine = "google" | "mock";
 
 export async function synthesize(text: string, lang: string, o: VoiceApiOptions): Promise<{ bytes: ArrayBuffer; engine: ServerEngine }> {
   const res = await (o.fetchImpl ?? fetch)("/api/voice/tts", {
@@ -70,7 +70,6 @@ export async function synthesize(text: string, lang: string, o: VoiceApiOptions)
   const type = res.headers.get("content-type") ?? "";
   if (!res.ok || type.includes("application/json")) throw res.ok ? new VoiceHttpError(503, "no_audio") : await errorFrom(res);
   const e = res.headers.get("x-voice-engine");
-  // `supertonic-server` = Supertonic 3 on GiftFit's server (A13, ADR-057); labelled like "supertonic".
-  const engine: ServerEngine = e === "supertonic" || e === "supertonic-server" ? "supertonic" : e === "mock" ? "mock" : "google";
+  const engine: ServerEngine = e === "mock" ? "mock" : "google";
   return { bytes: await res.arrayBuffer(), engine };
 }

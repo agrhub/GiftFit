@@ -6,8 +6,6 @@
 
 export const VOICE_ON_KEY = "giftfit.voice.on";
 export const MIC_NOTICE_KEY = "giftfit.voice.micNotice";
-export const NATURAL_KEY = "giftfit.voice.natural";
-export const NATURAL_DISMISSED_KEY = "giftfit.voice.naturalDismissed";
 export const SESSION_KEY = "giftfit.voice.session";
 
 function local(): Storage | null {
@@ -42,12 +40,6 @@ export const setVoiceOn = (on: boolean) => write(VOICE_ON_KEY, on ? "1" : "0");
 /** The first-mic notice has been acknowledged in this browser (for the GiftFit origin). */
 export const micNoticeSeen = () => read(MIC_NOTICE_KEY) === "1";
 export const setMicNoticeSeen = () => write(MIC_NOTICE_KEY, "1");
-
-/** The shopper opted in to the in-browser "natural voice" (Supertonic) and it finished downloading once. */
-export const naturalOptedIn = () => read(NATURAL_KEY) === "1";
-export const setNaturalOptedIn = (on: boolean) => write(NATURAL_KEY, on ? "1" : null);
-export const naturalDismissed = () => read(NATURAL_DISMISSED_KEY) === "1";
-export const setNaturalDismissed = () => write(NATURAL_DISMISSED_KEY, "1");
 
 /** A version-4 UUID (the server accepts only that shape for `x-voice-session`). */
 function randomId(): string {

@@ -89,11 +89,8 @@ or endorsed by Live2D Inc.
 
 The fallback SVG gift-box mascot (`components/widget/character/Mascot.tsx`) is original artwork made for GiftFit (MIT).
 
-## Voice (P8.3, ADR-052/053)
+## Voice (P8.3, ADR-052/053/059)
 
 | Path | What | Source | License |
 |---|---|---|---|
-| (not in repo) `public/voice/supertonic/aafc6e32/**`: `onnx/*.onnx`, `tts.json`, `unicode_indexer.json`, `voice_styles/M1.json`, fetched at image build by `scripts/fetch-supertonic.mjs` and served unmodified (split into byte-range parts only) | Text-to-speech model run in the shopper's browser (en and vi), opt-in "Natural voice" | Supertone Inc., https://huggingface.co/supertone-oss-archive/supertonic-3 at revision `aafc6e32416a594460b32413efc49d7fe4ce6d46` (archived 2026-09-09) | BigScience Open RAIL-M License (2022-08-18). A copy is served at `/voice/supertonic/aafc6e32/LICENSE` with a NOTICE. The use restrictions in its Attachment A bind every user of GiftFit's voice feature. |
-| `components/widget/voice/**` (port of the official web inference code) | Text preprocessing and inference loop | https://github.com/supertone-inc/supertonic (archived) | MIT, Copyright (c) 2025 Supertone Inc.; modified by the GiftFit team (notice kept in the file headers) |
-| (not in repo) `public/voice/ort/1.30.0/**`, copied at build by `scripts/copy-ort-web.mjs` | onnxruntime-web runtime (WebGPU/WASM) | Microsoft, npm `onnxruntime-web@1.30.0` | MIT, Copyright (c) Microsoft Corporation (LICENSE served alongside) |
-| Google Cloud Speech-to-Text V2 and Text-to-Speech | Hosted APIs (voice input; fallback voice); no files redistributed | Google Cloud | Google Cloud Terms of Service; audio processed under GiftFit's project, never stored by GiftFit, no data-logging opt-in |
+| Google Cloud Speech-to-Text V2 and Text-to-Speech | Hosted APIs (voice input; the spoken-reply voice, ADR-059); no files redistributed | Google Cloud | Google Cloud Terms of Service; audio processed under GiftFit's project, never stored by GiftFit, no data-logging opt-in |

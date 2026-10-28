@@ -11,11 +11,8 @@ ARG NODE_IMAGE=node:22-slim
 # ---- deps: full install (dev deps are needed by `next build`) ------------------------------------
 FROM ${NODE_IMAGE} AS deps
 WORKDIR /app
-# ONNXRUNTIME_NODE_INSTALL=skip: onnxruntime-node's postinstall must not fetch CUDA binaries (CPU only;
-# the name is from its script/install.js; ONNXRUNTIME_NODE_INSTALL_CUDA is the deprecated alias).
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
-    NEXT_TELEMETRY_DISABLED=1 \
-    ONNXRUNTIME_NODE_INSTALL=skip
+    NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
@@ -27,27 +24,14 @@ ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
     NEXT_TELEMETRY_DISABLED=1 \
     GIFTFIT_SKIP_BUILD_CHECKS=${SKIP_BUILD_CHECKS}
 COPY --from=deps /app/node_modules ./node_modules
-# In-browser voice assets (A13, ADR-052), served from public/voice/ by the runtime image: the
-# onnxruntime-web runtime copied from node_modules, and the Supertonic 3 weights fetched from the pinned
-# Hugging Face revision and verified against the sha256 manifest in the script (Open RAIL-M; never in
-# the repo or the upload: .dockerignore/.gcloudignore exclude public/voice). Its own layer, before the
-# source copy, so code changes do not refetch ~380 MiB when the build cache is available.
-# FETCH_VOICE_ASSETS=0 skips it (the widget then has no in-browser voice and uses the server voice).
-ARG FETCH_VOICE_ASSETS=1
-COPY scripts/fetch-supertonic.mjs scripts/copy-ort-web.mjs ./scripts/
-RUN if [ "$FETCH_VOICE_ASSETS" = "1" ]; then \
-      node scripts/copy-ort-web.mjs && node scripts/fetch-supertonic.mjs \
-      && node scripts/copy-ort-web.mjs --check && node scripts/fetch-supertonic.mjs --check; \
-    fi
 COPY . .
+# Voice is Google Cloud TTS only (ADR-059): no model weights or ONNX Runtime in the image.
 RUN npx next build \
  && test -f .next/standalone/server.js \
  && test ! -d .next/standalone/node_modules/playwright-core \
  && test ! -d .next/standalone/fixtures/youcam/real \
- && test -f .next/standalone/node_modules/onnxruntime-node/bin/napi-v6/linux/x64/onnxruntime_binding.node \
- && test -f .next/standalone/node_modules/onnxruntime-node/bin/napi-v6/linux/x64/libonnxruntime.so.1 \
- && test ! -d .next/standalone/node_modules/onnxruntime-node/bin/napi-v6/win32 \
- && test ! -d .next/standalone/public/voice
+ && test ! -d .next/standalone/node_modules/onnxruntime-node \
+ && test ! -d public/voice
 
 # ---- runtime -------------------------------------------------------------------------------------
 FROM ${NODE_IMAGE} AS runtime
@@ -62,7 +46,6 @@ ENV NODE_ENV=production \
 COPY --from=build --chown=node:node /app/.next/standalone ./
 # Next does not copy these two into the standalone folder.
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
-# public/ includes public/voice/ (onnxruntime-web runtime + Supertonic 3 weights, about 465 MiB) when fetched above.
 COPY --from=build --chown=node:node /app/public ./public
 # Files read from disk at runtime. File tracing already includes them (next.config.ts); copying
 # them explicitly means a tracing change can never drop the judge demo or the ingest snapshots.

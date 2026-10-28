@@ -7,9 +7,21 @@ import { giverJson } from "@/lib/privacy/giver-guard";
 import { giverRateLimit } from "@/lib/privacy/rate-limit";
 import { checkClip, MAX_CLIP_SECONDS, readBodyLimited } from "./audio";
 import { reserveVoice } from "./caps";
-import { charCount, isVoiceLang, supertonicServerEnabled, voiceEnabled } from "./config";
+import { charCount, isVoiceLang, voiceEnabled } from "./config";
 import { capFailure, defaultVoiceDeps, VOICE_ENGINE_HEADER, VOICE_LANG_HEADER, type VoiceServerDeps } from "./server";
 import { voiceSessionKey } from "./session";
+
+/** Whitespace between two Han, kana or CJK/full-width punctuation characters (scripts written without spaces). */
+const SPACE_IN_UNSPACED = /(?<=[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー々〆\u3000-\u303F\uFF00-\uFFEF])\s+(?=[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー々〆\u3000-\u303F\uFF00-\uFFEF])/gu;
+
+/**
+ * chirp_3 returns Japanese and Chinese as space-separated tokens ("母 の 誕生日 を 探し て い ます 。");
+ * drop the spaces between two such characters. Spaces next to Latin text or digits ("予算 は $150") stay,
+ * and Korean (spaced) and Thai are left alone.
+ */
+export function joinUnspaced(text: string): string {
+  return text.replace(SPACE_IN_UNSPACED, "");
+}
 
 /** JSON error through the giver guard (shopper-facing route). */
 const fail = (status: number, error: string) => giverJson({ error }, { status });
@@ -23,8 +35,6 @@ export async function handleStt(req: Request, deps: VoiceServerDeps = defaultVoi
   if (!isVoiceLang(lang)) return fail(400, "bad_lang");
   const session = voiceSessionKey(req, deps.env);
   if (!session) return fail(400, "bad_session");
-  // First voice use warms the server Supertonic engine (ADR-057) while the shopper is still talking.
-  if (supertonicServerEnabled(deps.env)) deps.supertonic?.()?.ensureLoaded();
 
   const body = await readBodyLimited(req);
   if (!body.ok) return fail(400, body.error);
@@ -45,7 +55,7 @@ export async function handleStt(req: Request, deps: VoiceServerDeps = defaultVoi
     deps.log(`[voice] stt engine=${engine.name} lang=${lang} detected=${r.language ?? "-"} container=${clip.container} bytes=${clip.bytes} clip_s=${clip.seconds?.toFixed(1) ?? "?"} billed_s=${r.billedSeconds ?? "?"} chars=${charCount(r.text)} ms=${deps.now() - t0} outcome=ok`);
     // `lang` echoes the widget's language; `detectedLang` is the spoken language chirp_3 reported (any language).
     const detected = r.language && /^[a-z]{2,3}$/.test(r.language) ? { detectedLang: r.language } : {};
-    return giverJson({ text: r.text, lang, ...detected }, { headers: { [VOICE_ENGINE_HEADER]: engine.name } });
+    return giverJson({ text: joinUnspaced(r.text), lang, ...detected }, { headers: { [VOICE_ENGINE_HEADER]: engine.name } });
   } catch (e) {
     await cap.refund();
     deps.log(`[voice] stt engine=${engine.name} lang=${lang} ms=${deps.now() - t0} outcome=error code=${(e as { code?: string }).code ?? "unknown"}`);

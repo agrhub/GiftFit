@@ -183,52 +183,28 @@ describe("widget voice", () => {
     expect(sources[0].stop).toHaveBeenCalled();
   });
 
-  it("natural voice: offered on desktop WebGPU once voice is on, with the size; nothing downloads before the click", async () => {
-    const files = ["onnx/duration_predictor.onnx", "onnx/text_encoder.onnx", "onnx/vector_estimator.onnx", "onnx/vocoder.onnx", "onnx/tts.json", "onnx/unicode_indexer.json", "voice_styles/M1.json"];
-    const manifest = { revision: "aafc6e32", files: files.map((path) => ({ path, size: 50_000_000, sha256: "b".repeat(64), parts: [{ path: `${path}.part000`, size: 50_000_000, sha256: "b".repeat(64) }] })) };
-    const inner = fetchMock.getMockImplementation() as (url: string, init?: RequestInit) => Promise<Response>;
-    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => (String(url).endsWith("/voice/supertonic/aafc6e32/manifest.json") ? Response.json(manifest) : inner(url, init)));
+  it("Google TTS only (ADR-059): no natural-voice offer, no model download, and neither the popover nor About names another engine or a model licence", async () => {
+    // Even a desktop browser with WebGPU gets no in-browser model.
     Object.defineProperty(navigator, "gpu", { configurable: true, value: { requestAdapter: async () => ({}) } });
-    const posted: unknown[] = [];
-    class FakeWorker {
-      onmessage = null;
-      onerror = null;
-      postMessage(m: unknown) {
-        posted.push(m);
-      }
-      terminate() {}
-    }
-    vi.stubGlobal("Worker", FakeWorker);
     try {
       app();
-      expect(screen.queryByTestId("natural-voice")).toBeNull(); // voice is off: nothing offered, nothing fetched
-      expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("/voice/supertonic/"))).toBe(false);
       fireEvent.click(screen.getByTestId("voice-toggle"));
-      const card = await screen.findByTestId("natural-voice");
-      expect(card.textContent).toContain("350 MB");
-      expect(card.textContent).toContain("separate copy for each shop");
-      expect(fetchMock.mock.calls.filter((c) => String(c[0]).includes("/voice/supertonic/")).map((c) => String(c[0]).split("/").pop())).toEqual(["manifest.json"]);
-      expect(posted).toHaveLength(0);
-      fireEvent.click(screen.getByTestId("natural-download"));
-      expect(posted[0]).toMatchObject({ type: "init", allowDownload: true });
-      expect(screen.getByTestId("natural-voice").getAttribute("data-status")).toBe("downloading");
-      fireEvent.click(screen.getByTestId("natural-cancel"));
-      expect(posted.at(-1)).toMatchObject({ type: "cancel" });
-    } finally {
-      delete (navigator as { gpu?: unknown }).gpu;
-    }
-  });
-
-  it("natural voice is not offered in a language Supertonic doesn't speak (zh), even on desktop WebGPU", async () => {
-    Object.defineProperty(navigator, "gpu", { configurable: true, value: { requestAdapter: async () => ({}) } });
-    vi.stubGlobal("Worker", class { onmessage = null; onerror = null; postMessage() {} terminate() {} });
-    try {
-      localStorage.setItem(VOICE_ON_KEY, "1");
-      render(<WidgetApp store="aurum" parentOrigin={null} preferredLang="zh" allowedLangs={["zh"]} baseUrl="https://giftfit.example" />);
-      await waitFor(() => expect(screen.getByTestId("voice-toggle").getAttribute("aria-pressed")).toBe("true"));
-      expect(screen.getByLabelText("你的消息")).toBeTruthy();
-      await new Promise((r) => setTimeout(r, 50));
+      await ask("Anniversary gift for my wife");
+      await waitFor(() => expect(sources.some((s) => s.started)).toBe(true));
       expect(screen.queryByTestId("natural-voice")).toBeNull();
+      expect(fetchMock.mock.calls.every((c) => !String(c[0]).startsWith("/voice/"))).toBe(true);
+
+      fireEvent.click(screen.getByTestId("voice-ai-label"));
+      const info = screen.getByTestId("voice-ai-info");
+      expect(info.textContent).toContain("Google Cloud Text-to-Speech");
+      expect(info.textContent).not.toMatch(/super\s*tonic|rail-m|onnx/i);
+      expect(info.querySelector("a")).toBeNull();
+
+      fireEvent.click(screen.getByTestId("widget-about-open"));
+      const about = await screen.findByTestId("widget-about");
+      expect(screen.getByTestId("widget-about-voice").textContent).toContain("Google Cloud Text-to-Speech");
+      expect(about.textContent).not.toMatch(/super\s*tonic|rail-m|onnx|natural voice/i);
+      expect(about.querySelector('a[href*="/voice/"]')).toBeNull();
     } finally {
       delete (navigator as { gpu?: unknown }).gpu;
     }

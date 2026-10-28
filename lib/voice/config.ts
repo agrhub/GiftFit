@@ -1,7 +1,6 @@
 /**
- * Voice server configuration (owner: A13, ADR-052 as revised 2026-10-26: Supertonic 3 runs in the
- * shopper's browser; the server does Speech-to-Text for both languages and Google Cloud TTS as the
- * server voice for both languages).
+ * Voice server configuration (owner: A13, ADR-052; ADR-059: the server does Speech-to-Text and Google
+ * Cloud Text-to-Speech is the only voice; the widget falls back to the browser's own speechSynthesis).
  *
  *   VOICE_ENABLED=0               both routes answer 503 voice_unavailable (kill switch)
  *   VOICE_MOCK=1 | 0              force mock (canned transcript, sine-tone WAV) or live Google calls.
@@ -25,29 +24,15 @@
  *   VOICE_SESSION_STT_MAX / _TTS_MAX   per widget session (default 12 each)
  *   VOICE_LOG=0                   silence the one metrics line per request (it never holds text or audio)
  *
- * Server-side Supertonic 3 (ADR-057 spike; lib/voice/supertonic/engine.ts):
- *   VOICE_SERVER_SUPERTONIC=on|off      default off: /api/voice/tts uses Google (or mock) as before
- *   VOICE_SUPERTONIC_THREADS            onnxruntime intra-op threads (default 1; set to the vCPU count)
- *   VOICE_SUPERTONIC_QUEUE_MAX          most requests ahead (running + waiting) a newcomer will wait behind
- *                                       (default 2); more → Google. 0 = only when the engine is idle
- *   VOICE_SUPERTONIC_SENTENCE_BUDGET_MS per-sentence budget incl. queue wait (default 4000); beyond → Google
- *   VOICE_SUPERTONIC_STEPS              denoising steps (default 5)
- *   VOICE_SUPERTONIC_DAILY_SYNTHESES    sentences per UTC day on `voice-supertonic-<day>` (default 400)
- *   VOICE_SUPERTONIC_DIR                weights folder (default <cwd>/public/voice/supertonic/aafc6e32)
- *   VOICE_SPIKE=1                       honour `x-voice-engine-force` and skip per-IP/session limits for
- *                                       requests with `Authorization: Bearer $CRON_SECRET` (spike only)
- *
  * Languages (ADR-057 multi-language, "any language"): Speech-to-Text runs chirp_3 with automatic
  * language identification (languageCodes ["auto"]; docs.cloud.google.com/speech-to-text/v2/docs/chirp_3-model:
  * "Language-agnostic audio transcription", GA in us and eu) and returns the language it reports; the
  * x-voice-lang header (a widget locale) only picks the code in fixed mode. TTS takes every language with
- * a Google voice (lib/voice/voices.ts); Supertonic's 31 may use Supertonic first, every other language
- * (zh, th, he, ms …) always uses Google. Codes and voice names were checked against Google's chirp_3
+ * a Google voice (lib/voice/voices.ts). Codes and voice names were checked against Google's chirp_3
  * language table and the Text-to-Speech voice list (2026-10-28).
  */
 import { LOCALES, type Locale } from "@/lib/i18n";
 import type { Env } from "@/lib/store/config";
-import { isSupertonicLang } from "./supertonic/inference";
 import { GOOGLE_TTS_VOICES, hasGoogleTtsVoice, type GoogleTtsLang } from "./voices";
 
 /** Languages the mic accepts: the widget's UI languages. */
@@ -83,18 +68,13 @@ export const MAX_TTS_CHARS = 400;
 export const MAX_TRANSCRIPT_CHARS = 1_000;
 
 /**
- * Languages /api/voice/tts accepts: every language with a Google voice (lib/voice/voices.ts), which
- * includes all of Supertonic's 31. Any other language has no audio: the widget shows the text only.
+ * Languages /api/voice/tts accepts: every language with a Google voice (lib/voice/voices.ts). Any other
+ * language has no audio: the widget shows the text only.
  */
 export type TtsLang = GoogleTtsLang;
 export const TTS_LANGS: readonly TtsLang[] = Object.keys(GOOGLE_TTS_VOICES) as TtsLang[];
 export function isTtsLang(v: unknown): v is TtsLang {
   return hasGoogleTtsVoice(v);
-}
-
-/** The engine family a language can use on the server: Supertonic (when on) then Google, or Google only. */
-export function ttsRoute(lang: TtsLang): "supertonic" | "google" {
-  return isSupertonicLang(lang) ? "supertonic" : "google";
 }
 
 /** Google TTS locale per language (es-US like the mic; cmn-CN is Google's Mandarin TTS locale). */
@@ -169,36 +149,6 @@ export function ttsVoices(lang: TtsLang, env: Env = process.env): string[] {
   if (!fbRaw && !fb) return [primary];
   const fallback = voiceFor(fbRaw, lang, fb ?? primary);
   return fallback === primary ? [primary] : [primary, fallback];
-}
-
-// ---- server-side Supertonic (ADR-057) -------------------------------------------------------------
-
-export const DEFAULT_SUPERTONIC_DAILY = 400;
-
-export function supertonicServerEnabled(env: Env = process.env): boolean {
-  return env.VOICE_SERVER_SUPERTONIC?.trim().toLowerCase() === "on";
-}
-
-function bounded(raw: string | undefined, d: number, min: number, max: number): number {
-  const n = posInt(raw, d);
-  return Math.min(max, Math.max(min, n));
-}
-
-export function supertonicSettings(env: Env = process.env) {
-  return {
-    threads: bounded(env.VOICE_SUPERTONIC_THREADS, 1, 1, 8),
-    queueMax: bounded(env.VOICE_SUPERTONIC_QUEUE_MAX, 2, 0, 20),
-    sentenceBudgetMs: bounded(env.VOICE_SUPERTONIC_SENTENCE_BUDGET_MS, 4000, 250, 60_000),
-    steps: bounded(env.VOICE_SUPERTONIC_STEPS, 5, 1, 16),
-  };
-}
-
-export function supertonicDailySyntheses(env: Env = process.env): number {
-  return posInt(env.VOICE_SUPERTONIC_DAILY_SYNTHESES, DEFAULT_SUPERTONIC_DAILY);
-}
-
-export function voiceSpikeEnabled(env: Env = process.env): boolean {
-  return env.VOICE_SPIKE?.trim() === "1";
 }
 
 /** Characters as Google bills them (code points, spaces included). */

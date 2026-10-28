@@ -2,31 +2,22 @@
  * Spoken replies (owner: A4, P8.3): one reply at a time, chunked (≤ 400 chars), the next chunk
  * synthesised while the current one plays, and a fallback ladder per chunk:
  *
- *   Supertonic in the browser (opted in and ready, and only for its languages: not zh or th)
- *   → server TTS (/api/voice/tts: server Supertonic, Google or mock) → the browser's speechSynthesis
- *   (rhythm mouth) → text only
+ *   server TTS (/api/voice/tts: Google Cloud Text-to-Speech, or the mock tone) → the browser's
+ *   speechSynthesis (rhythm mouth) → text only
  *
  * The language is the reply's own (any language, ADR-057). A language Google has no voice for
- * (lib/voice/voices.ts) and Supertonic doesn't speak is never sent anywhere: the reply stays text only.
+ * (lib/voice/voices.ts) is never sent anywhere: the reply stays text only.
  *
  * `cancel()` (new message, mic press, panel close, mute) stops playback at once and drops anything
  * still being synthesised: every async step checks a generation counter.
  */
-import { isLocale, type Locale } from "@/lib/i18n";
 import { hasGoogleTtsVoice } from "@/lib/voice/voices";
 import { synthesize, VoiceHttpError, type ServerEngine } from "./api";
 import type { VoiceAudio } from "./audio";
 import { NoBrowserVoiceError, speakWithBrowser } from "./browserTts";
-import { isSupertonicLang } from "./supertonic/inference";
 import { chunksForSpeech } from "./text";
 
-export type EngineName = "local" | ServerEngine | "browser";
-
-/** Supertonic running in this browser (components/widget/voice/supertonic/client.ts). */
-export interface LocalEngine {
-  ready(): boolean;
-  synth(text: string, lang: Locale, signal: AbortSignal): Promise<{ pcm: Float32Array; sampleRate: number }>;
-}
+export type EngineName = ServerEngine | "browser";
 
 export interface SpeakerState {
   /** Audio (or the browser voice) is playing. */
@@ -40,19 +31,18 @@ export interface SpeakerState {
 
 export const IDLE: SpeakerState = { speaking: false, preparing: false, engine: null, analysed: false };
 
-/** True when some engine can voice `lang`: a Google voice exists or Supertonic speaks it. Else text only. */
+/** True when a Google voice exists for `lang`. Else the reply stays text only. */
 export function canSpeak(lang: string): boolean {
-  return hasGoogleTtsVoice(lang) || isSupertonicLang(lang);
+  return hasGoogleTtsVoice(lang);
 }
 
 export interface SpeakerDeps {
   audio: VoiceAudio;
   sessionId: string;
   fetchImpl?: typeof fetch;
-  local?: () => LocalEngine | null;
   /** speechSynthesis stand-in for tests; null disables the browser fallback. */
   browserSpeak?: ((text: string, lang: string, signal: AbortSignal) => Promise<void>) | null;
-  /** Bench / diagnostics: one call per synthesised chunk. */
+  /** Diagnostics: one call per synthesised chunk. */
   onTiming?(t: { engine: EngineName; lang: string; chars: number; ms: number }): void;
 }
 
@@ -141,19 +131,6 @@ export class Speaker {
 
   /** Audio for one chunk from the best engine available; never throws. */
   private async prepare(text: string, lang: string, signal: AbortSignal): Promise<Clip | null> {
-    const local = this.deps.local?.();
-    if (local?.ready() && isSupertonicLang(lang) && isLocale(lang)) {
-      const t0 = now();
-      try {
-        const { pcm, sampleRate } = await local.synth(text, lang, signal);
-        this.deps.onTiming?.({ engine: "local", lang, chars: text.length, ms: now() - t0 });
-        if (signal.aborted) return null;
-        return { kind: "audio", buffer: this.deps.audio.fromPcm(pcm, sampleRate), engine: "local" };
-      } catch {
-        if (signal.aborted) return null;
-        /* fall through to the server */
-      }
-    }
     if (!this.serverCapped && this.deps.audio.supported) {
       const t0 = now();
       try {

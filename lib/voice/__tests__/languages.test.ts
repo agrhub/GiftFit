@@ -1,6 +1,6 @@
 /**
- * Voice languages (ADR-057 multi-language): chirp_3 codes per widget language, TTS routing (zh/th →
- * Google only; Supertonic's languages → Supertonic when on) and the default Google voices.
+ * Voice languages (ADR-057 multi-language): chirp_3 codes per widget language, the languages TTS
+ * accepts (Google only, ADR-059) and the default Google voices.
  */
 import { describe, expect, it } from "vitest";
 import { LOCALES } from "@/lib/i18n";
@@ -11,14 +11,12 @@ import {
   isVoiceLang,
   STT_LANGUAGE_CODES,
   TTS_LOCALES,
-  ttsRoute,
   ttsVoices,
   VOICE_LANGS,
   voiceLanguageCode,
 } from "../config";
 import { buildRecognizeRequest } from "../google";
 import { MOCK_TRANSCRIPTS } from "../mock";
-import { isSupertonicLang } from "../supertonic/inference";
 
 describe("speech-to-text languages", () => {
   it("the mic takes every widget language and nothing else", () => {
@@ -40,19 +38,8 @@ describe("speech-to-text languages", () => {
   });
 });
 
-describe("text-to-speech routing", () => {
-  it("zh and th go to Google only; the other widget languages can use Supertonic", () => {
-    expect(ttsRoute("zh")).toBe("google");
-    expect(ttsRoute("th")).toBe("google");
-    for (const l of ["en", "vi", "ja", "ko", "id", "es", "fr", "de"] as const) {
-      expect(ttsRoute(l)).toBe("supertonic");
-      expect(isSupertonicLang(l)).toBe(true);
-    }
-    expect(isSupertonicLang("zh")).toBe(false);
-    expect(isSupertonicLang("th")).toBe(false);
-  });
-
-  it("accepts every widget language plus Supertonic's 31; refuses the rest", () => {
+describe("text-to-speech languages", () => {
+  it("accepts every widget language and the other languages Google has a voice for; refuses the rest", () => {
     for (const l of LOCALES) expect(isTtsLang(l)).toBe(true);
     for (const l of ["it", "pt", "uk", "ar"]) expect(isTtsLang(l)).toBe(true);
     for (const l of ["na", "zh-CN", "ZH", "xx", "", null]) expect(isTtsLang(l)).toBe(false);

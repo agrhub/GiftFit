@@ -39,5 +39,5 @@ docs/reports/*-shots
 tests
 **/__tests__
 
-# In-browser voice assets: the image build copies/fetches them itself (A13); never upload a local copy
+# Leftover local copies of the retired in-browser voice assets (ADR-059): never upload or ship them
 public/voice

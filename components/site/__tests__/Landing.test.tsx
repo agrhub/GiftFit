@@ -36,8 +36,10 @@ describe("Landing", () => {
     expect(screen.getByTestId("link-judge-demo").getAttribute("href")).toBe("/demo");
     expect(screen.getByTestId("ai-note").textContent).toMatch(/AI-generated/);
     const credits = screen.getByTestId("site-credits").textContent!;
-    for (const s of ["Live2D Inc.", "Mark-kun", "Open RAIL-M", "Attachment A", "Google Cloud Speech-to-Text", "YouCam", "Claude (Anthropic)"]) expect(credits).toContain(s);
-    expect(screen.getByRole("link", { name: "Full licence and use restrictions" }).getAttribute("href")).toMatch(/^\/voice\/supertonic\/.+\/LICENSE$/);
+    for (const s of ["Live2D Inc.", "Mark-kun", "Google Cloud Speech-to-Text", "Text-to-Speech", "computer-generated", "YouCam", "Claude (Anthropic)"]) expect(credits).toContain(s);
+    // Voice is Google Cloud TTS only (ADR-059): no in-browser model, no third-party model licence.
+    expect(credits).not.toMatch(/super\s*tonic|rail-m|onnx/i);
+    expect(document.querySelector('a[href*="/voice/"]')).toBeNull();
     // Landmarks and headings: one h1, a heading per section, the language switcher is a nav.
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     for (const name of ["See it run, right here", "What the assistant does", "How it works", "Quick start", "Paste your store URL", "For judges", "About and credits"]) {

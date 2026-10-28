@@ -3,10 +3,9 @@
  *
  *   AudioBufferSourceNode → AnalyserNode → destination
  *
- * Every engine that returns audio (Supertonic PCM in the browser, server TTS bytes) plays through it,
- * and the AnalyserNode drives the character's mouth (useMouthFromAudio accepts the analyser). The
- * context is created lazily and resumed on a user gesture (mic press, voice toggle), which also
- * unlocks audio on iOS.
+ * The server TTS audio plays through it, and the AnalyserNode drives the character's mouth
+ * (useMouthFromAudio accepts the analyser). The context is created lazily and resumed on a user
+ * gesture (mic press, voice toggle), which also unlocks audio on iOS.
  */
 
 type Ctor = typeof AudioContext;
@@ -60,15 +59,6 @@ export class VoiceAudio {
     const g = this.graph();
     if (!g) throw new Error("no Web Audio");
     return await g.ctx.decodeAudioData(bytes);
-  }
-
-  /** Mono float PCM (−1..1) as an AudioBuffer at its own sample rate (the context resamples). */
-  fromPcm(pcm: Float32Array, sampleRate: number): AudioBuffer {
-    const g = this.graph();
-    if (!g) throw new Error("no Web Audio");
-    const buf = g.ctx.createBuffer(1, Math.max(1, pcm.length), sampleRate);
-    buf.copyToChannel(pcm.length ? (pcm as Float32Array<ArrayBuffer>) : new Float32Array(1), 0);
-    return buf;
   }
 
   /** Plays one buffer; resolves when it ends or is stopped (`stop()` or the signal). */

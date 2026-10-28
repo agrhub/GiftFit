@@ -81,5 +81,5 @@ STATUS.md
 docs/
 
 
-# Voice assets for the in-browser engine (Supertonic 3 Open RAIL-M weights, onnxruntime-web runtime): fetched/copied at build, never committed (A13)
+# Retired in-browser voice assets (ADR-059): local copies only, never committed
 /public/voice/

@@ -12,9 +12,6 @@ class FakeAudio {
   async decode() {
     return {} as AudioBuffer;
   }
-  fromPcm() {
-    return {} as AudioBuffer;
-  }
   async play() {
     this.plays++;
   }
@@ -26,12 +23,12 @@ function make() {
   const browser = vi.fn(async () => undefined);
   const states: SpeakerState[] = [];
   const audio = new FakeAudio();
-  const speaker = new Speaker({ audio: audio as unknown as VoiceAudio, sessionId: "sess-1", fetchImpl: fetchMock as unknown as typeof fetch, local: () => null, browserSpeak: browser }, (s) => states.push(s));
+  const speaker = new Speaker({ audio: audio as unknown as VoiceAudio, sessionId: "sess-1", fetchImpl: fetchMock as unknown as typeof fetch, browserSpeak: browser }, (s) => states.push(s));
   return { fetchMock, browser, states, audio, speaker };
 }
 
 describe("Speaker languages", () => {
-  it("canSpeak: any language with a Google voice or Supertonic; not the rest", () => {
+  it("canSpeak: any language with a Google voice; not the rest", () => {
     for (const l of ["en", "vi", "pt", "it", "he", "ru", "hi", "ms"]) expect(canSpeak(l), l).toBe(true);
     for (const l of ["fa", "ka", "sw", "xx", ""]) expect(canSpeak(l), l).toBe(false);
   });

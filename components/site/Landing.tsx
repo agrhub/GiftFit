@@ -5,7 +5,6 @@
  */
 import Link from "next/link";
 import { Live2DCredits } from "@/components/widget/character/Live2DCredits";
-import { SUPERTONIC_LICENSE_URL } from "@/components/widget/voice/supertonic/manifest";
 import { translator, type Locale, type MessageKey } from "@/lib/i18n";
 import { CodeWindow } from "./CodeWindow";
 import { IconChoose, IconPrivate, IconReport, IconVoice } from "./FeatureIcons";
@@ -88,13 +87,7 @@ export function Credits({ locale }: { locale: Locale }) {
       <p>{tr("site.privacyLink")}</p>
       <p>{tr("site.creditsYoucam")}</p>
       <p>{tr("site.creditsGoogle")}</p>
-      <p>
-        {tr("about.voiceTerms")}{" "}
-        <a href={SUPERTONIC_LICENSE_URL} className="text-fog-300 underline underline-offset-2 hover:text-fog-100">
-          {tr("about.voiceLicence")}
-        </a>
-      </p>
-      <p>{tr("about.voiceCredit")}</p>
+      <p>{tr("about.voiceTerms")}</p>
       <Live2DCredits title={tr("about.credits")} />
     </section>
   );
