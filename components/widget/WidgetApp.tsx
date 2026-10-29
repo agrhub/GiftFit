@@ -23,11 +23,11 @@ import type { ConciergePageContext } from "@/lib/concierge/types";
 import { detectLanguage, detectLocale, translator, uiLocaleFor, type Locale } from "@/lib/i18n";
 import { checkReadyReport, markAnnounced, saveGift, type KeyValueStore, type ReportStatus, type SavedGift } from "@/lib/widget/giver-store";
 import { parentMatchesAncestor, type HostMessage, type PdpSummary } from "@/lib/widget/protocol";
-import { ApiError, httpGiftApi } from "@/components/gift/api";
 import { BriefConfirm, type MatchedProduct } from "./BriefConfirm";
 import { CharacterSlot, type CharacterState } from "./CharacterSlot";
 import { MarkAvatar } from "./character/MarkAvatar";
 import { GiftCardStep } from "./GiftCardStep";
+import { useGiftCreate } from "./useGiftCreate";
 import { useHostBridge } from "./useHostBridge";
 import { WidgetAbout } from "./WidgetAbout";
 import { WidgetChat } from "./WidgetChat";
@@ -156,8 +156,6 @@ function Widget({ store, preview, tryOn, parentOrigin, preferredLang, allowedLan
   const [pdpTip, setPdpTip] = useState(false);
   const [ready, setReady] = useState<SavedGift | null>(null);
   const [brief, setBrief] = useState<{ brief: GiftBrief; titles: string[] } | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | undefined>();
   const [created, setCreated] = useState<{ result: CreateFitRequestResponse; occasion: string } | null>(null);
   const [chatKey, setChatKey] = useState(0);
   const [micPhase, setMicPhase] = useState<MicPhase>("idle");
@@ -252,25 +250,25 @@ function Widget({ store, preview, tryOn, parentOrigin, preferredLang, allowedLan
     return undefined;
   }, [match, product]);
 
-  async function create(body: CreateFitRequestBody) {
-    setCreating(true);
-    setCreateError(undefined);
-    try {
-      // The recipient page and the Fit Report follow the giver's language: the conversation's, else the UI's.
-      const result = await httpGiftApi.createFitRequest({ ...body, giverLang: body.giverLang ?? convLang ?? locale });
+  // A25: times out into "brief.timeout" (Create works as retry); one Idempotency-Key per brief, so a retry never makes a second gift.
+  const gift = useGiftCreate({
+    tr,
+    onCreated: (result, body) => {
       const now = Date.now();
       saveGift(storage("localStorage"), { giverToken: result.giverToken, createdAt: new Date(now).toISOString(), expiresAt: result.expiresAt, occasion: body.occasion }, now);
       setCreated({ result, occasion: body.occasion });
       setView("card");
       post({ type: "sent" });
-    } catch (err) {
-      setCreateError(tr(err instanceof ApiError && err.status === 429 ? "brief.rateLimited" : "brief.error"));
-    } finally {
-      setCreating(false);
-    }
+    },
+  });
+
+  function create(body: CreateFitRequestBody) {
+    // The recipient page and the Fit Report follow the giver's language: the conversation's, else the UI's.
+    return gift.create({ ...body, giverLang: body.giverLang ?? convLang ?? locale });
   }
 
   function newGift() {
+    gift.reset();
     setCreated(null);
     setBrief(null);
     setView("chat");
@@ -368,13 +366,13 @@ function Widget({ store, preview, tryOn, parentOrigin, preferredLang, allowedLan
           voice={{ lang: locale, sessionId: voice.sessionId, onMicStart: voice.onMicStart, onMicPhase: setMicPhase, onReply: voice.speak, onSend: voice.cancel }}
           onBrief={(b, titles) => {
             setBrief({ brief: b, titles });
-            setCreateError(undefined);
+            gift.reset();
             setView("brief");
           }}
         />
       </div>
       {view === "brief" && brief && (
-        <BriefConfirm locale={locale} tr={tr} brief={brief.brief} match={match?.giftable === false ? null : match} previewKey={preview?.key} tryOn={tryOn} suggestionTitles={brief.titles} busy={creating} error={createError} onCreate={(b) => void create(b)} onBack={() => setView("chat")} />
+        <BriefConfirm locale={locale} tr={tr} brief={brief.brief} match={match?.giftable === false ? null : match} previewKey={preview?.key} tryOn={tryOn} suggestionTitles={brief.titles} busy={gift.creating} error={gift.error} onCreate={(b) => void create(b)} onBack={() => setView("chat")} />
       )}
       {view === "card" && created && <GiftCardStep locale={locale} tr={tr} result={created.result} occasion={created.occasion} baseUrl={baseUrl} facebookAppId={facebookAppId} onNewGift={newGift} />}
       {view === "about" && <WidgetAbout tr={tr} onBack={() => setView(created ? "card" : "chat")} />}

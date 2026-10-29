@@ -64,6 +64,7 @@ export const zh: Record<WidgetMessageKey, string> = {
   "brief.back": "返回对话",
   "brief.error": "出了点问题，请再试一次。",
   "brief.rateLimited": "此网络生成的礼物链接过多，请稍后再试。",
+  "brief.timeout": "等待时间过长，请检查网络连接后再试一次。",
 
   "card.heading": "你的礼物卡",
   "card.ready": "礼物链接已生成，72 小时内有效。",

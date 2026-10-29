@@ -15,6 +15,7 @@ import type { StoreProductSnapshot } from "@/lib/contracts/api";
 import { PreviewAwareCatalog } from "@/lib/widget/preview";
 import { previewStoreHooks } from "@/lib/widget/preview-snapshot";
 import { type FitRepository, PrivacyFitRepository, StaticCatalog } from "./repository";
+import { IdempotencyStore, type StoredOutcome } from "./idempotency";
 import { tryOnOfferedTo } from "@/lib/privacy/tryon-mode";
 
 /**
@@ -52,6 +53,8 @@ export interface FitDeps {
   /** Secret mixed into decoy and curation seeds so the recipient cannot reproduce the order. */
   decoySecret: string;
   now: () => Date;
+  /** A25: replays POST /api/fit/requests for a repeated Idempotency-Key (in-memory, 15 min; absent = no replay). */
+  idempotency?: IdempotencyStore<StoredOutcome>;
 }
 
 let overrides: Partial<FitDeps> = {};
@@ -71,6 +74,7 @@ function buildDefaults(): FitDeps {
     taster: createTasteClient(),
     decoySecret: process.env.FIT_DECOY_SECRET || randomBytes(32).toString("hex"),
     now: () => new Date(),
+    idempotency: new IdempotencyStore<StoredOutcome>(),
   };
 }
 

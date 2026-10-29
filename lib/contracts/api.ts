@@ -81,6 +81,13 @@ export interface CreateFitRequestBody {
   giverLang?: string;
 }
 /**
+ * Optional request header on POST /api/fit/requests (A25): a client-made UUID, one per brief, kept across
+ * retries of that brief. A repeat with the same key (same client, same body) within 15 minutes returns the
+ * SAME CreateFitRequestResponse instead of creating a second request (lib/fit/idempotency.ts). 16–64 of
+ * [A-Za-z0-9_-]; an absent or invalid key creates as before.
+ */
+export const IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
+/**
  * Display data of one store product, frozen into a Fit Request created from a store-URL preview
  * (ADR-055, A6), so the giver's Fit Report and the e-card show names, prices and images even after the
  * 24 h preview is gone. Product data only: the merchant's own product page and image URLs.

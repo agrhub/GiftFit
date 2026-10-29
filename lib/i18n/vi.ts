@@ -61,6 +61,7 @@ export const vi: Record<MessageKey, string> = {
   "brief.back": "Quay lại trò chuyện",
   "brief.error": "Có lỗi xảy ra. Bạn thử lại nhé.",
   "brief.rateLimited": "Mạng này đã tạo quá nhiều liên kết quà. Vui lòng thử lại sau.",
+  "brief.timeout": "Mất quá nhiều thời gian. Bạn kiểm tra kết nối rồi thử lại nhé.",
 
   "card.heading": "Thiệp quà của bạn",
   "card.ready": "Liên kết quà đã sẵn sàng, có hiệu lực trong 72 giờ.",

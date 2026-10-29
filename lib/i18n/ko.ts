@@ -64,6 +64,7 @@ export const ko: Record<WidgetMessageKey, string> = {
   "brief.back": "채팅으로 돌아가기",
   "brief.error": "문제가 생겼어요. 다시 시도해 주세요.",
   "brief.rateLimited": "이 네트워크에서 만든 선물 링크가 너무 많아요. 잠시 후 다시 시도해 주세요.",
+  "brief.timeout": "시간이 너무 오래 걸렸어요. 연결을 확인하고 다시 시도해 주세요.",
 
   "card.heading": "선물 카드",
   "card.ready": "선물 링크가 준비됐어요. 72시간 동안 사용할 수 있어요.",

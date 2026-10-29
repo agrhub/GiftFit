@@ -64,6 +64,7 @@ export const ja: Record<WidgetMessageKey, string> = {
   "brief.back": "チャットに戻る",
   "brief.error": "問題が発生しました。もう一度お試しください。",
   "brief.rateLimited": "このネットワークからのギフトリンク作成が多すぎます。しばらくしてからもう一度お試しください。",
+  "brief.timeout": "時間がかかりすぎました。接続を確認して、もう一度お試しください。",
 
   "card.heading": "ギフトカード",
   "card.ready": "ギフトリンクの準備ができました。有効期限は 72 時間です。",

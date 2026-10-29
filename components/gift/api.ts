@@ -20,6 +20,7 @@ import type {
   RecipientSessionResponse,
   SwatchResponse,
 } from "@/lib/contracts/api";
+import { IDEMPOTENCY_KEY_HEADER } from "@/lib/contracts/api";
 import type { FitResult, Undertone } from "@/lib/contracts/giftfit";
 import { type Locale, normalizeLocale } from "@/lib/i18n";
 
@@ -84,8 +85,10 @@ export function heartsBody(hearts: readonly HeartChoice[]): HeartsBody {
 }
 
 export interface GiftApi {
+  /** Times out (ApiError code "timeout") after CREATE_TIMEOUT_MS; pass one idempotency key per brief so a retry can't make a second gift. */
   createFitRequest(
     body: CreateFitRequestBody,
+    opts?: CreateFitRequestOptions,
   ): Promise<CreateFitRequestResponse>;
   giverReport(giverToken: string): Promise<GiverReportView>;
   openSession(token: string): Promise<RecipientSessionResponse>;
@@ -113,6 +116,55 @@ export interface GiftApi {
   setUndertone(token: string, value: Undertone | null): Promise<void>;
   /** True when this API is the in-browser UI mock (shown as a banner). */
   readonly isMock?: boolean;
+}
+
+/** POST /api/fit/requests gives up after this long (A25): a lost response must not leave "Creating…" forever. */
+export const CREATE_TIMEOUT_MS = 20_000;
+
+export interface CreateFitRequestOptions {
+  /** Sent as the `Idempotency-Key` header: one per brief, the same on every retry of it. */
+  idempotencyKey?: string;
+  /** Client timeout; default CREATE_TIMEOUT_MS. */
+  timeoutMs?: number;
+}
+
+/** A fresh idempotency key: crypto.randomUUID, else 128 random bits as hex, else (very old browsers) Math.random. */
+export function newIdempotencyKey(): string {
+  const c = (globalThis as { crypto?: Crypto }).crypto;
+  if (typeof c?.randomUUID === "function") return c.randomUUID();
+  const bytes = new Uint8Array(16);
+  if (typeof c?.getRandomValues === "function") c.getRandomValues(bytes);
+  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * `request` with a deadline: rejects with ApiError(0, "timeout") after `ms` and aborts the fetch
+ * (AbortController where available; older browsers just stop waiting).
+ */
+function requestWithTimeout<T>(
+  path: string,
+  init: RequestInit & { bearer?: string },
+  ms: number,
+): Promise<T> {
+  const ctrl = typeof AbortController === "function" ? new AbortController() : undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(
+        new ApiError(
+          0,
+          "timeout",
+          "That took too long. Check your connection and try again.",
+        ),
+      );
+      ctrl?.abort();
+    }, ms);
+  });
+  return Promise.race([
+    request<T>(path, { ...init, ...(ctrl ? { signal: ctrl.signal } : {}) }),
+    deadline,
+  ]).finally(() => clearTimeout(timer));
 }
 
 async function request<T>(
@@ -221,8 +273,22 @@ export function seedJudgeDemo(
 }
 
 export const httpGiftApi: GiftApi = {
-  createFitRequest: (body) =>
-    request<CreateFitRequestResponse>("/api/fit/requests", json(body)),
+  createFitRequest: (body, opts = {}) => {
+    const init = json(body);
+    return requestWithTimeout<CreateFitRequestResponse>(
+      "/api/fit/requests",
+      {
+        ...init,
+        headers: {
+          ...(init.headers as Record<string, string>),
+          ...(opts.idempotencyKey
+            ? { [IDEMPOTENCY_KEY_HEADER]: opts.idempotencyKey }
+            : {}),
+        },
+      },
+      opts.timeoutMs ?? CREATE_TIMEOUT_MS,
+    );
+  },
   giverReport: async (giverToken) =>
     normalizeReport(
       await request<GiverReportStatus>("/api/fit/report", json({ giverToken })),

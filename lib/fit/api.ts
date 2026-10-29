@@ -10,11 +10,13 @@ import { z } from "zod";
 import { type CreateFitRequestResponse, GIFT_MODES, type GiverReportStatus, STYLE_FAMILIES, type StoreProductSnapshot } from "@/lib/contracts/api";
 import { type CatalogSku, type FitResult, METALS, OCCASIONS, type RecipientProfile } from "@/lib/contracts/giftfit";
 import { findGiverLeaks, giverJson } from "@/lib/privacy/giver-guard";
+import { clientKey } from "@/lib/privacy/client-ip";
 import { fitRequestExpiresAt, newFitRequestTokens } from "@/lib/privacy/tokens";
 import { type Locale, uiLocaleFor } from "@/lib/i18n";
 import { curate, inferGender } from "./curate";
 import { type DecoyReasonCode, selectDecoys } from "./decoys";
 import type { FitDeps } from "./deps";
+import { IDEMPOTENCY_HEADER, type StoredOutcome, idempotencyDigest, parseIdempotencyKey } from "./idempotency";
 import { explainFit } from "./explain";
 import { FACE_SHAPE_LABEL, UNDERTONE_LABEL, capitalize } from "./labels";
 import type { StoredBrief, StoredFitRequest } from "./repository";
@@ -126,12 +128,57 @@ export function decoySeed(secret: string, requestId: string): string {
 // ------------------------------------------------------------------ POST /api/fit/requests
 
 /**
+ * POST /api/fit/requests. `limit` is the route's per-IP rate limit, run before creating. With a valid
+ * `Idempotency-Key` header (lib/fit/idempotency.ts) a repeated or concurrent call with the same key, client
+ * and body gets the first call's answer (same giver token, same request) instead of creating again; the
+ * replay goes through `giverJson` like the original and spends no rate-limit slot. No key (or an invalid
+ * one) = create every time, as before.
+ */
+export async function handleCreateRequest(req: Request, deps: FitDeps, limit?: () => Promise<Response | undefined>): Promise<Response> {
+  const key = parseIdempotencyKey(req.headers.get(IDEMPOTENCY_HEADER));
+  if (!key || !deps.idempotency) return (await limit?.()) ?? createRequest(await readJson(req), deps, req);
+  const raw = await req.text().catch(() => "");
+  const digest = idempotencyDigest(key, idempotencyClient(req), raw);
+  const { value } = await deps.idempotency.run(digest, async () => outcomeOf((await limit?.()) ?? (await createRequest(parseJsonText(raw), deps, req))), (o) => o.status === 201);
+  return replayOutcome(value);
+}
+
+function parseJsonText(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+}
+
+/** The salted client-IP hash (lib/privacy/client-ip.ts) scoping a key to one client; "none" when unavailable. */
+function idempotencyClient(req: Request): string {
+  try {
+    return clientKey(req, "fit_idempotency");
+  } catch {
+    return "none";
+  }
+}
+
+async function outcomeOf(res: Response): Promise<StoredOutcome> {
+  const retryAfter = res.headers.get("retry-after");
+  return { status: res.status, payload: await res.json().catch(() => ({ error: "internal_error" })), ...(retryAfter ? { retryAfter } : {}) };
+}
+
+/** Every answer, first or replayed, leaves through the giver guard with the original's allow-listed product images. */
+function replayOutcome(o: StoredOutcome): Response {
+  const products = (o.payload as { products?: unknown } | null)?.products;
+  const images = Array.isArray(products) ? products.flatMap((p) => (typeof (p as StoreProductSnapshot)?.image === "string" ? [(p as StoreProductSnapshot).image as string] : [])) : [];
+  return giverJson(o.payload, { status: o.status, ...(o.retryAfter ? { headers: { "Retry-After": o.retryAfter } } : {}), ...(images.length ? { allowedImageUrls: images } : {}) });
+}
+
+/**
  * Creates a Fit Request: validates the shortlist, picks decoys server-side (never returned), mints
  * the giver and recipient tokens (only their SHA-256 hashes are stored, in lib/privacy) with the
  * 72 h expiry. Refuses (422 insufficient_catalog) rather than create a request with < 2 decoys.
  */
-export async function handleCreateRequest(req: Request, deps: FitDeps): Promise<Response> {
-  const parsed = CreateBody.safeParse(await readJson(req));
+async function createRequest(input: unknown, deps: FitDeps, req: Request): Promise<Response> {
+  const parsed = CreateBody.safeParse(input);
   if (!parsed.success) return json<FitErrorResponse>({ error: "bad_request", message: parsed.error.issues[0]?.message }, 400);
   const body = parsed.data;
   if (body.mode === "help_me_choose") return createHelpMeChoose(body, deps, req);

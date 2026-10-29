@@ -64,6 +64,7 @@ export const de: Record<WidgetMessageKey, string> = {
   "brief.back": "Zurück zum Chat",
   "brief.error": "Etwas ist schiefgelaufen. Bitte versuch es noch einmal.",
   "brief.rateLimited": "Zu viele Geschenklinks aus diesem Netzwerk. Bitte versuch es später noch einmal.",
+  "brief.timeout": "Das hat zu lange gedauert. Prüf deine Verbindung und versuch es noch einmal.",
 
   "card.heading": "Deine Geschenkkarte",
   "card.ready": "Dein Geschenklink ist fertig. Er ist 72 Stunden gültig.",

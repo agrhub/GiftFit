@@ -64,6 +64,7 @@ export const fr: Record<WidgetMessageKey, string> = {
   "brief.back": "Retour au chat",
   "brief.error": "Un problème est survenu. Veuillez réessayer.",
   "brief.rateLimited": "Trop de liens cadeaux depuis ce réseau. Veuillez réessayer plus tard.",
+  "brief.timeout": "Cela a pris trop de temps. Vérifiez votre connexion et réessayez.",
 
   "card.heading": "Votre carte cadeau",
   "card.ready": "Votre lien cadeau est prêt. Il est valable 72 heures.",

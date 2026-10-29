@@ -64,6 +64,7 @@ export const en = {
   "brief.back": "Back to the chat",
   "brief.error": "Something went wrong. Please try again.",
   "brief.rateLimited": "Too many gift links from this network. Please try again later.",
+  "brief.timeout": "That took too long. Check your connection and try again.",
 
   "card.heading": "Your gift card",
   "card.ready": "Your gift link is ready. It works for 72 hours.",

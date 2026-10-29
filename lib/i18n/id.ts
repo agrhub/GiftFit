@@ -64,6 +64,7 @@ export const id: Record<WidgetMessageKey, string> = {
   "brief.back": "Kembali ke obrolan",
   "brief.error": "Terjadi kesalahan. Silakan coba lagi.",
   "brief.rateLimited": "Terlalu banyak tautan hadiah dari jaringan ini. Silakan coba lagi nanti.",
+  "brief.timeout": "Prosesnya terlalu lama. Periksa koneksi Anda, lalu coba lagi.",
 
   "card.heading": "Kartu hadiah Anda",
   "card.ready": "Tautan hadiah Anda sudah siap. Berlaku selama 72 jam.",
