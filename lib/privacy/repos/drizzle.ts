@@ -111,6 +111,8 @@ export class DrizzlePrivacyRepos implements PrivacyRepos {
           // TODO(A1): no column for the "help_me_choose" brief (mode, categories, styleHints,
           // genderPresentation; ADR-045) yet; a `brief jsonb` column would keep it. Until then lib/fit
           // infers the mode from the row shape (no decoys, ≥ 5 designs) and the gender from the set.
+          // TODO(A1): no `giver_lang` column either; Drizzle rows read without one (recipient page and
+          // report fall back to the browser language, then English).
           status: input.status ?? "created",
           createdAt,
           expiresAt: input.expiresAt ?? fitRequestExpiresAt(createdAt),

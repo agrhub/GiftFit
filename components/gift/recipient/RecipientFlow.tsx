@@ -3,8 +3,14 @@
  * Recipient flow (owner: A4), mobile-first: consent → selfie → optional hand photo → progress →
  * 6-item carousel with hearts → undertone estimate with override → done. The timer runs from
  * link open to hearts sent (target < 60 s on a real run).
+ *
+ * Every visible string comes from lib/i18n/recipient in `locale` (A21): the page picks it on the server
+ * from Accept-Language and the giver's language, and it is corrected here only when navigator.languages
+ * disagrees. Product titles stay as the store wrote them.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { t as widgetT, type Locale } from "@/lib/i18n";
+import { faceShapeText, metalInline, recipientLocale, recipientTranslator, type RecipientT } from "@/lib/i18n/recipient";
 import type {
   CaptureResponse,
   CarouselItem,
@@ -14,18 +20,16 @@ import { DeleteEverythingButton } from "@/components/trust/DeleteEverythingButto
 import { Disclaimer } from "@/components/trust/Disclaimer";
 import { RecipientTransparencyCard } from "@/components/trust/TransparencyCard";
 import type { UndertoneValue } from "@/components/trust/UndertoneEstimateCard";
-import { OCCASION_LABELS } from "@/components/store/format";
-import { ApiError, type GiftApi, friendlyError, loadGiftApi } from "../api";
+import { ApiError, type GiftApi, loadGiftApi } from "../api";
 import { useExpiredLines } from "../expiredLines";
+import { setGiftLocale } from "../giftLocale";
 import { setGiftStoreName, storeNameFor } from "../giftStore";
 import { HandIcon, HeartIcon, ShieldIcon } from "../icons";
 import { AiModelBadge } from "./AiModelBadge";
+import { RecipientLocaleProvider, recipientErrorMessage } from "./i18n";
 import type { RetakeKind } from "./tryOnFailures";
 import {
-  CAP_NOTE,
   type CardState,
-  PHOTO_DELETED_NOTE,
-  PHOTO_RETENTION,
   type TryOnRender,
   defaultSwatch,
   heartKey,
@@ -59,7 +63,8 @@ const UndertoneEstimateCard = dynamic(
 
 type Step =
   | { kind: "loading" }
-  | { kind: "error"; message: string; retry: boolean }
+  // The message is rendered from `err` in the current locale ("invalid": link not valid / deleted).
+  | { kind: "error"; err?: unknown; invalid?: boolean; retry: boolean }
   | { kind: "expired"; preview?: boolean }
   | { kind: "consent" }
   | { kind: "declined" }
@@ -87,6 +92,13 @@ function stripImages(c: CaptureResponse): CaptureResponse {
 export interface RecipientFlowProps {
   token: string;
   api?: GiftApi;
+  /** The page's locale, decided on the server (default English). */
+  locale?: Locale;
+  /**
+   * The giver's conversation language, for the client-side correction: the browser's language when it is
+   * one of the ten, else this (null = none stored). Undefined = keep `locale` as given.
+   */
+  giverLang?: string | null;
 }
 
 const primary =
@@ -108,50 +120,35 @@ function ActionBar({ children }: { children: React.ReactNode }) {
 function NoTryOnCopy({
   note,
   where,
+  t,
 }: {
   note?: RecipientSessionResponse["tryOnNote"];
   where: "consent" | "tryon";
+  t: RecipientT;
 }) {
   if (note === "demo_mode")
     return (
       <>
-        Demo mode: try-ons are pre-recorded and no photo is sent.{" "}
+        {t("noTryOn.demoLead")}{" "}
         {where === "consent"
-          ? "You'll just heart the pieces you like."
-          : "Heart the pieces you like from the store's photos."}{" "}
+          ? t("noTryOn.demoConsent")
+          : t("noTryOn.demoTryOn")}{" "}
         <a
           href="/demo"
           data-testid="judge-demo-link"
           className="font-medium text-ink underline decoration-gold underline-offset-2"
         >
-          See pre-recorded try-ons on an AI-generated model
+          {t("noTryOn.demoLink")}
         </a>
       </>
     );
   if (note === "no_eligible")
-    return where === "consent" ? (
-      <>
-        The store&apos;s photos of these pieces can&apos;t be used for try-on,
-        so no photo is needed. You&apos;ll just heart the pieces you like.
-      </>
-    ) : (
-      <>
-        These photos can&apos;t be used for try-on. Heart the pieces you like
-        from the store&apos;s photos.
-      </>
-    );
-  return where === "consent" ? (
-    <>
-      This gift comes from a store preview: try-on isn&apos;t enabled for
-      previews, so no photo is needed. You&apos;ll just heart the pieces you
-      like.
-    </>
-  ) : (
-    <>
-      Try-on isn&apos;t enabled for previews. Heart the pieces you like from the
-      store&apos;s photos.
-    </>
-  );
+    return where === "consent"
+      ? t("noTryOn.noEligibleConsent")
+      : t("noTryOn.noEligibleTryOn");
+  return where === "consent"
+    ? t("noTryOn.previewConsent")
+    : t("noTryOn.previewTryOn");
 }
 
 function PrivacyDetails({
@@ -160,19 +157,21 @@ function PrivacyDetails({
   expiresAt,
   onDeleted,
   tryOn = true,
+  t,
 }: {
   token: string;
   hasHandPhoto?: boolean;
   expiresAt?: string;
   onDeleted: () => void;
   tryOn?: boolean;
+  t: RecipientT;
 }) {
   return (
     <details className="group mt-8 rounded-2xl border border-line bg-white">
       <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 px-4 text-sm font-medium text-ink">
         <span className="flex items-center gap-2">
-          <ShieldIcon className="h-4 w-4 text-sage" /> Your privacy and Delete
-          everything
+          <ShieldIcon className="h-4 w-4 shrink-0 text-sage" />{" "}
+          {t("privacy.summary")}
         </span>
         <span
           aria-hidden="true"
@@ -186,17 +185,41 @@ function PrivacyDetails({
           hasHandPhoto={hasHandPhoto}
           expiresAt={expiresAt}
           tryOn={tryOn}
+          locale={t.locale}
           className="border-0 p-0 shadow-none"
         />
         <div data-testid="delete-everything">
-          <DeleteEverythingButton sessionToken={token} onDeleted={onDeleted} />
+          <DeleteEverythingButton
+            sessionToken={token}
+            onDeleted={onDeleted}
+            locale={t.locale}
+          />
         </div>
       </div>
     </details>
   );
 }
 
-export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
+export function RecipientFlow({
+  token,
+  api: apiProp,
+  locale: serverLocale = "en",
+  giverLang,
+}: RecipientFlowProps) {
+  const [locale, setLocale] = useState<Locale>(serverLocale);
+  // The server read Accept-Language; navigator.languages is the same list in practice, so this rarely changes.
+  useEffect(() => {
+    if (giverLang === undefined) return;
+    const langs = navigator.languages?.length
+      ? navigator.languages
+      : [navigator.language];
+    setLocale(recipientLocale({ browserLanguages: langs, giverLang }));
+  }, [giverLang]);
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    setGiftLocale(locale);
+  }, [locale]);
+  const t = useMemo(() => recipientTranslator(locale), [locale]);
   const expired = useExpiredLines();
   const [step, setStep] = useState<Step>({ kind: "loading" });
   const [session, setSession] = useState<RecipientSessionResponse | null>(null);
@@ -215,12 +238,14 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
   const [localPhoto, setLocalPhoto] = useState(false);
   /** "Delete my photo now" done (ADR-036): previews and hearts stay, no more metal renders. */
   const [photoDeleted, setPhotoDeleted] = useState(false);
-  const [photoNote, setPhotoNote] = useState<string | null>(null);
+  /** "deleted": server photo deleted; "local": deleted from this device before upload. */
+  const [photoNote, setPhotoNote] = useState<"deleted" | "local" | null>(null);
   const [deletingPhoto, setDeletingPhoto] = useState(false);
   /** Remounts the capture step (discarding its photo). */
   const [captureKey, setCaptureKey] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [stepError, setStepError] = useState<string | null>(null);
+  /** The last step's failure (an ApiError or any error), shown in the current locale; null = none. */
+  const [stepError, setStepError] = useState<{ err: unknown } | null>(null);
   const [heartsSeconds, setHeartsSeconds] = useState<number | undefined>();
   const [announce, setAnnounce] = useState("");
   const apiRef = useRef<GiftApi | null>(apiProp ?? null);
@@ -242,12 +267,8 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       (err.status === 404 || err.status === 401) &&
       !err.routeMissing
     )
-      setStep({
-        kind: "error",
-        message: "This link isn't valid, or everything was already deleted.",
-        retry: false,
-      });
-    else setStep({ kind: "error", message: friendlyError(err), retry: true });
+      setStep({ kind: "error", invalid: true, retry: false });
+    else setStep({ kind: "error", err, retry: true });
   }, []);
 
   const open = useCallback(async () => {
@@ -330,7 +351,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
     // After "Delete my photo now" the server returns no try-on images (ADR-036, clarified).
     const deleted = res.tryons.some((t) => t.failureReason === "photo_deleted");
     setPhotoDeleted(deleted);
-    setPhotoNote(deleted ? PHOTO_DELETED_NOTE : null);
+    setPhotoNote(deleted ? "deleted" : null);
     const r: Record<string, TryOnRender> = {};
     const sh: Record<string, string> = {};
     for (const t of res.tryons) {
@@ -361,8 +382,8 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
     setRenders({});
     setCapture((c) => (c ? stripImages(c) : c));
     setPhotoDeleted(true);
-    setPhotoNote(PHOTO_DELETED_NOTE);
-    setAnnounce(PHOTO_DELETED_NOTE);
+    setPhotoNote("deleted");
+    setAnnounce(t("photo.deletedNote"));
   }
   // Earring try-ons need visible earlobes (engine error "2", ADR-026).
   const needsEars = triable.some((i) => i.category === "earring");
@@ -372,7 +393,14 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
     setStep({ kind: "selfie", retake: kind });
   };
   const handCount = triable.filter((i) => i.needsHandPhoto).length;
-  const occasion = session?.occasion ? OCCASION_LABELS[session.occasion] : null;
+  const occasion = session?.occasion
+    ? widgetT(locale, `occasion.${session.occasion}`)
+    : null;
+  /** "Halo Drop Earrings in rose gold" (the store's title, the metal in the page's language). */
+  const named = (title: string, metal?: string) =>
+    metal
+      ? t("piece.inMetal", { title, metal: metalInline(locale, metal) })
+      : title;
   const onDeleted = () => setStep({ kind: "deleted" });
 
   async function accept() {
@@ -405,7 +433,10 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       applyCapture(res, items);
       setLocalPhoto(false);
       setAnnounce(
-        `Your ${res.tryons.filter((t) => t.status === "ready").length} AI previews are ready.`,
+        t.count(
+          "tryon.ready",
+          res.tryons.filter((r) => r.status === "ready").length,
+        ),
       );
       setStep({ kind: "tryon" });
     } catch (err) {
@@ -414,7 +445,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
         (err.status === 410 || (err.status === 404 && !err.routeMissing))
       )
         return fail(err);
-      setStepError(friendlyError(err));
+      setStepError({ err });
       setStep({ kind: "selfie" });
     } finally {
       // The photos only lived in memory on this device; drop them either way.
@@ -435,7 +466,10 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       if (next.has(key)) next.delete(key);
       else next.add(key);
       setAnnounce(
-        `${item?.title ?? "Piece"}${metal ? ` in ${metal.toLowerCase()}` : ""} ${next.has(key) ? "hearted" : "unhearted"}. ${next.size} hearted.`,
+        t(next.has(key) ? "tryon.hearted" : "tryon.unhearted", {
+          name: named(item?.title ?? t("piece.fallback"), metal),
+          count: next.size,
+        }),
       );
       return next;
     });
@@ -463,7 +497,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       } else if (res.status === "cap_reached") {
         setCapNotes((s) => new Set(s).add(itemId));
         setShown((m) => ({ ...m, [itemId]: previous ?? swatchId }));
-        setAnnounce(CAP_NOTE);
+        setAnnounce(t("card.capNote"));
       } else {
         setRenders((r) => ({
           ...r,
@@ -478,15 +512,15 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
         )?.metalLabel;
         if (res.status === "ready")
           setAnnounce(
-            `AI preview of ${item.title}${metal ? ` in ${metal.toLowerCase()}` : ""} is ready.`,
+            t("tryon.metalReady", { name: named(item.title, metal) }),
           );
       }
     } catch (err) {
       setShown((m) => ({ ...m, [itemId]: previous ?? swatchId }));
       setToast(
         err instanceof ApiError && err.status === 410
-          ? "This link has expired."
-          : "We couldn't load that metal. Please try again.",
+          ? t("error.linkExpired")
+          : t("tryon.metalFailed"),
       );
     } finally {
       setLoadingItems((s) => {
@@ -502,23 +536,21 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
     setWished((s) => new Set(s).add(itemId));
     try {
       await (await api()).wishMetal(token, itemId);
-      setToast(
-        "Thanks, noted. They'll know you love the style in another metal.",
-      );
+      setToast(t("tryon.wishNoted"));
     } catch {
       setWished((s) => {
         const n = new Set(s);
         n.delete(itemId);
         return n;
       });
-      setToast("We couldn't send that. Please try again.");
+      setToast(t("tryon.wishFailed"));
     }
   }
 
   useEffect(() => {
     if (!toast) return;
-    const t = window.setTimeout(() => setToast(null), 3500);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => setToast(null), 3500);
+    return () => window.clearTimeout(timer);
   }, [toast]);
 
   /** "Delete my photo now" (ADR-036): works at any point after a photo exists. */
@@ -530,8 +562,8 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       setLocalPhoto(false);
       setCaptureKey((k) => k + 1);
       setStep({ kind: "selfie" });
-      setPhotoNote("Photo deleted from this device. Nothing was uploaded.");
-      setAnnounce("Photo deleted from this device. Nothing was uploaded.");
+      setPhotoNote("local");
+      setAnnounce(t("photo.deletedLocal"));
       return;
     }
     setDeletingPhoto(true);
@@ -541,8 +573,8 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
     } catch (err) {
       setToast(
         err instanceof ApiError && err.status === 410
-          ? "This link has expired."
-          : "We couldn't delete your photo. Please try again.",
+          ? t("error.linkExpired")
+          : t("photo.deleteFailed"),
       );
     } finally {
       setDeletingPhoto(false);
@@ -605,7 +637,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       }
       setStep({ kind: "undertone" });
     } catch (err) {
-      setStepError(friendlyError(err));
+      setStepError({ err });
     } finally {
       setBusy(false);
     }
@@ -618,7 +650,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       await (await api()).finish(token);
       setStep({ kind: "done" });
     } catch (err) {
-      setStepError(friendlyError(err));
+      setStepError({ err });
     } finally {
       setBusy(false);
     }
@@ -626,9 +658,14 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
 
   const h1 =
     "font-display text-[2rem] leading-tight text-ink focus:outline-none";
+  const stepErrorText = stepError ? recipientErrorMessage(t, stepError.err) : null;
 
   return (
-    <div className="flex min-h-[calc(100dvh-4rem)] flex-col">
+    <RecipientLocaleProvider locale={locale}>
+    <div
+      lang={locale}
+      className={`flex min-h-[calc(100dvh-4rem)] flex-col ${WRAP[locale] ?? ""}`}
+    >
       {isDemo || showPhotoBar ? (
         <div className="sticky top-0 z-30 -mx-4 mb-3 border-b border-line bg-cream/95 px-4 py-2 backdrop-blur">
           {isDemo ? (
@@ -637,10 +674,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
               role="note"
             >
               <AiModelBadge />
-              <span>
-                Pre-recorded try-ons of an AI-generated model. No real person,
-                no cost.
-              </span>
+              <span>{t("demo.bar")}</span>
             </p>
           ) : null}
           {showPhotoBar ? (
@@ -649,17 +683,17 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs leading-5 text-ink-soft">
                     {capture || step.kind === "processing"
-                      ? "Your photo is kept for up to 1 hour, only for trying other metals."
-                      : "Your photo is only on this device."}
+                      ? t("photo.kept")
+                      : t("photo.local")}
                   </p>
                   <button
                     type="button"
                     onClick={deletePhotoNow}
                     disabled={deletingPhoto}
                     data-testid="delete-photo-now"
-                    className="min-h-11 shrink-0 rounded-full border border-rose px-3 text-xs font-semibold text-rose hover:bg-blush disabled:cursor-wait disabled:opacity-70"
+                    className="min-h-11 max-w-[50%] shrink-0 rounded-full border border-rose px-3 py-1 text-xs font-semibold leading-4 text-rose hover:bg-blush disabled:cursor-wait disabled:opacity-70"
                   >
-                    {deletingPhoto ? "Deleting…" : "Delete my photo now"}
+                    {deletingPhoto ? t("photo.deleting") : t("photo.delete")}
                   </button>
                 </div>
               ) : (
@@ -668,7 +702,11 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
                   role="status"
                   data-testid="photo-deleted-note"
                 >
-                  {photoNote}
+                  {photoNote === "local"
+                    ? t("photo.deletedLocal")
+                    : photoNote
+                      ? t("photo.deletedNote")
+                      : null}
                 </p>
               )}
             </div>
@@ -696,16 +734,20 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       {step.kind === "error" ? (
         <div className="pt-10 text-center" role="alert">
           <h1 ref={headingRef} tabIndex={-1} className={h1}>
-            We hit a snag
+            {t("error.title")}
           </h1>
-          <p className="mt-3 text-ink-soft">{step.message}</p>
+          <p className="mt-3 text-ink-soft">
+            {step.invalid
+              ? t("error.linkInvalid")
+              : recipientErrorMessage(t, step.err)}
+          </p>
           {step.retry ? (
             <button
               type="button"
               onClick={() => void open()}
               className={`${primary} mt-8`}
             >
-              Try again
+              {t("error.retry")}
             </button>
           ) : null}
         </div>
@@ -714,20 +756,22 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       {step.kind === "expired" && step.preview ? (
         <div className="pt-10 text-center" data-testid="preview-expired-screen">
           <h1 ref={headingRef} tabIndex={-1} className={h1}>
-            This preview has expired
+            {t("previewExpired.title")}
           </h1>
-          <p className="mt-3 text-ink-soft">
-            This gift came from a store preview, which is no longer available,
-            so its pieces can&apos;t be shown.
-          </p>
-          <p className="mt-3 text-ink-soft" lang={expired.lang}>
-            {expired.lines.recipient}
-          </p>
+          <p className="mt-3 text-ink-soft">{t("previewExpired.body")}</p>
+          {/* A17's second-language line (ADR-057) only while the page is English: otherwise the line above
+              is already in the reader's language. */}
+          {locale === "en" ? (
+            <p className="mt-3 text-ink-soft" lang={expired.lang}>
+              {expired.lines.recipient}
+            </p>
+          ) : null}
           <PrivacyDetails
             tryOn={!noTryOn}
             token={token}
             expiresAt={session?.expiresAt}
             onDeleted={onDeleted}
+            t={t}
           />
         </div>
       ) : null}
@@ -735,48 +779,40 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       {step.kind === "expired" && !step.preview ? (
         <div className="pt-10 text-center" data-testid="expired-screen">
           <h1 ref={headingRef} tabIndex={-1} className={h1}>
-            This link has expired
+            {t("expired.title")}
           </h1>
-          <p className="mt-3 text-ink-soft">
-            Gift links last 72 hours. Everything connected to it has been
-            deleted.
-          </p>
+          <p className="mt-3 text-ink-soft">{t("expired.body")}</p>
         </div>
       ) : null}
 
       {step.kind === "deleted" ? (
         <div className="pt-10 text-center" data-testid="deleted-screen">
           <h1 ref={headingRef} tabIndex={-1} className={h1}>
-            Everything is deleted
+            {t("deleted.title")}
           </h1>
-          <p className="mt-3 text-ink-soft">
-            Your photos, try-ons, estimates and hearts are gone, and this link
-            no longer works.
-          </p>
+          <p className="mt-3 text-ink-soft">{t("deleted.body")}</p>
         </div>
       ) : null}
 
       {step.kind === "declined" ? (
         <div className="flex flex-1 flex-col pt-10 text-center">
           <h1 ref={headingRef} tabIndex={-1} className={h1}>
-            No problem
+            {t("declined.title")}
           </h1>
-          <p className="mt-3 text-ink-soft">
-            Nothing was shared and no photo was taken. If you change your mind,
-            open the link again while it&apos;s valid.
-          </p>
+          <p className="mt-3 text-ink-soft">{t("declined.body")}</p>
           <button
             type="button"
             onClick={() => setStep({ kind: "consent" })}
             className="mt-8 min-h-12 text-sm text-ink underline underline-offset-4"
           >
-            Go back
+            {t("declined.back")}
           </button>
           <PrivacyDetails
             tryOn={!noTryOn}
             token={token}
             expiresAt={session?.expiresAt}
             onDeleted={onDeleted}
+            t={t}
           />
         </div>
       ) : null}
@@ -794,46 +830,45 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
           <p className="min-h-4 text-xs font-semibold uppercase tracking-[0.24em] text-gold-deep">
             {noTryOn
               ? occasion
-                ? `A private gift · ${occasion}`
-                : "A private gift"
+                ? t("intro.eyebrowGiftOccasion", { occasion })
+                : t("intro.eyebrowGift")
               : occasion
-                ? `A private try-on · ${occasion}`
-                : "A private try-on"}
+                ? t("intro.eyebrowTryOnOccasion", { occasion })
+                : t("intro.eyebrowTryOn")}
           </p>
           <h1 ref={headingRef} tabIndex={-1} className={`${h1} mt-3`}>
-            Someone who cares about you is choosing a gift.
+            {t("intro.title")}
           </h1>
           {noTryOn ? (
             <p className="mt-4 text-base leading-7 text-ink-soft">
-              Look through {items.length || 6} pieces and heart the ones you
-              love.{" "}
+              {t("intro.lookThrough", { count: items.length || 6 })}{" "}
               <strong className="font-semibold text-ink">
-                No photo is needed.
+                {t("intro.noPhoto")}
               </strong>
             </p>
           ) : (
             <>
               <p className="mt-4 text-base leading-7 text-ink-soft">
                 {mixed
-                  ? `Try on ${triable.length} of ${items.length} pieces and heart the ones you love.`
-                  : `Try on ${items.length || 6} pieces and heart the ones you love.`}{" "}
+                  ? t("intro.tryOnMixed", {
+                      triable: triable.length,
+                      count: items.length,
+                    })
+                  : t("intro.tryOn", { count: items.length || 6 })}{" "}
                 <strong className="font-semibold text-ink">
-                  They will never see your photos.
+                  {t("intro.neverSee")}
                 </strong>
               </p>
               <p
                 className="mt-2 text-sm leading-6 text-ink-soft"
                 data-testid="photo-retention"
               >
-                {PHOTO_RETENTION}
+                {t("intro.retention")}
               </p>
             </>
           )}
           {step.kind === "loading" ? (
-            <div
-              className="mt-6 space-y-3"
-              aria-label="Opening your private link"
-            >
+            <div className="mt-6 space-y-3" aria-label={t("intro.opening")}>
               <div className="gf-shimmer h-14 rounded-xl" />
               <div className="gf-shimmer h-14 rounded-xl" />
               <div className="gf-shimmer h-14 rounded-xl" />
@@ -846,7 +881,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
                   data-testid="no-tryon-consent"
                   data-note={tryOnNote}
                 >
-                  <NoTryOnCopy note={tryOnNote} where="consent" />
+                  <NoTryOnCopy note={tryOnNote} where="consent" t={t} />
                 </p>
               ) : null}
               {!noTryOn && mixed ? (
@@ -854,9 +889,10 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
                   className="mt-6 rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink-soft"
                   data-testid="mixed-tryon-consent"
                 >
-                  {triable.length} of {items.length} pieces can be tried on.
-                  The store&apos;s photos of the others can&apos;t be used for
-                  try-on, so you&apos;ll heart those from the photos.
+                  {t("consent.mixed", {
+                    triable: triable.length,
+                    count: items.length,
+                  })}
                 </p>
               ) : null}
               <ul
@@ -864,19 +900,15 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
               >
                 <li className="flex gap-3 rounded-xl border border-line bg-white p-3">
                   <span className="font-display text-xl text-gold-deep">1</span>{" "}
-                  One selfie
-                  {needsHand
-                    ? ", plus an optional photo of the back of your hand"
-                    : ""}
-                  . Takes about a minute.
+                  {needsHand ? t("consent.step1Hand") : t("consent.step1")}
                 </li>
                 <li className="flex gap-3 rounded-xl border border-line bg-white p-3">
                   <span className="font-display text-xl text-gold-deep">2</span>{" "}
-                  Your photos are deleted as soon as your previews are made.
+                  {t("consent.step2")}
                 </li>
                 <li className="flex gap-3 rounded-xl border border-line bg-white p-3">
                   <span className="font-display text-xl text-gold-deep">3</span>{" "}
-                  They see fit scores only, and not which pieces you were shown.
+                  {t("consent.step3")}
                 </li>
               </ul>
               <PrivacyDetails
@@ -884,6 +916,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
                 token={token}
                 expiresAt={session?.expiresAt}
                 onDeleted={onDeleted}
+                t={t}
               />
               <ActionBar>
                 <button
@@ -893,7 +926,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
                   data-testid="consent-accept"
                   className={primary}
                 >
-                  {busy ? "One moment…" : "I'm in. Let's start"}
+                  {busy ? t("consent.busy") : t("consent.accept")}
                 </button>
                 <button
                   type="button"
@@ -901,12 +934,10 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
                   data-testid="consent-decline"
                   className="mt-1 min-h-11 w-full text-sm text-ink-soft underline underline-offset-4"
                 >
-                  No thanks
+                  {t("consent.decline")}
                 </button>
                 <p className="mt-1 text-center text-[0.7rem] leading-4 text-muted">
-                  {noTryOn
-                    ? "By starting, you agree that the pieces you heart are shared with the person choosing your gift."
-                    : "By starting, you agree that your selfie is used to estimate undertone and face shape and to make AI previews."}
+                  {noTryOn ? t("consent.agreeNoTryOn") : t("consent.agree")}
                 </p>
               </ActionBar>
             </>
@@ -917,19 +948,19 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       {step.kind === "selfie" ? (
         <div className="flex flex-1 flex-col pt-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-            Step 1 of {needsHand ? 3 : 2}
+            {t("selfie.step", { total: needsHand ? 3 : 2 })}
           </p>
           <h1 ref={headingRef} tabIndex={-1} className={`${h1} mt-2`}>
-            {step.retake ? "Retake your selfie" : "Take a selfie"}
+            {step.retake ? t("selfie.retakeTitle") : t("selfie.title")}
           </h1>
           <p className="mb-5 mt-1 text-sm text-ink-soft">
             {step.retake === "ears"
-              ? "Tuck your hair behind your ears and face the light. Your hearts are kept."
+              ? t("selfie.retakeEars")
               : step.retake === "wrist"
-                ? "A new selfie first, then a hand photo with your whole wrist in the middle and a little forearm showing. Your hearts are kept."
+                ? t("selfie.retakeWrist")
                 : needsEars
-                  ? "Hair behind your ears, face the light, neck in view."
-                  : "Face the light, with your neck in view for necklaces."}
+                  ? t("selfie.hintEars")
+                  : t("selfie.hint")}
           </p>
           {step.retake && capture ? (
             <button
@@ -938,7 +969,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
               data-testid="back-to-previews"
               className="mb-4 min-h-11 self-start text-sm text-ink underline decoration-gold underline-offset-4"
             >
-              Back to my previews
+              {t("selfie.backToPreviews")}
             </button>
           ) : null}
           <CaptureStep
@@ -946,7 +977,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
             onPhotoChange={setLocalPhoto}
             mode="selfie"
             needsEars={needsEars}
-            error={stepError}
+            error={stepErrorText}
             onConfirm={(blob) => {
               selfieRef.current = blob;
               setLocalPhoto(true);
@@ -962,16 +993,14 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
       {step.kind === "hand" ? (
         <div className="flex flex-1 flex-col pt-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-            Step 2 of 3 · optional
+            {t("hand.step")}
           </p>
           <h1 ref={headingRef} tabIndex={-1} className={`${h1} mt-2`}>
-            Add your hand?
+            {t("hand.title")}
           </h1>
           <p className="mb-5 mt-1 flex items-start gap-2 text-sm text-ink-soft">
             <HandIcon className="mt-0.5 h-4 w-4 shrink-0" />{" "}
-            {handCount === 1 ? "1 piece is" : `${handCount} pieces are`} worn on
-            the hand or wrist. A photo of the back of your hand lets you try{" "}
-            {handCount === 1 ? "it" : "them"} on too.
+            {t.count("hand.body", handCount)}
           </p>
           <CaptureStep
             key={`hand-${captureKey}`}
@@ -998,18 +1027,18 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
           data-testid="tryon-screen"
         >
           <div className="flex items-end justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-                {needsHand ? "Step 3 of 3" : "Step 2 of 2"}
+                {needsHand ? t("tryon.step3") : t("tryon.step2")}
               </p>
               <h1 ref={headingRef} tabIndex={-1} className={`${h1} mt-2`}>
-                {step.readOnly ? "Your previews" : "Heart the ones you love"}
+                {step.readOnly ? t("tryon.titleReadOnly") : t("tryon.title")}
               </h1>
             </div>
             {step.readOnly ? null : (
               <p
                 className="flex shrink-0 items-center gap-1 rounded-full bg-blush px-3 py-1.5 text-sm text-rose"
-                aria-label={`${hearted.size} hearted`}
+                aria-label={t("tryon.heartedCount", { count: hearted.size })}
               >
                 <HeartIcon filled className="h-4 w-4" /> {hearted.size}
               </p>
@@ -1020,11 +1049,11 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
             data-testid={noTryOn ? "no-tryon-note" : undefined}
           >
             {noTryOn ? (
-              <NoTryOnCopy note={tryOnNote} where="tryon" />
+              <NoTryOnCopy note={tryOnNote} where="tryon" t={t} />
             ) : mixed ? (
-              "AI previews are made from your selfie, for you only. Pieces marked \"Not tried on\" show the store's photo."
+              t("tryon.noteMixed")
             ) : (
-              "Every image is an AI preview made from your selfie, for you only."
+              t("tryon.note")
             )}
           </p>
           <TryOnCarousel
@@ -1037,30 +1066,33 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
             onRetake={retake}
             demo={isDemo}
           />
-          <Disclaimer className="mt-4" />
+          <Disclaimer className="mt-4" locale={locale} />
           {capture && capture.processingSeconds > 0 ? (
             <p className="mt-1 text-xs text-muted">
               {/* The photo is kept up to 1 h for other metals (ADR-036; the photo bar says so) until Done or
                   "Delete my photo now": only claim deletion when it happened. */}
-              Previews made in {Math.round(capture.processingSeconds)} s.
-              {photoDeleted ? " Your photo is deleted." : ""}
+              {t("tryon.madeIn", {
+                seconds: Math.round(capture.processingSeconds),
+              })}
+              {photoDeleted ? ` ${t("tryon.photoDeleted")}` : ""}
             </p>
           ) : null}
           <PrivacyDetails
             tryOn={!noTryOn}
             token={token}
             hasHandPhoto={capture?.tryons.some(
-              (t) =>
-                t.status === "ready" &&
-                items.find((i) => i.itemId === t.itemId)?.needsHandPhoto,
+              (r) =>
+                r.status === "ready" &&
+                items.find((i) => i.itemId === r.itemId)?.needsHandPhoto,
             )}
             expiresAt={session?.expiresAt}
             onDeleted={onDeleted}
+            t={t}
           />
           <ActionBar>
-            {stepError ? (
+            {stepErrorText ? (
               <p role="alert" className="mb-2 text-sm text-rose">
-                {stepError}
+                {stepErrorText}
               </p>
             ) : null}
             {step.readOnly ? (
@@ -1069,7 +1101,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
                 onClick={() => setStep({ kind: "done", alreadyDone: true })}
                 className={primary}
               >
-                Back
+                {t("tryon.back")}
               </button>
             ) : (
               <button
@@ -1081,10 +1113,10 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
               >
                 <HeartIcon filled className="h-4 w-4" />
                 {busy
-                  ? "Sending…"
+                  ? t("tryon.sending")
                   : hearted.size
-                    ? `Send my hearts (${hearted.size})`
-                    : "None of these are me"}
+                    ? t("tryon.send", { count: hearted.size })
+                    : t("tryon.none")}
               </button>
             )}
           </ActionBar>
@@ -1097,11 +1129,10 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
           data-testid="undertone-screen"
         >
           <h1 ref={headingRef} tabIndex={-1} className={h1}>
-            One last check
+            {t("undertone.title")}
           </h1>
           <p className="mb-5 mt-1 text-sm text-ink-soft">
-            Hearts sent. This estimate only nudges the metal a little; your
-            hearts matter most. Correct it if it&apos;s off.
+            {t("undertone.body")}
           </p>
           {capture ? (
             <UndertoneEstimateCard
@@ -1109,29 +1140,30 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
               confidence={capture.undertone.confidence}
               override={capture.undertone.override as UndertoneValue | null}
               sessionToken={token}
+              locale={locale}
               onChange={async (v) => (await api()).setUndertone(token, v)}
             />
           ) : (
             <p className="rounded-xl border border-line bg-white p-4 text-sm text-ink-soft">
-              No estimate this time. Your hearts carry the most weight anyway.
+              {t("undertone.none")}
             </p>
           )}
           {capture?.faceShapeLabel ? (
             <p className="mt-3 rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink-soft">
               <span className="text-xs uppercase tracking-[0.14em] text-muted">
-                Face shape
+                {t("undertone.faceShape")}
               </span>
               <br />
               <strong className="font-semibold text-ink">
-                {capture.faceShapeLabel}
+                {faceShapeText(locale, capture.faceShapeLabel)}
               </strong>
             </p>
           ) : null}
-          <Disclaimer className="mt-4" />
+          <Disclaimer className="mt-4" locale={locale} />
           <ActionBar>
-            {stepError ? (
+            {stepErrorText ? (
               <p role="alert" className="mb-2 text-sm text-rose">
-                {stepError}
+                {stepErrorText}
               </p>
             ) : null}
             <button
@@ -1141,7 +1173,7 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
               data-testid="finish"
               className={primary}
             >
-              {busy ? "Finishing…" : "Finish"}
+              {busy ? t("undertone.finishing") : t("undertone.finish")}
             </button>
           </ActionBar>
         </div>
@@ -1163,5 +1195,20 @@ export function RecipientFlow({ token, api: apiProp }: RecipientFlowProps) {
         />
       ) : null}
     </div>
+    </RecipientLocaleProvider>
   );
 }
+
+/**
+ * Line breaking per script: Japanese breaks at phrase boundaries (Chrome; elsewhere the default),
+ * Korean keeps words whole, German hyphenates its long compounds (needs the `lang` above). The
+ * letter-spaced small caps of the Latin design pull Thai marks and CJK glyphs apart: no tracking there.
+ */
+const NO_TRACKING = "[&_[class*=tracking-]]:tracking-normal";
+const WRAP: Partial<Record<Locale, string>> = {
+  ja: `[word-break:auto-phrase] ${NO_TRACKING}`,
+  ko: `[word-break:keep-all] ${NO_TRACKING}`,
+  zh: NO_TRACKING,
+  th: NO_TRACKING,
+  de: "hyphens-auto",
+};

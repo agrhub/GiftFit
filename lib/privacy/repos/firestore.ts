@@ -348,6 +348,8 @@ function requestToDoc(r: FitRequestRecord): FsData {
     // Store-URL preview requests (ADR-055): product display data only (maps, no nested arrays).
     ...(r.storeName ? { storeName: String(r.storeName).slice(0, 120) } : {}),
     ...(r.productSnapshot && r.productSnapshot.length ? { productSnapshot: r.productSnapshot.map((p) => ({ catalogId: p.catalogId, title: p.title, price: p.price, currency: p.currency, url: p.url, ...(p.image ? { image: p.image } : {}) })) } : {}),
+    // The giver's conversation language (recipient page and report locale); written only when set.
+    ...(r.giverLang ? { giverLang: r.giverLang } : {}),
   };
 }
 
@@ -370,6 +372,7 @@ function requestFromDoc(d: FsData): FitRequestRecord {
     photoDeletedAt: toDateOrNull(d.photoDeletedAt),
   };
   if (d.demo === true) rec.demo = true;
+  if (typeof d.giverLang === "string" && /^[a-z]{2,3}$/.test(d.giverLang)) rec.giverLang = d.giverLang;
   if (d.mode === "help_me_choose" || d.mode === "i_have_ideas") rec.mode = d.mode;
   if (Array.isArray(d.categories) && d.categories.length) rec.categories = [...d.categories] as FitRequestRecord["categories"];
   if (Array.isArray(d.styleHints) && d.styleHints.length) rec.styleHints = [...d.styleHints] as FitRequestRecord["styleHints"];

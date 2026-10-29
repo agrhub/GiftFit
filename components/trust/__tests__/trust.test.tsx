@@ -26,8 +26,8 @@ describe("Transparency Cards", () => {
     expect(text).toMatch(/1 selfie/);
     expect(text).toMatch(/Optional: 1 back-of-hand photo/);
     expect(text).toMatch(/kept for at most 1 hour, only so you can try other metals/);
-    expect(text).toMatch(/deleted when you tap Done/);
-    expect(text).toMatch(/Delete my photo now.{1,3} removes your selfie, hand photo and every try-on image right away; your picks are kept until Done/);
+    expect(text).toMatch(/deleted when you tap Finish/);
+    expect(text).toMatch(/Delete my photo now.{1,3} removes your selfie, hand photo and every try-on image right away; your picks are kept until you tap Finish/);
     expect(text).toMatch(/estimates only/);
     expect(text).toMatch(/Never your photo,/);
     expect(text).toMatch(/Oct 23, 2026/);

@@ -160,7 +160,7 @@ describe("POST /api/fit/requests mode=help_me_choose", () => {
 describe("POST /api/fit/report for help_me_choose", () => {
   it("waiting carries the mode; completed has ranked results, a template taste summary and not-tried picks", async () => {
     const { body: created } = await create({ categories: ["earring", "necklace"] });
-    expect((await report(created.giverToken)).body).toEqual({ status: "waiting", expiresAt: created.expiresAt, mode: "help_me_choose" });
+    expect((await report(created.giverToken)).body).toEqual({ status: "waiting", expiresAt: created.expiresAt, mode: "help_me_choose", lang: "en" });
     const rec = (await repos.fitRequests.findById(created.fitRequestId))!;
     const hearted = rec.shortlistIds.slice(0, 2);
     await finish(created.fitRequestId, hearted, [rec.shortlistIds[2]]);

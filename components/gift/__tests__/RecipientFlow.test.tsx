@@ -267,7 +267,7 @@ describe("RecipientFlow", () => {
       await screen.findByTestId("consent-screen");
       expect(screen.getByText("They will never see your photos.")).toBeTruthy();
       expect(screen.getByTestId("photo-retention").textContent).toBe(
-        "We keep your photos for at most 1 hour so you can try other metals. They're deleted when you tap Done, or right away with Delete my photo now, and the giver never sees them.",
+        "We keep your photos for at most 1 hour so you can try other metals. They're deleted when you tap Finish, or right away with Delete my photo now, and the giver never sees them.",
       );
       expect(screen.queryByTestId("delete-photo-now")).toBeNull();
     });

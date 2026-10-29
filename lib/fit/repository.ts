@@ -50,6 +50,8 @@ export interface StoredFitRequest {
    * style factors. Absent (test fixtures) = decide from the profile.
    */
   captured?: boolean;
+  /** The giver's conversation language at creation (CreateFitRequestBody.giverLang). Absent = English. */
+  giverLang?: string;
 }
 
 /**
@@ -208,6 +210,7 @@ export class PrivacyFitRepository implements FitRepository {
       ...(rec.demo ? { demo: true } : {}),
       ...(rec.productSnapshot?.length ? { productSnapshot: rec.productSnapshot } : {}),
       ...(rec.storeName ? { storeName: rec.storeName } : {}),
+      ...(rec.giverLang ? { giverLang: rec.giverLang } : {}),
       captured: Boolean(row?.undertoneEstimate),
     };
   }
@@ -279,6 +282,7 @@ export class InMemoryFitRepository extends StaticCatalog implements FitRepositor
       expiresAt,
       profile: null,
       brief: briefOf(input),
+      ...(input.giverLang ? { giverLang: input.giverLang } : {}),
     });
     return { id, expiresAt };
   }

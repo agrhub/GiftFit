@@ -256,7 +256,8 @@ function Widget({ store, preview, tryOn, parentOrigin, preferredLang, allowedLan
     setCreating(true);
     setCreateError(undefined);
     try {
-      const result = await httpGiftApi.createFitRequest(body);
+      // The recipient page and the Fit Report follow the giver's language: the conversation's, else the UI's.
+      const result = await httpGiftApi.createFitRequest({ ...body, giverLang: body.giverLang ?? convLang ?? locale });
       const now = Date.now();
       saveGift(storage("localStorage"), { giverToken: result.giverToken, createdAt: new Date(now).toISOString(), expiresAt: result.expiresAt, occasion: body.occasion }, now);
       setCreated({ result, occasion: body.occasion });

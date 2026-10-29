@@ -11,6 +11,7 @@ import { type CreateFitRequestResponse, GIFT_MODES, type GiverReportStatus, STYL
 import { type CatalogSku, type FitResult, METALS, OCCASIONS, type RecipientProfile } from "@/lib/contracts/giftfit";
 import { findGiverLeaks, giverJson } from "@/lib/privacy/giver-guard";
 import { fitRequestExpiresAt, newFitRequestTokens } from "@/lib/privacy/tokens";
+import { type Locale, uiLocaleFor } from "@/lib/i18n";
 import { curate, inferGender } from "./curate";
 import { type DecoyReasonCode, selectDecoys } from "./decoys";
 import type { FitDeps } from "./deps";
@@ -78,6 +79,12 @@ const CATEGORIES = ["earring", "necklace", "ring", "bracelet", "watch"] as const
 const GENDER_PRESENTATIONS = ["feminine", "masculine", "unisex"] as const;
 const unique = (xs: readonly string[] | undefined) => !xs || new Set(xs).size === xs.length;
 const isIdeas = (b: { mode?: string }) => (b.mode ?? "i_have_ideas") === "i_have_ideas";
+/** The giver's language as a BCP-47 base: "vi" / "pt-BR" → "vi" / "pt"; anything else → undefined (dropped, never refused). */
+export function giverLangOf(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const base = v.trim().toLowerCase().split(/[-_]/)[0];
+  return /^[a-z]{2,3}$/.test(base) ? base : undefined;
+}
 const CreateBody = z
   .object({
     storeId: z.string().min(1).max(128).optional(),
@@ -93,6 +100,8 @@ const CreateBody = z
     categories: z.array(z.enum(CATEGORIES)).max(CATEGORIES.length).optional(),
     styleHints: z.array(z.enum(STYLE_FAMILIES)).max(STYLE_FAMILIES.length).optional(),
     genderPresentation: z.enum(GENDER_PRESENTATIONS).optional(),
+    /** The giver's conversation language (recipient page, Fit Report); invalid values are dropped. */
+    giverLang: z.unknown().optional().transform(giverLangOf),
   })
   .refine((b) => b.budgetMax > 0 && b.budgetMax >= (b.budgetMin ?? 0), { message: "budgetMax must be > 0 and ≥ budgetMin" })
   .refine((b) => unique(b.metalLock), { message: "metalLock must be unique" })
@@ -220,6 +229,7 @@ async function storeRequest(
     ...(shape.genderPresentation ? { genderPresentation: shape.genderPresentation } : {}),
     ...(snapshot?.length ? { productSnapshot: snapshot } : {}),
     ...(storeName ? { storeName } : {}),
+    ...(body.giverLang ? { giverLang: body.giverLang } : {}),
     createdAt: now,
     expiresAt: fitRequestExpiresAt(now),
   });
@@ -266,8 +276,9 @@ export function recipientLabels(profile: RecipientProfile | null): GiverReportSt
 }
 
 /** Hash of everything a report is computed from; a cached fit_reports row is reused only on a match. */
-function reportFingerprint(request: StoredFitRequest, noTryOn: boolean, noTryOnIds: readonly string[] = []): string {
-  const material = JSON.stringify({ v: FIT_WEIGHTS_VERSION, input: request.input, decoys: request.decoyIds, profile: request.profile, brief: request.brief ?? null, noTryOn, ...(noTryOnIds.length ? { noTryOnIds } : {}) });
+function reportFingerprint(request: StoredFitRequest, noTryOn: boolean, noTryOnIds: readonly string[] = [], lang: Locale = "en"): string {
+  // The report language is part of the cached texts (English keeps the old fingerprint).
+  const material = JSON.stringify({ v: FIT_WEIGHTS_VERSION, input: request.input, decoys: request.decoyIds, profile: request.profile, brief: request.brief ?? null, noTryOn, ...(noTryOnIds.length ? { noTryOnIds } : {}), ...(lang !== "en" ? { lang } : {}) });
   return createHash("sha256").update(material).digest("hex");
 }
 
@@ -322,12 +333,12 @@ function heartedDesigns(designs: readonly CatalogSku[], profile: RecipientProfil
  * Taste summary (Claude or template) and 2–3 "not tried on" designs, from the hearts on the curated
  * set. Inputs are catalog attributes and counts only (lib/fit/taste.ts).
  */
-async function helpExtras(request: StoredFitRequest, brief: StoredBrief, profile: RecipientProfile, shown: readonly CatalogSku[], deps: FitDeps, noTryOn: boolean): Promise<{ extras: HelpExtras; model?: string }> {
+async function helpExtras(request: StoredFitRequest, brief: StoredBrief, profile: RecipientProfile, shown: readonly CatalogSku[], deps: FitDeps, noTryOn: boolean, locale: Locale = "en"): Promise<{ extras: HelpExtras; model?: string }> {
   const hearted = heartedDesigns(shown, profile, request.input);
   const wished = shown.filter((d) => (profile.wishOtherMetalSkuIds ?? []).includes(d.id)).length;
   const catalog = await deps.repository.listCatalog(request.storeId);
   const refs = catalog.map((s) => ({ id: s.id, title: s.title }));
-  const taste = await tasteSummary(buildTasteInput(hearted, shown.length, wished), { client: deps.taster ?? null, catalog: refs, noTryOn });
+  const taste = await tasteSummary(buildTasteInput(hearted, shown.length, wished), { client: deps.taster ?? null, catalog: refs, noTryOn, locale });
   const similar = similarNotTried(catalog, hearted, {
     request: request.input,
     shownIds: shown.map((s) => s.id),
@@ -352,7 +363,11 @@ export async function handleReport(req: Request, deps: FitDeps): Promise<Respons
   // A16: before completion, a try-on is shown when the store has one and either this deployment offers it (owner
   // recording, mock mode) or one already happened; the public site is hearts-only (0 YouCam units).
   const liveTryOn = storeTryOn && (request.demo || request.captured === true || (deps.tryOnOffered?.(req) ?? true));
-  const meta: Pick<GiverReportStatus, "mode" | "demo" | "tryOn" | "storeName"> = {
+  // The giver's report language (lib/i18n/report): the language they used when the request was made, when it
+  // is one of the ten UI locales; English otherwise or when unknown.
+  const lang = uiLocaleFor(request.giverLang);
+  const meta: Pick<GiverReportStatus, "mode" | "demo" | "tryOn" | "storeName" | "lang"> = {
+    lang,
     mode: brief.mode,
     ...(request.demo ? { demo: true } : {}),
     ...(liveTryOn ? {} : { tryOn: false as const }),
@@ -376,7 +391,7 @@ export async function handleReport(req: Request, deps: FitDeps): Promise<Respons
   const noTryOnIds = noTryOn ? [] : untried;
   if (noTryOn) meta.tryOn = false;
   else delete meta.tryOn;
-  const fingerprint = reportFingerprint(request, noTryOn, noTryOnIds);
+  const fingerprint = reportFingerprint(request, noTryOn, noTryOnIds, lang);
   const cached = await deps.repository.getReport(request.id);
   const help = brief.mode === "help_me_choose";
   let results: FitResult[];
@@ -395,12 +410,12 @@ export async function handleReport(req: Request, deps: FitDeps): Promise<Respons
     const decoys = await deps.repository.getSkus(request.decoyIds);
     const cap = swatchCap(shortlist, decoys, request.input);
     const hearted = heartedViews(await deps.repository.getSkus(profile.heartedSkuIds), profile, request.input, cap);
-    const scored = scoreSkus(profile, shortlist, request.input, deps.rules, { heartedSkus: hearted, swatchCap: cap, noTryOn, ...(noTryOnIds.length ? { noTryOnIds: new Set(noTryOnIds) } : {}) }).map((s) => ({
+    const scored = scoreSkus(profile, shortlist, request.input, deps.rules, { heartedSkus: hearted, swatchCap: cap, noTryOn, locale: lang, ...(noTryOnIds.length ? { noTryOnIds: new Set(noTryOnIds) } : {}) }).map((s) => ({
       ...s,
       category: shortlist.find((k) => k.id === s.skuId)!.category,
     }));
     const catalog = (await deps.repository.listCatalog(request.storeId)).map((s) => ({ id: s.id, title: s.title }));
-    const [explained, extra] = await Promise.all([explainFit(scored, { client: deps.explainer, catalog, noTryOn }), help ? helpExtras(request, brief, profile, shortlist, deps, noTryOn) : undefined]);
+    const [explained, extra] = await Promise.all([explainFit(scored, { client: deps.explainer, catalog, noTryOn, locale: lang }), help ? helpExtras(request, brief, profile, shortlist, deps, noTryOn, lang) : undefined]);
     results = explained.results;
     extras = extra?.extras;
     await deps.repository.saveReport(request.id, {

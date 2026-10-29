@@ -40,6 +40,8 @@ export interface FitRequestRecord {
    * fixture try-on rows (isDemoRequest).
    */
   demo?: boolean;
+  /** The giver's conversation language (CreateFitRequestBody.giverLang). Absent/null = English. */
+  giverLang?: string | null;
   /**
    * Giver mode (ADR-045). Absent on older rows and in Drizzle (no column yet): lib/fit reads a request
    * with no decoys and ≥ 5 shortlisted designs as "help_me_choose", anything else as "i_have_ideas".

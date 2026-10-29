@@ -74,6 +74,11 @@ export interface CreateFitRequestBody {
   categories?: JewelryCategory[];
   styleHints?: StyleFamily[];
   genderPresentation?: "feminine" | "masculine" | "unisex";
+  /**
+   * The giver's conversation language (BCP-47 base, e.g. "vi", "pt"). The recipient page and the Fit
+   * Report use it (uiLocaleFor: one of the ten UI locales, else English). Absent = English.
+   */
+  giverLang?: string;
 }
 /**
  * Display data of one store product, frozen into a Fit Request created from a store-URL preview
@@ -147,6 +152,11 @@ export interface GiverReportStatus {
   tryOn?: false;
   /** The store's display name for a store-URL preview request (absent = the Aurum demo store). */
   storeName?: string;
+  /**
+   * The report's UI locale (one of the ten, lib/i18n LOCALES): the giver's language at creation
+   * (`giverLang` via uiLocaleFor), else "en". Reasons, cautions and the taste summary are written in it.
+   */
+  lang?: string;
 }
 
 // ---------------------------------------------------------------------------------------------

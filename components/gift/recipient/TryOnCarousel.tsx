@@ -9,12 +9,13 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CarouselItem } from "@/lib/contracts/api";
-import { categoryInfo } from "@/components/store/format";
+import { fromEnglish, metalInline } from "@/lib/i18n/recipient";
 import { ChevronIcon, HandIcon, HeartIcon } from "../icons";
 import { type RetakeKind, failureCopy } from "./tryOnFailures";
-import { CAP_NOTE, type CardState } from "./variants";
-import { CROP_CONFIG, FULL_FRAME_STYLE, cropStyle } from "./cropConfig";
+import { type CardState } from "./variants";
+import { FULL_FRAME_STYLE, cropStyle } from "./cropConfig";
 import { AiModelBadge } from "./AiModelBadge";
+import { useRt } from "./i18n";
 
 export { CAP_NOTE, type CardState, type TryOnRender } from "./variants";
 
@@ -47,26 +48,37 @@ export function TryOnCard({
   /** Seeded judge demo: label the person as an AI-generated model. */
   demo?: boolean;
 }) {
+  const t = useRt();
   const { render } = state;
   const [broken, setBroken] = useState<string | null>(null);
   const showTryOn =
     render?.status === "ready" && render.imageUrl && broken !== render.imageUrl;
   const failure =
     render?.status === "failed"
-      ? failureCopy(item, render.failureReason)
+      ? failureCopy(item, render.failureReason, t.locale)
       : null;
   const swatches = item.swatches ?? [];
   const shown = swatches.find((s) => s.swatchId === state.swatchId);
-  const metalName = shown?.metalLabel;
-  const named = metalName
-    ? `${item.title} in ${metalName.toLowerCase()}`
+  // The server sends English metal names (SWATCH_LABEL); shown in the page locale.
+  const metalName = shown?.metalLabel
+    ? fromEnglish(t.locale, "metal.", shown.metalLabel)
+    : undefined;
+  const metalInSentence = shown?.metalLabel
+    ? metalInline(t.locale, shown.metalLabel)
+    : undefined;
+  const named = metalInSentence
+    ? t("piece.inMetal", { title: item.title, metal: metalInSentence })
     : item.title;
 
   return (
     <article
       data-testid="carousel-item"
       aria-roledescription="slide"
-      aria-label={`${index + 1} of ${total}: ${item.title}`}
+      aria-label={t("card.slide", {
+        index: index + 1,
+        total,
+        title: item.title,
+      })}
       className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-white"
     >
       <div
@@ -77,7 +89,7 @@ export function TryOnCard({
           // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL, recipient session only
           <img
             src={render!.imageUrl}
-            alt={`AI preview of you wearing ${named}`}
+            alt={t("card.alt", { name: named })}
             data-testid="tryon-image"
             className="h-full w-full object-cover transition-transform duration-500 ease-[var(--ease-soft)]"
             style={fullFrame ? FULL_FRAME_STYLE : cropStyle(item.category)}
@@ -94,7 +106,7 @@ export function TryOnCard({
         {showTryOn ? (
           <div className="absolute left-3 top-3 z-10 flex flex-col items-start gap-1.5">
             <span className="rounded-full bg-ink/80 px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ivory backdrop-blur">
-              AI preview
+              {t("card.aiPreview")}
             </span>
             {demo ? <AiModelBadge /> : null}
           </div>
@@ -107,14 +119,14 @@ export function TryOnCard({
             data-testid="toggle-full-frame"
             title={
               fullFrame
-                ? `Back to the ${CROP_CONFIG[item.category].focusLabel}`
+                ? t("card.backTo", { focus: t(`focus.${item.category}`) })
                 : undefined
             }
             className={`absolute bottom-3 left-3 z-10 min-h-11 rounded-full px-3.5 text-xs font-medium shadow-md backdrop-blur transition-colors ${
               fullFrame ? "bg-ink text-ivory" : "bg-white/95 text-ink"
             }`}
           >
-            Show full photo
+            {t("card.fullPhoto")}
           </button>
         ) : null}
         {state.loading ? (
@@ -130,7 +142,9 @@ export function TryOnCard({
                 className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-gold-deep"
                 aria-hidden="true"
               />
-              Trying on {metalName ? metalName.toLowerCase() : "this metal"}…
+              {metalInSentence
+                ? t("card.trying", { metal: metalInSentence })
+                : t("card.tryingThis")}
             </p>
           </div>
         ) : null}
@@ -138,29 +152,27 @@ export function TryOnCard({
           <p className="absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-xl bg-ivory/95 px-3 py-2 text-xs leading-5 text-ink-soft">
             {state.noTryOn ? (
               <span data-testid="product-photo-note">
-                The store&apos;s product photo.
+                {t("card.productPhoto")}
               </span>
             ) : state.notTriable || render?.status === "skipped_not_eligible" ? (
               <span data-testid="not-tried-on-note">
-                Not tried on: the store&apos;s photo of this piece can&apos;t
-                be used for try-on. You can still heart it.
+                {t("card.notTriedOn")}
               </span>
             ) : state.rendersOff ? (
               <span data-testid="product-photo-note">
-                Product photo. Your try-on was deleted; your heart is kept.
+                {t("card.renderDeleted")}
               </span>
             ) : render?.status === "skipped_needs_hand" ||
               (!render && item.needsHandPhoto) ? (
               <>
-                <HandIcon className="h-4 w-4 shrink-0" /> Needs a hand photo to
-                try on. You can still heart it.
+                <HandIcon className="h-4 w-4 shrink-0" /> {t("card.needsHand")}
               </>
             ) : (
               <span>
                 {failure?.text ??
-                  (metalName && render
-                    ? `Preview unavailable in ${metalName.toLowerCase()}. You can still heart it.`
-                    : "Preview unavailable for this piece. You can still heart it.")}
+                  (metalInSentence && render
+                    ? t("card.unavailableIn", { metal: metalInSentence })
+                    : t("card.unavailable"))}
                 {failure?.retake && onRetake && !readOnly ? (
                   <>
                     {" "}
@@ -175,8 +187,8 @@ export function TryOnCard({
                       className="font-medium text-ink underline decoration-gold underline-offset-2"
                     >
                       {failure.retake === "wrist"
-                        ? "Retake photos"
-                        : "Retake selfie"}
+                        ? t("card.retakePhotos")
+                        : t("card.retakeSelfie")}
                     </button>
                   </>
                 ) : null}
@@ -189,7 +201,14 @@ export function TryOnCard({
             type="button"
             onClick={onToggleHeart}
             aria-pressed={state.hearted}
-            aria-label={`Heart ${item.title}${metalName ? `, ${metalName.toLowerCase()}` : ""}`}
+            aria-label={
+              metalInSentence
+                ? t("card.heartMetal", {
+                    title: item.title,
+                    metal: metalInSentence,
+                  })
+                : t("card.heart", { title: item.title })
+            }
             data-testid="heart"
             className={`absolute right-3 top-3 grid h-12 w-12 place-items-center rounded-full shadow-md transition-[transform,background-color] duration-200 active:scale-90 ${state.hearted ? "bg-rose text-white" : "bg-white/95 text-ink"}`}
           >
@@ -204,7 +223,7 @@ export function TryOnCard({
             {item.title}
           </h3>
           <p className="shrink-0 text-xs uppercase tracking-[0.14em] text-muted">
-            {categoryInfo(item.category).singular}
+            {t(`category.${item.category}`)}
           </p>
         </div>
 
@@ -212,7 +231,7 @@ export function TryOnCard({
           <div
             className="mt-2 flex items-center gap-1"
             role="radiogroup"
-            aria-label={`Metal for ${item.title}`}
+            aria-label={t("card.metalFor", { title: item.title })}
             data-testid="swatches"
           >
             {swatches.map((s) => {
@@ -228,8 +247,8 @@ export function TryOnCard({
                   type="button"
                   role="radio"
                   aria-checked={checked}
-                  aria-label={s.metalLabel}
-                  title={s.metalLabel}
+                  aria-label={fromEnglish(t.locale, "metal.", s.metalLabel)}
+                  title={fromEnglish(t.locale, "metal.", s.metalLabel)}
                   disabled={state.loading || locked}
                   aria-disabled={locked || undefined}
                   onClick={() => !checked && !locked && onSwatch(s.swatchId)}
@@ -254,7 +273,7 @@ export function TryOnCard({
             className="mt-1 text-xs text-ink-soft"
             data-testid="renders-off-note"
           >
-            Other metals are off because your photos are deleted.
+            {t("card.rendersOff")}
           </p>
         ) : null}
         {state.capNote ? (
@@ -263,7 +282,7 @@ export function TryOnCard({
             role="status"
             data-testid="cap-note"
           >
-            {CAP_NOTE}
+            {t("card.capNote")}
           </p>
         ) : null}
 
@@ -276,9 +295,7 @@ export function TryOnCard({
             data-testid="wish-metal"
             className="mt-2 min-h-11 self-start text-left text-sm text-ink-soft underline decoration-line-strong underline-offset-4 hover:text-ink disabled:no-underline disabled:opacity-100"
           >
-            {state.wished
-              ? "Noted: you'd like it in another metal"
-              : "Love the style, wish it came in another metal"}
+            {state.wished ? t("card.wished") : t("card.wish")}
           </button>
         )}
       </div>
@@ -316,6 +333,7 @@ export function TryOnCarousel({
       else next.add(itemId);
       return next;
     });
+  const t = useRt();
   const trackRef = useRef<HTMLUListElement>(null);
   const [active, setActive] = useState(0);
 
@@ -350,7 +368,7 @@ export function TryOnCarousel({
   return (
     <section
       aria-roledescription="carousel"
-      aria-label="Your try-ons"
+      aria-label={t("carousel.label")}
       className="relative"
     >
       <ul
@@ -394,19 +412,19 @@ export function TryOnCarousel({
           onClick={() => go(Math.max(0, active - 1))}
           disabled={active === 0}
           className="grid h-11 w-11 place-items-center rounded-full border border-line-strong text-ink disabled:opacity-40"
-          aria-label="Previous piece"
+          aria-label={t("carousel.prev")}
         >
           <ChevronIcon dir="left" />
         </button>
         <p className="text-sm text-ink-soft" aria-live="polite">
-          {active + 1} of {items.length}
+          {t("carousel.position", { index: active + 1, total: items.length })}
         </p>
         <button
           type="button"
           onClick={() => go(Math.min(items.length - 1, active + 1))}
           disabled={active >= items.length - 1}
           className="grid h-11 w-11 place-items-center rounded-full border border-line-strong text-ink disabled:opacity-40"
-          aria-label="Next piece"
+          aria-label={t("carousel.next")}
         >
           <ChevronIcon />
         </button>

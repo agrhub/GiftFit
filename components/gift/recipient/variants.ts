@@ -3,6 +3,7 @@
  * flow can use them without pulling the (lazy-loaded) carousel into the first-load bundle.
  */
 import type { CaptureResponse, CarouselItem } from "@/lib/contracts/api";
+import { recipientEn } from "@/lib/i18n/recipient";
 
 /** The render of one metal of one design. */
 export interface TryOnRender {
@@ -33,8 +34,8 @@ export interface CardState {
   renderedSwatchIds?: string[];
 }
 
-export const CAP_NOTE =
-  "You've tried all the extra metals we can show this time.";
+/** English copy (the page renders lib/i18n/recipient in its locale; these stay for tests and old callers). */
+export const CAP_NOTE: string = recipientEn["card.capNote"];
 
 /** Key of a heart or a render: "<itemId>|<swatchId>" ("" for swatch-less items). */
 export const heartKey = (itemId: string, swatchId: string | undefined) =>
@@ -51,8 +52,6 @@ export function defaultSwatch(
 }
 
 /** Consent copy (ADR-036, option A). */
-export const PHOTO_RETENTION =
-  "We keep your photos for at most 1 hour so you can try other metals. They're deleted when you tap Done, or right away with Delete my photo now, and the giver never sees them.";
+export const PHOTO_RETENTION: string = recipientEn["intro.retention"];
 
-export const PHOTO_DELETED_NOTE =
-  "Your photos are deleted. Your picks are saved.";
+export const PHOTO_DELETED_NOTE: string = recipientEn["photo.deletedNote"];

@@ -4,6 +4,8 @@
  * try-on images, YouCam tasks and cached results, the profile, hearts and report, and ends the link.
  */
 import { useState } from "react";
+import type { Locale } from "@/lib/i18n";
+import { rt } from "@/lib/i18n/recipient";
 
 export interface DeleteEverythingButtonProps {
   endpoint?: string;
@@ -11,11 +13,13 @@ export interface DeleteEverythingButtonProps {
   sessionToken?: string;
   onDeleted?: () => void;
   className?: string;
+  /** Recipient page locale (lib/i18n/recipient); default English. */
+  locale?: Locale;
 }
 
 type State = "idle" | "deleting" | "done" | "error";
 
-export function DeleteEverythingButton({ endpoint = "/api/recipient/delete", sessionToken, onDeleted, className = "" }: DeleteEverythingButtonProps) {
+export function DeleteEverythingButton({ endpoint = "/api/recipient/delete", sessionToken, onDeleted, className = "", locale = "en" }: DeleteEverythingButtonProps) {
   const [state, setState] = useState<State>("idle");
 
   async function run() {
@@ -43,14 +47,14 @@ export function DeleteEverythingButton({ endpoint = "/api/recipient/delete", ses
         disabled={state === "deleting" || state === "done"}
         className="min-h-11 w-full rounded-xl bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800 focus:outline-2 focus:outline-offset-2 focus:outline-red-800 disabled:cursor-not-allowed disabled:bg-stone-500"
       >
-        {state === "deleting" ? "Deleting…" : state === "done" ? "Deleted" : "Delete everything"}
+        {state === "deleting" ? rt(locale, "deleteAll.deleting") : state === "done" ? rt(locale, "deleteAll.deleted") : rt(locale, "deleteAll.button")}
       </button>
       <p aria-live="polite" role="status" className="mt-2 min-h-5 text-sm text-stone-700 dark:text-stone-300">
         {state === "done"
-          ? "Done. Your photos, try-ons, estimates and hearts are deleted, and this link no longer works."
+          ? rt(locale, "deleteAll.done")
           : state === "error"
-            ? "Something went wrong and nothing was confirmed as deleted. Please try again."
-            : "Removes your photos, try-ons, estimates and hearts right now. This cannot be undone."}
+            ? rt(locale, "deleteAll.error")
+            : rt(locale, "deleteAll.idle")}
       </p>
     </div>
   );

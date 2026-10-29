@@ -16,17 +16,9 @@ import type {
   RuleStrength,
   Undertone,
 } from "@/lib/contracts/giftfit";
-import {
-  CATEGORY_LABEL,
-  FACE_SHAPE_LABEL,
-  METAL_LABEL,
-  OCCASION_LABEL,
-  UNDERTONE_LABEL,
-  capitalize,
-  formatMoney,
-  skuSimilarity,
-  styleLabel,
-} from "./labels";
+import { type Locale, formatMoney as localeMoney } from "@/lib/i18n";
+import { rs, rt } from "@/lib/i18n/report";
+import { formatMoney, skuSimilarity } from "./labels";
 import { variantView, variantsOf, visibleVariants } from "./variants";
 import { FIT_MAX, FIT_PARAMS, FIT_WEIGHTS, FIT_WEIGHTS_NO_TRYON } from "./weights";
 
@@ -70,16 +62,38 @@ export interface FitContext {
    * factor or text) and marked `tryOn: false`; the others keep the try-on weights.
    */
   noTryOnIds?: ReadonlySet<string>;
+  /**
+   * The giver's report language (lib/i18n/report; StoredFitRequest.giverLang via uiLocaleFor). Only the
+   * template texts (`text`, reasons, caution) follow it; signal `label`s stay English (model input).
+   * Absent = English.
+   */
+  locale?: Locale;
 }
 
 export const GENERIC_CAUTION = "AI try-on preview: undertone and face shape are estimates, not a sizing guarantee.";
 /** The generic caution for a request without a try-on: no try-on, undertone or face-shape claims. */
 export const GENERIC_CAUTION_NO_TRYON = "Scored from their hearts, your budget and the occasion. Check the size before you buy.";
 
+/** GENERIC_CAUTION / GENERIC_CAUTION_NO_TRYON in the report language. */
+export function genericCaution(locale: Locale = "en", noTryOn = false): string {
+  return rt(locale, noTryOn ? "fit.caution.genericNoTryOn" : "fit.caution.generic");
+}
+
 const clamp01 = (x: number) => (Number.isFinite(x) ? Math.min(1, Math.max(0, x)) : 0);
 const clampWeight = (w: number) => (Number.isFinite(w) ? Math.min(1, Math.max(-1, w)) : 0);
 const round1 = (x: number) => Math.round(x * 10) / 10;
 const withArticle = (phrase: string) => `${/^[aeiou]/i.test(phrase) ? "an" : "a"} ${phrase}`;
+
+/** Prices in the report language: English keeps the engine's "$150" form; others use Intl. */
+const money = (locale: Locale, amount: number, currency: string) => (locale === "en" ? formatMoney(amount, currency) : localeMoney(locale, Math.round(amount), currency));
+
+/** "drop earrings", "curved pendants", or the category word (lib/fit/labels styleLabel, localized). */
+function styleText(locale: Locale, sku: CatalogSku): string {
+  const a = sku.attributes;
+  if (a.earring_shape) return rt(locale, `earringShape.${a.earring_shape}`);
+  if (a.necklace_style) return rt(locale, `necklaceStyle.${a.necklace_style}`);
+  return rt(locale, `category.${sku.category}`);
+}
 
 /** Undertone used in scoring: the recipient's override wins over the estimate. */
 export function effectiveUndertone(profile: RecipientProfile): { undertone: Undertone; confidence: number; override: boolean } {
@@ -109,20 +123,21 @@ const anyHearts = (p: RecipientProfile) => p.heartedSkuIds.length > 0 || (p.hear
 
 function heartsFactor(profile: RecipientProfile | null, sku: CatalogSku, ctx: FitContext, ref?: VariantRef): { h: number; signal?: Omit<FitSignal, "points"> } {
   if (!profile) return { h: 0 };
+  const loc = ctx.locale ?? "en";
   const level = variantHeartLevel(profile, sku.id, ref ?? { variantId: `${sku.id}:${sku.attributes.metal}`, designVariantIds: [] });
   if (level.kind === "hearted") {
-    return { h: 1, signal: { factor: "hearts", polarity: "positive", label: "hearted", text: ctx.noTryOn ? "They hearted this piece." : "They hearted this piece during their try-on." } };
+    return { h: 1, signal: { factor: "hearts", polarity: "positive", label: "hearted", text: rs(loc, ctx.noTryOn ? "fit.hearts.heartedNoTryOn" : "fit.hearts.hearted") } };
   }
   if (level.kind === "other_metal") {
     return {
       h: level.h,
-      signal: { factor: "hearts", polarity: "positive", label: "hearted this design in another metal", text: "They hearted this design in another metal." },
+      signal: { factor: "hearts", polarity: "positive", label: "hearted this design in another metal", text: rs(loc, "fit.hearts.otherMetal") },
     };
   }
   if (level.kind === "wish") {
     return {
       h: level.h,
-      signal: { factor: "hearts", polarity: "positive", label: "loved the style, wished for another metal", text: "They loved the style and wished it came in another metal." },
+      signal: { factor: "hearts", polarity: "positive", label: "loved the style, wished for another metal", text: rs(loc, "fit.hearts.wish") },
     };
   }
   let best = 0;
@@ -133,7 +148,7 @@ function heartsFactor(profile: RecipientProfile | null, sku: CatalogSku, ctx: Fi
   if (best >= FIT_PARAMS.similarHeartMin) {
     return {
       h: FIT_PARAMS.similarHeartFactor * best,
-      signal: { factor: "hearts", polarity: "positive", label: "hearted a similar piece", text: "They hearted a similar piece in the same style." },
+      signal: { factor: "hearts", polarity: "positive", label: "hearted a similar piece", text: rs(loc, "fit.hearts.similar") },
     };
   }
   if (!anyHearts(profile)) {
@@ -143,11 +158,11 @@ function heartsFactor(profile: RecipientProfile | null, sku: CatalogSku, ctx: Fi
         factor: "hearts",
         polarity: "neutral",
         label: "no pieces hearted",
-        text: ctx.noTryOn ? "They did not heart any piece, so this score rests on your budget and the occasion." : "They did not heart any piece, so this score rests on styling rules.",
+        text: rs(loc, ctx.noTryOn ? "fit.hearts.noneNoTryOn" : "fit.hearts.none"),
       },
     };
   }
-  return { h: 0, signal: { factor: "hearts", polarity: "negative", label: "not hearted", text: ctx.noTryOn ? "They did not heart this piece." : "They did not heart this piece during their try-on." } };
+  return { h: 0, signal: { factor: "hearts", polarity: "negative", label: "not hearted", text: rs(loc, ctx.noTryOn ? "fit.hearts.notNoTryOn" : "fit.hearts.not") } };
 }
 
 function polarityOf(strength: RuleStrength): SignalPolarity | null {
@@ -157,95 +172,94 @@ function polarityOf(strength: RuleStrength): SignalPolarity | null {
   return null;
 }
 
-function metalFactor(profile: RecipientProfile | null, sku: CatalogSku, rules: JewelryRules) {
+function metalFactor(profile: RecipientProfile | null, sku: CatalogSku, rules: JewelryRules, loc: Locale = "en") {
   const signals: Omit<FitSignal, "points">[] = [];
   if (!profile) return { m: 0.5, signals };
   const { undertone, confidence, override } = effectiveUndertone(profile);
   const rule: RuleScore = rules.metalFit(sku.attributes.metal, undertone);
   const m = (clampWeight(rule.weight) + 1) / 2;
   const mEff = 0.5 + confidence * (m - 0.5);
-  const metal = METAL_LABEL[sku.attributes.metal];
-  const tone = UNDERTONE_LABEL[undertone];
-  const who = override ? `${tone} undertone (their choice)` : `${tone} undertone estimate`;
+  // English labels for the model input; the report language for the template text.
+  const metal = rt("en", `metalText.${sku.attributes.metal}`);
+  const who = rt("en", override ? "fit.who.choice" : "fit.who.estimate", { tone: rt("en", `undertone.${undertone}`) });
+  const vars = { metal: rt(loc, `metalText.${sku.attributes.metal}`), who: rt(loc, override ? "fit.who.choice" : "fit.who.estimate", { tone: rt(loc, `undertone.${undertone}`) }) };
   const polarity = polarityOf(rule.strength);
   if (polarity === "positive") {
-    signals.push({ factor: "metal", polarity, label: `${who} → ${metal}: recommended`, text: `${capitalize(who)} suits ${metal}.` });
+    signals.push({ factor: "metal", polarity, label: `${who} → ${metal}: recommended`, text: rs(loc, "fit.metal.good", vars) });
   } else if (polarity === "neutral") {
-    signals.push({ factor: "metal", polarity, label: `${who} → ${metal}: acceptable`, text: `${capitalize(metal)} is a softer match than other metals for a ${who}.` });
+    signals.push({ factor: "metal", polarity, label: `${who} → ${metal}: acceptable`, text: rs(loc, "fit.metal.ok", vars) });
   } else if (polarity === "negative") {
-    signals.push({ factor: "metal", polarity, label: `${who} → ${metal}: usually avoided`, text: `Stylists rarely pair ${metal} with a ${who}.` });
+    signals.push({ factor: "metal", polarity, label: `${who} → ${metal}: usually avoided`, text: rs(loc, "fit.metal.avoid", vars) });
   }
   if (!override && confidence < FIT_PARAMS.lowConfidence) {
     signals.push({
       factor: "confidence",
       polarity: "negative",
       label: "low-confidence undertone estimate",
-      text: "Their undertone estimate is low confidence, so treat the metal advice lightly.",
+      text: rs(loc, "fit.lowConfidence"),
     });
   }
   return { m: mEff, signals };
 }
 
-function styleFactor(profile: RecipientProfile | null, sku: CatalogSku, rules: JewelryRules) {
+function styleFactor(profile: RecipientProfile | null, sku: CatalogSku, rules: JewelryRules, loc: Locale = "en") {
   if (!profile || profile.faceShape === "Unknown") return { s: 0.5 };
   const rule = rules.styleFit(sku.attributes, profile.faceShape);
   const s = (clampWeight(rule.weight) + 1) / 2;
   const polarity = polarityOf(rule.strength);
   if (!polarity) return { s };
-  const face = `${FACE_SHAPE_LABEL[profile.faceShape]} face`;
-  const style = styleLabel(sku);
+  const faceOf = (l: Locale) => rt(l, "fit.face", { shape: rt(l, `faceShape.${profile.faceShape}`) });
+  const face = faceOf("en");
+  const style = styleText("en", sku);
   const label = `${face} → ${style}: ${rule.strength === "avoid" ? "usually avoided" : rule.strength}${rule.singleSource ? " (single source)" : ""}`;
-  const text =
-    polarity === "positive"
-      ? `${capitalize(face)} shape suits ${style}.`
-      : polarity === "neutral"
-        ? `${capitalize(style)} are an acceptable match for ${withArticle(face)} shape.`
-        : `Stylists often steer ${face} shapes away from ${style}.`;
+  const local = faceOf(loc);
+  const vars = { face: local, aFace: withArticle(local), style: styleText(loc, sku) };
+  const text = rs(loc, polarity === "positive" ? "fit.style.good" : polarity === "neutral" ? "fit.style.ok" : "fit.style.avoid", vars);
   return { s, signal: { factor: "style" as const, polarity, label, text } };
 }
 
-function budgetFactor(sku: CatalogSku, request: FitRequestInput) {
+function budgetFactor(sku: CatalogSku, request: FitRequestInput, loc: Locale = "en") {
   const min = request.budgetMin ?? 0;
-  const range = min > 0 ? `${formatMoney(min, request.currency)}–${formatMoney(request.budgetMax, request.currency)}` : formatMoney(request.budgetMax, request.currency);
+  const range = min > 0 ? `${money(loc, min, request.currency)}–${money(loc, request.budgetMax, request.currency)}` : money(loc, request.budgetMax, request.currency);
   if (sku.currency !== request.currency) {
     return {
       b: 0,
-      signal: { factor: "budget" as const, polarity: "negative" as const, label: "priced in a different currency", text: `Priced in ${sku.currency}, not your budget currency.` },
+      signal: { factor: "budget" as const, polarity: "negative" as const, label: "priced in a different currency", text: rs(loc, "fit.budget.currency", { currency: sku.currency }) },
     };
   }
   const p = sku.price;
   if (p >= min && p <= request.budgetMax) {
-    return { b: 1, signal: { factor: "budget" as const, polarity: "positive" as const, label: "within budget", text: `Within your ${range} budget.` } };
+    return { b: 1, signal: { factor: "budget" as const, polarity: "positive" as const, label: "within budget", text: rs(loc, "fit.budget.within", { range }) } };
   }
   const over = p > request.budgetMax;
   const bound = over ? request.budgetMax : min;
   const d = bound > 0 ? Math.abs(p - bound) / bound : 1;
   const b = Math.max(0, 1 - d / FIT_PARAMS.budgetFalloff);
-  const gap = formatMoney(Math.abs(p - bound), request.currency);
+  const gap = money(loc, Math.abs(p - bound), request.currency);
   return over
-    ? { b, signal: { factor: "budget" as const, polarity: "negative" as const, label: "over budget", text: `${gap} over your ${range} budget.` } }
-    : { b, signal: { factor: "budget" as const, polarity: "neutral" as const, label: "below budget", text: `${gap} below your ${range} budget.` } };
+    ? { b, signal: { factor: "budget" as const, polarity: "negative" as const, label: "over budget", text: rs(loc, "fit.budget.over", { gap, range }) } }
+    : { b, signal: { factor: "budget" as const, polarity: "neutral" as const, label: "below budget", text: rs(loc, "fit.budget.below", { gap, range }) } };
 }
 
-function occasionFactor(sku: CatalogSku, request: FitRequestInput) {
-  const occ = OCCASION_LABEL[request.occasion];
+function occasionFactor(sku: CatalogSku, request: FitRequestInput, loc: Locale = "en") {
+  const occasion = rt(loc, `occasion.${request.occasion}`);
   if ((sku.attributes.occasions ?? []).includes(request.occasion)) {
-    return { o: 1, signal: { factor: "occasion" as const, polarity: "positive" as const, label: `suits ${request.occasion}`, text: `A natural fit for ${occ}.` } };
+    return { o: 1, signal: { factor: "occasion" as const, polarity: "positive" as const, label: `suits ${request.occasion}`, text: rs(loc, "fit.occasion.match", { occasion }) } };
   }
   return {
     o: FIT_PARAMS.occasionMissCredit,
-    signal: { factor: "occasion" as const, polarity: "neutral" as const, label: `not tagged for ${request.occasion}`, text: `Not tagged for ${occ}, but still giftable.` },
+    signal: { factor: "occasion" as const, polarity: "neutral" as const, label: `not tagged for ${request.occasion}`, text: rs(loc, "fit.occasion.miss", { occasion }) },
   };
 }
 
 const CAUTION_ORDER: FitFactor[] = ["hearts", "confidence", "metal", "style", "budget", "occasion"];
 
-function pickReasons(signals: FitSignal[], sku: CatalogSku, request: FitRequestInput, noTryOn = false): { reasons: string[]; caution: string } {
-  const generic = noTryOn ? GENERIC_CAUTION_NO_TRYON : GENERIC_CAUTION;
+function pickReasons(signals: FitSignal[], sku: CatalogSku, request: FitRequestInput, noTryOn = false, loc: Locale = "en"): { reasons: string[]; caution: string } {
+  const generic = genericCaution(loc, noTryOn);
   const positives = signals.filter((s) => s.polarity === "positive").sort((a, b) => b.points - a.points);
   const neutrals = signals.filter((s) => s.polarity === "neutral" && s.factor !== "hearts");
   const reasons = [...positives, ...neutrals].slice(0, 2).map((s) => s.text);
-  if (reasons.length < 2) reasons.push(`On your ${CATEGORY_LABEL[sku.category]} shortlist for ${OCCASION_LABEL[request.occasion]}.`);
+  if (reasons.length < 2) reasons.push(rs(loc, "fit.shortlist", { category: rt(loc, `category.${sku.category}`), occasion: rt(loc, `occasion.${request.occasion}`) }));
   if (reasons.length < 2) reasons.push(generic);
   const byOrder = (pol: SignalPolarity) =>
     CAUTION_ORDER.map((f) => signals.find((s) => s.factor === f && s.polarity === pol)).find(Boolean);
@@ -300,11 +314,11 @@ export function scoreView(
   ref?: VariantRef,
 ): ScoredSku {
   const hearts = heartsFactor(profile, sku, ctx, ref);
-  const budget = budgetFactor(sku, request);
-  const occasion = occasionFactor(sku, request);
-  if (ctx.noTryOn) return scoreWithoutTryOn(sku, request, hearts, budget, occasion);
-  const metal = metalFactor(profile, sku, rules);
-  const style = styleFactor(profile, sku, rules);
+  const budget = budgetFactor(sku, request, ctx.locale);
+  const occasion = occasionFactor(sku, request, ctx.locale);
+  if (ctx.noTryOn) return scoreWithoutTryOn(sku, request, hearts, budget, occasion, ctx.locale);
+  const metal = metalFactor(profile, sku, rules, ctx.locale);
+  const style = styleFactor(profile, sku, rules, ctx.locale);
 
   const W = FIT_WEIGHTS;
   const pts = {
@@ -329,7 +343,7 @@ export function scoreView(
   signals.push({ ...budget.signal, points: pts.budget });
   signals.push({ ...occasion.signal, points: pts.occasion });
 
-  const { reasons, caution } = pickReasons(signals, sku, request);
+  const { reasons, caution } = pickReasons(signals, sku, request, false, ctx.locale);
   return {
     skuId: sku.id,
     score: Math.round(Math.min(FIT_MAX, Math.max(0, raw))),
@@ -352,6 +366,7 @@ function scoreWithoutTryOn(
   hearts: ReturnType<typeof heartsFactor>,
   budget: ReturnType<typeof budgetFactor>,
   occasion: ReturnType<typeof occasionFactor>,
+  locale?: Locale,
 ): ScoredSku {
   const W = FIT_WEIGHTS_NO_TRYON;
   const pts = {
@@ -364,7 +379,7 @@ function scoreWithoutTryOn(
   if (hearts.signal) signals.push({ ...hearts.signal, points: pts.hearts });
   signals.push({ ...budget.signal, points: pts.budget });
   signals.push({ ...occasion.signal, points: pts.occasion });
-  const { reasons, caution } = pickReasons(signals, sku, request, true);
+  const { reasons, caution } = pickReasons(signals, sku, request, true, locale);
   return {
     skuId: sku.id,
     score: Math.round(Math.min(FIT_MAX, Math.max(0, raw))),

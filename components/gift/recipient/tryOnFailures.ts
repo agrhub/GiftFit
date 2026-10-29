@@ -5,6 +5,8 @@
  *   - bracelet: engine code "4", "Wrist position should be in the center." (photo cut off at the wrist).
  */
 import type { CarouselItem } from "@/lib/contracts/api";
+import type { Locale } from "@/lib/i18n";
+import { rt } from "@/lib/i18n/recipient";
 
 export type RetakeKind = "ears" | "wrist";
 
@@ -29,12 +31,13 @@ export interface FailureCopy {
   retake: RetakeKind | null;
 }
 
-export function failureCopy(item: Pick<CarouselItem, "category">, reason: string | undefined): FailureCopy {
+/** The copy in the recipient page locale (lib/i18n/recipient; English by default). */
+export function failureCopy(item: Pick<CarouselItem, "category">, reason: string | undefined, locale: Locale = "en"): FailureCopy {
   if (item.category === "earring" && isEarlobeFailure(reason)) {
-    return { text: "We couldn't see your ears, so this earring preview was skipped. Retake?", retake: "ears" };
+    return { text: rt(locale, "card.failEars"), retake: "ears" };
   }
   if ((item.category === "bracelet" || item.category === "watch" || item.category === "ring") && isWristFailure(reason)) {
-    return { text: "We couldn't see your whole wrist, so this preview was skipped. Retake?", retake: "wrist" };
+    return { text: rt(locale, "card.failWrist"), retake: "wrist" };
   }
-  return { text: "Preview unavailable for this piece. You can still heart it.", retake: null };
+  return { text: rt(locale, "card.unavailable"), retake: null };
 }

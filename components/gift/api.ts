@@ -21,6 +21,7 @@ import type {
   SwatchResponse,
 } from "@/lib/contracts/api";
 import type { FitResult, Undertone } from "@/lib/contracts/giftfit";
+import { type Locale, normalizeLocale } from "@/lib/i18n";
 
 export class ApiError extends Error {
   constructor(
@@ -63,6 +64,8 @@ export interface GiverReportView {
   tryOn: boolean;
   /** A store-URL preview's display name (absent = the Aurum demo store). */
   storeName?: string;
+  /** The report's UI locale (GiverReportStatus.lang); absent on older servers = the page's own. */
+  lang?: Locale;
 }
 
 /** A heart on one design; `swatchId` is the metal shown (absent only for swatch-less items). */
@@ -203,6 +206,7 @@ export function normalizeReport(raw: GiverReportStatus): GiverReportView {
     ...(typeof raw.storeName === "string" && raw.storeName
       ? { storeName: raw.storeName }
       : {}),
+    ...(normalizeLocale(raw.lang) ? { lang: normalizeLocale(raw.lang) } : {}),
   };
 }
 

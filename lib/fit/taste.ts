@@ -8,14 +8,16 @@
  * the recipient's face, photo, colours, undertone or confidence enters either the template or the
  * Claude prompt (`buildTasteInput` is the only input builder; tests pin its keys).
  */
-import type { GiverReportStatus } from "@/lib/contracts/api";
+import { type GiverReportStatus, STYLE_FAMILIES, type StyleFamily } from "@/lib/contracts/api";
 import type { CatalogSku, JewelryCategory, Metal } from "@/lib/contracts/giftfit";
 import { type MessagesLike, type ReserveFn, ClaudeSpendRefused, anthropicFromEnv, callClaudeJson } from "./claude";
 import { SILHOUETTE_LABEL, allowedGenders, bucketsOf, priceFit, styleFamilyOf } from "./curate";
 import { type GenderPresentation, genderOf } from "./decoys";
 import { DEFAULT_CLAUDE_MODEL } from "@/lib/anthropic/budget";
-import { CATEGORY_LABEL, METAL_LABEL } from "./labels";
-import { LEAKS, wordCount } from "./explain";
+import type { Locale } from "@/lib/i18n";
+import { type ReportMessageKey, joinSentences, listOf, reportLanguage, rs, rt } from "@/lib/i18n/report";
+import { LEAKS, localizeSystem, maxWordsFor, wordCount } from "./explain";
+import { mentionsBiometric, mentionsPhoto, mentionsTryOn, wrongScript } from "./guardWords";
 import { seededKey } from "./rng";
 import { type VariantRequest, defaultVariant, eligibleVariants } from "./variants";
 
@@ -66,32 +68,43 @@ function top<T>(xs: readonly T[], n: number): T[] {
     .map(([x]) => x);
 }
 
-const list = (xs: readonly string[]) => (xs.length <= 1 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+/** A silhouette bucket's words in the report language (SILHOUETTE_LABEL keys), else the category word. */
+function silhouetteText(locale: Locale, h: TasteItem): string {
+  const key = `silhouette.${h.silhouette}` as ReportMessageKey;
+  return h.silhouette in SILHOUETTE_LABEL ? rt(locale, key) : rt(locale, `category.${h.category}`);
+}
 
-/** Deterministic taste summary (≤ ~45 words). */
-export function templateTasteSummary(t: TasteInput, opts: { noTryOn?: boolean } = {}): string {
+/** A style family word in the report language (a free-form style word stays as the catalog wrote it). */
+function styleWord(locale: Locale, style: string): string {
+  return (STYLE_FAMILIES as readonly string[]).includes(style) ? rt(locale, `styleFamily.${style as StyleFamily}`) : style;
+}
+
+/** Deterministic taste summary (≤ ~45 words), in the giver's report language (English when absent). */
+export function templateTasteSummary(t: TasteInput, opts: { noTryOn?: boolean; locale?: Locale } = {}): string {
+  const loc = opts.locale ?? "en";
   if (t.heartedCount === 0) {
-    const wish = t.wishedCount > 0 ? " They did love a style but wished it came in another metal." : "";
-    const rest = opts.noTryOn ? "your budget and the occasion" : "styling rules";
-    return `They didn't heart any of the ${t.shownCount} pieces, so there is no clear taste signal yet.${wish} The ranking below rests on ${rest}.`;
+    return joinSentences(loc, [
+      rs(loc, "taste.none", { shown: t.shownCount }),
+      ...(t.wishedCount > 0 ? [rs(loc, "taste.noneWish")] : []),
+      rs(loc, opts.noTryOn ? "taste.restBudget" : "taste.restRules"),
+    ]);
   }
   const styles = top(
     t.hearted.map((h) => h.style).filter((s) => s !== "other"),
     2,
-  );
+  ).map((s) => styleWord(loc, s));
   const metals = top(
-    t.hearted.map((h) => METAL_LABEL[h.metal]),
+    t.hearted.map((h) => rt(loc, `metalText.${h.metal}`)),
     2,
   );
   const shapes = top(
-    t.hearted.map((h) => SILHOUETTE_LABEL[h.silhouette] ?? CATEGORY_LABEL[h.category]),
+    t.hearted.map((h) => silhouetteText(loc, h)),
     2,
   );
-  const parts = [`They hearted ${t.heartedCount} of ${t.shownCount} pieces.`];
-  const lean = styles.length ? `Their hearts lean ${list(styles)}` : "Their hearts";
-  parts.push(`${lean}, mostly in ${list(metals)}, with a liking for ${list(shapes)}.`);
-  if (t.wishedCount > 0) parts.push("They also loved a style but wished for another metal.");
-  return parts.join(" ");
+  const vars = { styles: listOf(loc, styles), metals: listOf(loc, metals), shapes: listOf(loc, shapes) };
+  const parts = [rs(loc, "taste.count", { hearted: t.heartedCount, shown: t.shownCount }), rs(loc, styles.length ? "taste.lean" : "taste.leanNoStyle", vars)];
+  if (t.wishedCount > 0) parts.push(rs(loc, "taste.wish"));
+  return joinSentences(loc, parts);
 }
 
 // ---------------------------------------------------------------- Claude
@@ -117,7 +130,8 @@ export const TASTE_SCHEMA: Record<string, unknown> = {
 
 export interface TasteClient {
   readonly model: string;
-  summarize(input: TasteInput): Promise<unknown>;
+  /** `language`: the giver's report language when not English (the summary is written in it). */
+  summarize(input: TasteInput, language?: { code: string; name: string }): Promise<unknown>;
 }
 
 export class AnthropicTasteClient implements TasteClient {
@@ -130,8 +144,10 @@ export class AnthropicTasteClient implements TasteClient {
     this.model = opts.model ?? DEFAULT_CLAUDE_MODEL;
   }
 
-  async summarize(input: TasteInput): Promise<unknown> {
-    const out = await callClaudeJson(this.client, { system: TASTE_SYSTEM, user: JSON.stringify(input), schema: TASTE_SCHEMA, maxTokens: TASTE_MAX_TOKENS }, { model: this.model, reserve: this.opts.reserve });
+  async summarize(input: TasteInput, language?: { code: string; name: string }): Promise<unknown> {
+    const system = localizeSystem(TASTE_SYSTEM, language, TASTE_MAX_WORDS);
+    const maxTokens = language && /^(ja|zh|ko|th)$/.test(language.code) ? Math.round(TASTE_MAX_TOKENS * 1.35) : TASTE_MAX_TOKENS;
+    const out = await callClaudeJson(this.client, { system, user: JSON.stringify(input), schema: TASTE_SCHEMA, maxTokens }, { model: this.model, reserve: this.opts.reserve });
     return out.data;
   }
 }
@@ -144,13 +160,20 @@ export function createTasteClient(env: Record<string, string | undefined> = proc
 /** Recipient-side words a taste summary must never contain (the input never carries them). */
 const TASTE_EXTRA = /\b(undertones?|skin|complexion|face|faces|facial|selfie|warm|cool|tan|pale|try[- ]?ons?|tried (it |them )?on|trying on|estimates?d?)\b/i;
 
-/** Issues with a model-written summary; empty = usable. */
-export function checkTasteText(text: unknown, catalog: readonly { id: string; title: string }[] = []): string[] {
+/**
+ * Issues with a model-written summary; empty = usable. The undertone, skin, face, estimate, try-on, photo
+ * and measurement words are checked in every UI language (lib/fit/guardWords.ts); warm / cool / tan / pale
+ * only in English, since their translations are ordinary metal words elsewhere.
+ */
+export function checkTasteText(text: unknown, catalog: readonly { id: string; title: string }[] = [], locale?: Locale): string[] {
   if (typeof text !== "string" || text.trim() === "") return ["empty"];
   const codes = new Set<string>();
-  if (wordCount(text) > TASTE_MAX_WORDS) codes.add("too_long");
+  if (wordCount(text) > maxWordsFor(TASTE_MAX_WORDS, locale)) codes.add("too_long");
   for (const { code, re } of LEAKS) if (re.test(text)) codes.add(code);
-  if (TASTE_EXTRA.test(text)) codes.add("leak_recipient");
+  if (mentionsPhoto(text)) codes.add("leak_photo");
+  if (mentionsBiometric(text)) codes.add("leak_biometric");
+  if (TASTE_EXTRA.test(text) || mentionsTryOn(text)) codes.add("leak_recipient");
+  if (locale && wrongScript(text, locale)) codes.add("wrong_language");
   const lower = text.toLowerCase();
   for (const c of catalog) {
     if ((c.id.length >= 3 && lower.includes(c.id.toLowerCase())) || (c.title.length >= 4 && lower.includes(c.title.toLowerCase()))) {
@@ -170,19 +193,24 @@ export interface TasteSummaryResult {
 /** Claude when a client is given and its output passes the checks; the template otherwise. Never throws. */
 export async function tasteSummary(
   input: TasteInput,
-  { client, catalog, noTryOn = false }: { client: TasteClient | null; catalog?: readonly { id: string; title: string }[]; noTryOn?: boolean },
+  {
+    client,
+    catalog,
+    noTryOn = false,
+    locale,
+  }: { client: TasteClient | null; catalog?: readonly { id: string; title: string }[]; noTryOn?: boolean; /** The giver's report language (absent = English). */ locale?: Locale },
 ): Promise<TasteSummaryResult> {
-  const template: TasteSummary = { text: templateTasteSummary(input, { noTryOn }), source: "template" };
+  const template: TasteSummary = { text: templateTasteSummary(input, { noTryOn, locale }), source: "template" };
   if (!client) return { summary: template, issue: "no_client" };
   if (input.heartedCount === 0) return { summary: template, issue: "no_hearts" };
   let raw: unknown;
   try {
-    raw = await client.summarize(input);
+    raw = await (locale && locale !== "en" ? client.summarize(input, reportLanguage(locale)) : client.summarize(input));
   } catch (err) {
     return { summary: template, model: client.model, issue: err instanceof ClaudeSpendRefused ? "spend_cap" : "client_error" };
   }
   const text = (raw as { summary?: unknown })?.summary;
-  const issues = checkTasteText(text, catalog);
+  const issues = checkTasteText(text, catalog, locale);
   if (issues.length > 0) return { summary: template, model: client.model, issue: issues.join(",") };
   return { summary: { text: (text as string).trim(), source: "claude" }, model: client.model };
 }

@@ -6,14 +6,12 @@
  * an `onChange` handler is given.
  */
 import { useId, useState } from "react";
+import type { Locale } from "@/lib/i18n";
+import { recipientTranslator, type RecipientT } from "@/lib/i18n/recipient";
 
 export type UndertoneValue = "warm" | "neutral" | "cool";
 
-const OPTIONS: Array<{ value: UndertoneValue; label: string; hint: string }> = [
-  { value: "warm", label: "Warm", hint: "golden, peachy" },
-  { value: "neutral", label: "Neutral", hint: "a bit of both" },
-  { value: "cool", label: "Cool", hint: "pink, rosy" },
-];
+const OPTIONS: readonly UndertoneValue[] = ["warm", "neutral", "cool"];
 
 export const LOW_CONFIDENCE = 0.5;
 
@@ -31,17 +29,31 @@ export interface UndertoneEstimateCardProps {
   /** Bearer token if the session cookie is not used. */
   sessionToken?: string;
   className?: string;
+  /** Recipient page locale (lib/i18n/recipient, A21); default English. */
+  locale?: Locale;
 }
 
-function confidenceText(c: number): string {
-  if (c < LOW_CONFIDENCE) return "We are not sure about this one. Please check it.";
-  if (c < 0.75) return "Fairly sure, but you know best.";
-  return "Quite sure, but you know best.";
+/** A catalog sentence with one placeholder as its own element ("Our AI estimate from your selfie: **Warm**."). */
+function WithValue({ template, value, name = "value", className }: { template: string; value: string; name?: string; className?: string }) {
+  const [before, after = ""] = template.split(`{${name}}`);
+  return (
+    <>
+      {before}
+      {className ? <span className={className}>{value}</span> : <strong>{value}</strong>}
+      {after}
+    </>
+  );
 }
 
-const label = (v: UndertoneValue) => OPTIONS.find((o) => o.value === v)!.label;
+function confidenceText(t: RecipientT, c: number): string {
+  if (c < LOW_CONFIDENCE) return t("undertone.lowConfidence");
+  if (c < 0.75) return t("undertone.fairlySure");
+  return t("undertone.quiteSure");
+}
 
-export function UndertoneEstimateCard({ estimate, confidence, override = null, skinHex, onChange, endpoint = "/api/recipient/undertone", sessionToken, className = "" }: UndertoneEstimateCardProps) {
+export function UndertoneEstimateCard({ estimate, confidence, override = null, skinHex, onChange, endpoint = "/api/recipient/undertone", sessionToken, className = "", locale = "en" }: UndertoneEstimateCardProps) {
+  const t = recipientTranslator(locale);
+  const label = (v: UndertoneValue) => t(`undertone.${v}`);
   const [choice, setChoice] = useState<UndertoneValue | null>(override);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const headingId = useId();
@@ -76,30 +88,31 @@ export function UndertoneEstimateCard({ estimate, confidence, override = null, s
     <section aria-labelledby={headingId} className={`rounded-2xl border border-stone-200 bg-white p-5 text-stone-900 shadow-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 ${className}`}>
       <div className="flex items-center gap-2">
         <h2 id={headingId} className="text-base font-semibold">
-          Your undertone
+          {t("undertone.heading")}
         </h2>
-        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-900">Estimate</span>
+        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-900">{t("undertone.estimateTag")}</span>
       </div>
 
       <p className="mt-2 text-sm text-stone-700 dark:text-stone-300">
-        Our AI estimate from your selfie: <strong>{label(estimate)}</strong>. {confidenceText(confidence)}
+        <WithValue template={t("undertone.estimate")} value={label(estimate)} /> {confidenceText(t, confidence)}
       </p>
 
       {validHex ? (
         <p className="mt-2 flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
           <span aria-hidden="true" className="inline-block h-5 w-5 rounded-full border border-stone-300" style={{ backgroundColor: validHex }} />
           <span>
-            Skin color read from your photo: <span className="font-mono">{validHex}</span> (only you see this; it is not stored)
+            <WithValue template={t("undertone.skin")} value={validHex} name="hex" className="font-mono" />
           </span>
         </p>
       ) : null}
 
       <fieldset className="mt-4">
         <legend className={`text-sm font-medium ${low ? "text-amber-900 dark:text-amber-200" : ""}`}>
-          {low ? "Please pick the one that fits you best:" : "Does this look right? You can change it:"}
+          {low ? t("undertone.pick") : t("undertone.change")}
         </legend>
         <div className="mt-2 grid grid-cols-3 gap-2">
-          {OPTIONS.map((o) => {
+          {OPTIONS.map((value) => {
+            const o = { value, label: label(value), hint: t(`undertone.${value}Hint`) };
             const id = `${name}-${o.value}`;
             const checked = effective === o.value;
             return (
@@ -130,15 +143,15 @@ export function UndertoneEstimateCard({ estimate, confidence, override = null, s
 
       {choice ? (
         <p className="mt-3 text-sm">
-          Using your choice: <strong>{label(choice)}</strong>.{" "}
+          <WithValue template={t("undertone.using")} value={label(choice)} />{" "}
           <button type="button" onClick={() => save(null)} disabled={status === "saving"} className="underline underline-offset-2 focus:outline-2 focus:outline-offset-2">
-            Use the estimate instead
+            {t("undertone.useEstimate")}
           </button>
         </p>
       ) : null}
 
       <p aria-live="polite" className="mt-2 min-h-5 text-sm text-stone-700 dark:text-stone-300">
-        {status === "saving" ? "Saving…" : status === "saved" ? "Saved. Your choice always wins over the estimate." : status === "error" ? "Could not save. Please try again." : ""}
+        {status === "saving" ? t("undertone.saving") : status === "saved" ? t("undertone.saved") : status === "error" ? t("undertone.saveError") : ""}
       </p>
     </section>
   );

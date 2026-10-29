@@ -2,6 +2,7 @@
 import { useEffect, useRef } from "react";
 import { DeleteEverythingButton } from "@/components/trust";
 import { ShieldIcon } from "../icons";
+import { useRt } from "./i18n";
 
 export function DoneScreen({
   token,
@@ -22,6 +23,7 @@ export function DoneScreen({
   /** No try-on for this gift (store-URL previews, ADR-055): no photo was ever taken. */
   noTryOn?: boolean;
 }) {
+  const t = useRt();
   const ref = useRef<HTMLHeadingElement>(null);
   useEffect(() => ref.current?.focus(), []);
   return (
@@ -37,24 +39,18 @@ export function DoneScreen({
         tabIndex={-1}
         className="mt-6 font-display text-4xl leading-tight text-ink focus:outline-none"
       >
-        {noTryOn
-          ? "Done. Your hearts are sent."
-          : "Done. Your photos are deleted."}
+        {noTryOn ? t("done.titleNoTryOn") : t("done.title")}
         <br />
-        <em className="font-normal">The surprise is safe.</em>
+        <em className="font-normal">{t("done.safe")}</em>
       </h1>
       <p className="mt-4 max-w-sm text-sm leading-6 text-ink-soft">
-        {alreadyDone
-          ? "You've already sent your hearts. "
-          : "Your hearts are on their way. "}
-        {noTryOn
-          ? "They'll see which pieces you hearted. No photo of you was taken."
-          : "They'll see fit scores, never your photos, and not which pieces you were shown."}
+        {alreadyDone ? t("done.already") : t("done.onTheirWay")}{" "}
+        {noTryOn ? t("done.seesNoTryOn") : t("done.sees")}
       </p>
       <dl className="mt-8 grid w-full grid-cols-3 gap-2">
         <div className="rounded-xl border border-line bg-white p-3">
           <dt className="text-[0.65rem] uppercase tracking-[0.14em] text-muted">
-            Photos stored
+            {t("done.photosStored")}
           </dt>
           <dd
             className="font-display text-3xl text-ink"
@@ -65,7 +61,7 @@ export function DoneScreen({
         </div>
         <div className="rounded-xl border border-line bg-white p-3">
           <dt className="text-[0.65rem] uppercase tracking-[0.14em] text-muted">
-            Hearts sent
+            {t("done.heartsSent")}
           </dt>
           <dd className="font-display text-3xl text-ink">
             {heartCount ?? "–"}
@@ -73,17 +69,19 @@ export function DoneScreen({
         </div>
         <div className="rounded-xl border border-line bg-white p-3">
           <dt className="text-[0.65rem] uppercase tracking-[0.14em] text-muted">
-            Your time
+            {t("done.yourTime")}
           </dt>
           <dd
             className="font-display text-3xl text-ink"
             data-testid="time-to-hearts"
           >
-            {seconds !== undefined ? `${Math.round(seconds)} s` : "–"}
+            {seconds !== undefined
+              ? t("done.seconds", { seconds: Math.round(seconds) })
+              : "–"}
           </dd>
         </div>
       </dl>
-      <p className="mt-6 text-sm text-ink-soft">You can close this page.</p>
+      <p className="mt-6 text-sm text-ink-soft">{t("done.close")}</p>
       {onViewPreviews ? (
         <button
           type="button"
@@ -91,19 +89,22 @@ export function DoneScreen({
           data-testid="view-previews"
           className="mt-3 min-h-11 text-sm text-ink underline decoration-gold underline-offset-4"
         >
-          See your previews again
+          {t("done.viewPreviews")}
         </button>
       ) : null}
       <div className="mt-auto w-full rounded-2xl border border-line bg-white p-5 text-left">
         <h2 className="text-sm font-semibold text-ink">
-          Want us to forget the rest too?
+          {t("done.forgetTitle")}
         </h2>
         <p className="mt-1 text-sm text-ink-soft">
-          Your estimates and hearts are deleted automatically when the link
-          expires. You can delete them now instead.
+          {t("done.forgetBody")}
         </p>
         <div className="mt-3" data-testid="delete-everything">
-          <DeleteEverythingButton sessionToken={token} onDeleted={onDeleted} />
+          <DeleteEverythingButton
+            sessionToken={token}
+            onDeleted={onDeleted}
+            locale={t.locale}
+          />
         </div>
       </div>
     </div>

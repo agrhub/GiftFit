@@ -14,8 +14,11 @@
  */
 import { DEFAULT_CLAUDE_MODEL } from "@/lib/anthropic/budget";
 import type { FitResult, JewelryCategory } from "@/lib/contracts/giftfit";
+import type { Locale } from "@/lib/i18n";
+import { reportLanguage } from "@/lib/i18n/report";
 import { ClaudeSpendRefused, type MessagesLike, type ReserveFn, anthropicFromEnv, callClaudeJson } from "./claude";
-import { GENERIC_CAUTION, GENERIC_CAUTION_NO_TRYON, type ScoredSku, toFitResult } from "./score";
+import { NO_TRYON_WORDS_EN, mentionsBiometric, mentionsPhoto, mentionsTryOn, wordCount as countWords, wrongScript } from "./guardWords";
+import { type ScoredSku, genericCaution, toFitResult } from "./score";
 
 export const EXPLAIN_MODEL = DEFAULT_CLAUDE_MODEL;
 export const MAX_WORDS = 20;
@@ -39,6 +42,11 @@ export interface ExplainRequest {
    */
   tryOn?: false;
   items: ExplainItem[];
+  /**
+   * The giver's report language when it is not English (lib/i18n/report): the model writes every reason
+   * and caution in it. The client puts it in the system prompt, not in the item JSON.
+   */
+  language?: { code: string; name: string };
 }
 
 export interface ExplainOutputItem {
@@ -76,7 +84,9 @@ export interface ExplainIssue {
     | "leak_url"
     | "foreign_reference"
     /** A request without a try-on: the text mentions undertone, skin, face shape, a try-on or estimates. */
-    | "leak_tryon";
+    | "leak_tryon"
+    /** Written in another script than the report language (e.g. English for a Japanese report). */
+    | "wrong_language";
   detail?: string;
 }
 
@@ -160,10 +170,27 @@ export const EXPLAIN_SYSTEM_NO_TRYON = [
 ].join(" ");
 
 /**
- * Words that must never appear in giver-facing text for a request without a try-on (reasons, cautions,
- * explanations, taste summary). Also the guard test's word list.
+ * English words that must never appear in giver-facing text for a request without a try-on (reasons,
+ * cautions, explanations, taste summary). Also the guard test's word list. Every other UI language has its
+ * own list (./guardWords NO_TRYON_WORDS_BY_LOCALE); `checkText` applies all of them.
  */
-export const NO_TRYON_WORDS = /\b(undertones?|skin|complexion|face[- ]?shapes?|faces?|facial|try[- ]?ons?|tried (it |them )?on|trying on|selfies?|photos?|estimates?d?|low[- ]confidence)\b/i;
+export const NO_TRYON_WORDS = NO_TRYON_WORDS_EN;
+
+/**
+ * The system prompt for a report language other than English: same rules, written in that language,
+ * JSON shape unchanged. Japanese, Chinese and Thai get a character budget for "20 words".
+ */
+export function localizeSystem(system: string, language?: { code: string; name: string }, maxWords = MAX_WORDS): string {
+  if (!language || language.code === "en") return system;
+  const perWord = language.code === "ja" || language.code === "zh" ? 2.5 : language.code === "th" ? 5 : 0;
+  const chars = perWord ? ` (about ${Math.round(maxWords * perWord)} characters)` : "";
+  return [
+    system.replace("in plain English", `in plain ${language.name}`).replace("plain-English", `plain ${language.name}`),
+    `Write all text in ${language.name} (BCP-47 "${language.code}"); each text at most ${maxWords} words${chars}.`,
+    "The input labels are English: convey their meaning in that language, never copy English words.",
+    "Keep the JSON keys and any id values exactly as given.",
+  ].join(" ");
+}
 
 // ---------------------------------------------------------------- Anthropic client
 
@@ -185,9 +212,12 @@ export class AnthropicExplainClient implements ExplainClient {
   }
 
   async explain(request: ExplainRequest, schema: Record<string, unknown>): Promise<unknown> {
+    const { language, ...input } = request;
+    const system = localizeSystem(request.tryOn === false ? EXPLAIN_SYSTEM_NO_TRYON : EXPLAIN_SYSTEM, language);
     const out = await callClaudeJson(
       this.client,
-      { system: request.tryOn === false ? EXPLAIN_SYSTEM_NO_TRYON : EXPLAIN_SYSTEM, user: JSON.stringify(request), schema, maxTokens: explainMaxTokens(request.items.length) },
+      // Non-Latin scripts take more tokens per word: a third more room for them.
+      { system, user: JSON.stringify(input), schema, maxTokens: Math.round(explainMaxTokens(request.items.length) * (language && /^(ja|zh|ko|th)$/.test(language.code) ? 1.35 : 1)) },
       { model: this.model, reserve: this.opts.reserve },
     );
     return out.data;
@@ -215,7 +245,11 @@ export const LEAKS: { code: ExplainIssue["code"]; re: RegExp }[] = [
   { code: "leak_url", re: /https?:\/\/|\bwww\.|\.(com|net|io|png|jpe?g|webp)\b/i },
 ];
 
-export const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
+/** Words in a text (whitespace tokens; Japanese, Chinese and Thai by characters: ./guardWords). */
+export const wordCount = countWords;
+
+/** The word limit as whitespace tokens: Vietnamese writes every syllable apart, so it gets half as many again. */
+export const maxWordsFor = (words: number, locale?: Locale) => (locale === "vi" ? Math.round(words * 1.5) : words);
 
 export interface ValidationContext {
   /** Ids that were scored and sent to the model. */
@@ -224,15 +258,21 @@ export interface ValidationContext {
   catalog?: readonly { id: string; title: string }[];
   /** No try-on happened: reject any mention of undertone, face shape, skin, photos or a try-on. */
   noTryOn?: boolean;
+  /** The report language the text must be written in (absent: not checked). */
+  locale?: Locale;
 }
 
 /** Returns the issues for one text; empty when the text is safe, grounded and short enough. */
 export function checkText(text: unknown, skuId: string, ctx: ValidationContext): ExplainIssue["code"][] {
   if (typeof text !== "string" || text.trim() === "") return ["empty"];
   const codes = new Set<ExplainIssue["code"]>();
-  if (wordCount(text) > MAX_WORDS) codes.add("too_long");
+  if (wordCount(text) > maxWordsFor(MAX_WORDS, ctx.locale)) codes.add("too_long");
   for (const { code, re } of LEAKS) if (re.test(text)) codes.add(code);
-  if (ctx.noTryOn && NO_TRYON_WORDS.test(text)) codes.add("leak_tryon");
+  // The same checks in every UI language (lib/fit/guardWords.ts).
+  if (mentionsPhoto(text)) codes.add("leak_photo");
+  if (mentionsBiometric(text)) codes.add("leak_biometric");
+  if (ctx.noTryOn && mentionsTryOn(text)) codes.add("leak_tryon");
+  if (ctx.locale && wrongScript(text, ctx.locale)) codes.add("wrong_language");
   const lower = text.toLowerCase();
   for (const id of ctx.allowedIds) if (id !== skuId && id.length >= 3 && lower.includes(id.toLowerCase())) codes.add("foreign_reference");
   for (const c of ctx.catalog ?? []) {
@@ -258,7 +298,7 @@ export function validateExplanation(
 ): { results: FitResult[]; issues: ExplainIssue[]; repaired: boolean } {
   const issues: ExplainIssue[] = [];
   const allowedIds = scored.map((s) => s.skuId);
-  const vctx: ValidationContext = { allowedIds, catalog: ctx.catalog, noTryOn: ctx.noTryOn };
+  const vctx: ValidationContext = { allowedIds, catalog: ctx.catalog, noTryOn: ctx.noTryOn, ...(ctx.locale ? { locale: ctx.locale } : {}) };
   const items = (raw as { items?: unknown })?.items;
   const byId = new Map<string, Record<string, unknown>>();
   if (!Array.isArray(items)) {
@@ -289,7 +329,8 @@ export function validateExplanation(
     // A16 mixed set: a piece that was not tried on gets the no-try-on word guard on its own.
     const itemNoTryOn = Boolean(ctx.noTryOn) || s.tryOn === false;
     const ictx = itemNoTryOn === Boolean(vctx.noTryOn) ? vctx : { ...vctx, noTryOn: itemNoTryOn };
-    const fallback = { reason1: base.reasons[0], reason2: base.reasons[1], caution: base.caution ?? (itemNoTryOn ? GENERIC_CAUTION_NO_TRYON : GENERIC_CAUTION) };
+    // The template is already in the report language (scored with FitContext.locale).
+    const fallback = { reason1: base.reasons[0], reason2: base.reasons[1], caution: base.caution ?? genericCaution(ctx.locale, itemNoTryOn) };
     const out: Record<"reason1" | "reason2" | "caution", string> = { ...fallback };
     for (const field of ["reason1", "reason2", "caution"] as const) {
       const codes = checkText(rec[field], s.skuId, ictx);
@@ -312,11 +353,23 @@ export function templateExplanation(scored: readonly ScoredSku[]): FitResult[] {
  */
 export async function explainFit(
   scored: readonly (ScoredSku & { category: JewelryCategory })[],
-  { client, catalog, noTryOn = false }: { client: ExplainClient | null; catalog?: readonly { id: string; title: string }[]; noTryOn?: boolean },
+  {
+    client,
+    catalog,
+    noTryOn = false,
+    locale,
+  }: {
+    client: ExplainClient | null;
+    catalog?: readonly { id: string; title: string }[];
+    noTryOn?: boolean;
+    /** The giver's report language; `scored` must have been scored with the same FitContext.locale. */
+    locale?: Locale;
+  },
 ): Promise<ExplainResult> {
   if (!client) return { results: templateExplanation(scored), source: "template", issues: [{ code: "no_client" }] };
   if (scored.length === 0) return { results: [], source: "template", issues: [] };
   const input = buildExplainInput(scored, { noTryOn });
+  if (locale && locale !== "en") input.language = reportLanguage(locale);
   let raw: unknown;
   try {
     raw = await client.explain(input, explainSchema(input.items.map((i) => i.skuId)));
@@ -328,7 +381,7 @@ export async function explainFit(
       issues: [err instanceof ClaudeSpendRefused ? { code: "spend_cap", detail: err.reason } : { code: "client_error", detail: (err as Error).message.slice(0, 200) }],
     };
   }
-  const v = validateExplanation(raw, scored, { catalog, noTryOn });
+  const v = validateExplanation(raw, scored, { catalog, noTryOn, ...(locale ? { locale } : {}) });
   const usable = !v.issues.some((i) => i.code === "bad_shape");
   return {
     results: v.results,

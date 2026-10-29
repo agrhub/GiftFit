@@ -1,14 +1,16 @@
 "use client";
 /** Progress while the server analyses the selfie and renders try-ons (one request; stages are paced honestly). */
 import { useEffect, useState } from "react";
+import type { RecipientMessageKey } from "@/lib/i18n/recipient";
 import { CheckIcon } from "../icons";
+import { useRt } from "./i18n";
 
-const STAGES = [
-  { at: 0, label: "Uploading your photo securely" },
-  { at: 2, label: "Estimating your undertone" },
-  { at: 5, label: "Reading your face shape" },
-  { at: 8, label: "Trying on your pieces" },
-  { at: 1e9, label: "Deleting your photos" },
+const STAGES: Array<{ at: number; label: RecipientMessageKey }> = [
+  { at: 0, label: "processing.upload" },
+  { at: 2, label: "processing.undertone" },
+  { at: 5, label: "processing.faceShape" },
+  { at: 8, label: "processing.tryOn" },
+  { at: 1e9, label: "processing.delete" },
 ];
 
 export function ProcessingStep({
@@ -18,6 +20,7 @@ export function ProcessingStep({
   startedAt: number;
   finished?: boolean;
 }) {
+  const t = useRt();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 500);
@@ -40,14 +43,14 @@ export function ProcessingStep({
         />
         <span className="font-display text-4xl text-ink" aria-hidden="true">
           {Math.floor(elapsed)}
-          <span className="text-lg text-muted">s</span>
+          <span className="text-lg text-muted">{t("processing.seconds")}</span>
         </span>
       </div>
       <h1 className="mt-6 font-display text-3xl text-ink">
-        Making your previews
+        {t("processing.title")}
       </h1>
       <p className="mt-2 text-sm text-ink-soft">
-        Usually under 45 seconds. Keep this page open.
+        {t("processing.body")}
       </p>
       <ol className="mt-8 w-full max-w-xs space-y-3 text-left">
         {STAGES.map((s, i) => {
@@ -67,13 +70,13 @@ export function ProcessingStep({
                   <span className="h-2 w-2 animate-pulse rounded-full bg-gold-deep" />
                 ) : null}
               </span>
-              {s.label}
+              {t(s.label)}
             </li>
           );
         })}
       </ol>
       <p aria-live="polite" className="sr-only">
-        {STAGES[Math.min(current, STAGES.length - 1)].label}
+        {t(STAGES[Math.min(current, STAGES.length - 1)].label)}
       </p>
     </div>
   );

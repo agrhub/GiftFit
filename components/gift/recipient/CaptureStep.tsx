@@ -17,7 +17,9 @@ import {
   sampleStats,
   toStill,
 } from "./imageTools";
+import { fromEnglish } from "@/lib/i18n/recipient";
 import { AlertIcon, CameraIcon, CheckIcon, UploadIcon } from "../icons";
+import { useRt } from "./i18n";
 
 export type CaptureMode = "selfie" | "hand";
 
@@ -70,11 +72,14 @@ export function CheckList({
   checks: CheckResult[];
   live?: boolean;
 }) {
+  const t = useRt();
   if (!checks.length) return null;
+  // captureChecks.ts speaks English; each label and hint has the same English text in the catalog.
+  const local = (text: string) => fromEnglish(t.locale, "check.", text);
   return (
     <ul
       className="space-y-1.5"
-      aria-label={live ? "Live photo checks" : "Photo checks"}
+      aria-label={live ? t("capture.checksLive") : t("capture.checks")}
       data-testid="capture-checks"
     >
       {checks.map((c) => (
@@ -93,9 +98,9 @@ export function CheckList({
             )}
           </span>
           <span>
-            <span className="font-medium text-ink">{c.label}</span>
+            <span className="font-medium text-ink">{local(c.label)}</span>
             {c.state !== "ok" && c.hint ? (
-              <span className="text-ink-soft"> · {c.hint}</span>
+              <span className="text-ink-soft"> · {local(c.hint)}</span>
             ) : null}
           </span>
         </li>
@@ -114,6 +119,7 @@ function Guide({
   good: boolean;
   ears?: boolean;
 }) {
+  const t = useRt();
   const stroke = good ? "#7fc4a4" : "#ffffff";
   return (
     <svg
@@ -168,7 +174,7 @@ function Guide({
                 fontSize="11"
                 fontFamily="sans-serif"
               >
-                ear
+                {t("capture.guideEar")}
               </text>
               <text
                 x="236"
@@ -178,7 +184,7 @@ function Guide({
                 fontSize="11"
                 fontFamily="sans-serif"
               >
-                ear
+                {t("capture.guideEar")}
               </text>
             </g>
           ) : null}
@@ -214,7 +220,7 @@ function Guide({
             fontSize="11"
             fontFamily="sans-serif"
           >
-            wrist
+            {t("capture.guideWrist")}
           </text>
         </g>
       )}
@@ -230,6 +236,7 @@ export function CaptureStep({
   needsEars = false,
   onPhotoChange,
 }: CaptureStepProps) {
+  const t = useRt();
   const [phase, setPhase] = useState<Phase>("start");
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [liveChecks, setLiveChecks] = useState<CheckResult[]>([]);
@@ -272,9 +279,7 @@ export function CaptureStep({
       streamRef.current = stream;
       setPhase("live");
     } catch {
-      setCameraError(
-        "We couldn't open the camera. You can upload a photo instead.",
-      );
+      setCameraError(t("capture.cameraError"));
     }
   }
 
@@ -342,7 +347,7 @@ export function CaptureStep({
       stopCamera();
       await review(await fileToStill(file));
     } catch {
-      setCameraError("We couldn't read that photo. Please try a JPEG or PNG.");
+      setCameraError(t("capture.readError"));
     } finally {
       setBusy(false);
     }
@@ -396,16 +401,18 @@ export function CaptureStep({
               autoPlay
               className={`h-full w-full object-cover ${isSelfie ? "-scale-x-100" : ""}`}
               aria-label={
-                isSelfie ? "Camera preview" : "Camera preview of your hand"
+                isSelfie
+                  ? t("capture.cameraPreview")
+                  : t("capture.cameraPreviewHand")
               }
             />
             <Guide mode={mode} good={liveGood} ears={isSelfie && needsEars} />
             <p className="absolute inset-x-0 top-3 text-center text-xs font-medium text-white drop-shadow">
               {isSelfie
                 ? needsEars
-                  ? "Face in the oval · ears and neck in view"
-                  : "Face in the oval · neck in view"
-                : "Back of your hand · wrist in the middle · a little forearm"}
+                  ? t("capture.overlayEars")
+                  : t("capture.overlay")
+                : t("capture.overlayHand")}
             </p>
           </div>
           <div className="mt-4 min-h-24" aria-live="polite">
@@ -416,7 +423,7 @@ export function CaptureStep({
               htmlFor={inputId}
               className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm text-ink-soft underline underline-offset-4"
             >
-              Upload instead
+              {t("capture.uploadInstead")}
             </label>
             {uploadInput}
             <button
@@ -425,7 +432,9 @@ export function CaptureStep({
               disabled={busy}
               data-testid="shutter"
               className="grid h-[4.5rem] w-[4.5rem] place-items-center rounded-full border-4 border-ink bg-white shadow-lg transition-transform active:scale-95 disabled:opacity-60"
-              aria-label={isSelfie ? "Take selfie" : "Take hand photo"}
+              aria-label={
+                isSelfie ? t("capture.shutterSelfie") : t("capture.shutterHand")
+              }
             >
               <span
                 className={`block h-12 w-12 rounded-full ${liveGood ? "bg-sage" : "bg-ink"} transition-colors`}
@@ -439,7 +448,7 @@ export function CaptureStep({
               }}
               className="min-h-11 text-sm text-ink-soft underline underline-offset-4"
             >
-              Cancel
+              {t("capture.cancel")}
             </button>
           </div>
         </div>
@@ -450,11 +459,12 @@ export function CaptureStep({
             tabIndex={-1}
             className="font-display text-2xl text-ink focus:outline-none"
           >
-            {allOk(stillChecks) ? "Looking good" : "Almost there"}
+            {allOk(stillChecks)
+              ? t("capture.lookingGood")
+              : t("capture.almostThere")}
           </h2>
           <p className="mt-1 text-sm text-ink-soft">
-            Only you can see this photo. It&apos;s deleted as soon as your
-            try-ons are made.
+            {t("capture.onlyYou")}
           </p>
           <div
             className="relative mx-auto mt-4 max-w-full overflow-hidden rounded-2xl bg-cream"
@@ -466,7 +476,7 @@ export function CaptureStep({
             {/* eslint-disable-next-line @next/next/no-img-element -- local object URL of the recipient's own photo */}
             <img
               src={still.url}
-              alt={isSelfie ? "Your selfie" : "Your hand photo"}
+              alt={isSelfie ? t("capture.altSelfie") : t("capture.altHand")}
               className="h-full w-full object-contain"
             />
           </div>
@@ -475,7 +485,7 @@ export function CaptureStep({
           </div>
           {!allOk(stillChecks) ? (
             <p className="mt-3 text-sm text-ink-soft">
-              A retake usually gives better previews, but you can use this one.
+              {t("capture.retakeAdvice")}
             </p>
           ) : null}
           <div className="mt-auto grid grid-cols-2 gap-3 pb-2 pt-6">
@@ -484,7 +494,7 @@ export function CaptureStep({
               onClick={retake}
               className="min-h-12 rounded-full border border-ink text-sm font-medium text-ink hover:bg-cream"
             >
-              Retake
+              {t("capture.retake")}
             </button>
             <button
               type="button"
@@ -492,7 +502,7 @@ export function CaptureStep({
               data-testid={isSelfie ? "use-selfie" : "use-hand"}
               className="min-h-12 rounded-full bg-ink text-sm font-medium text-ivory hover:bg-ink-soft"
             >
-              Use this photo
+              {t("capture.use")}
             </button>
           </div>
         </div>
@@ -509,29 +519,21 @@ export function CaptureStep({
               <>
                 {needsEars ? (
                   <li className="font-medium text-ink" data-testid="ears-tip">
-                    · Tuck your hair behind your ears, so the earrings can sit
-                    on your earlobes.
+                    {t("capture.tipEars")}
                   </li>
                 ) : null}
-                <li>· Face the light, glasses off, hair off your face.</li>
-                <li>
-                  · Hold the phone at eye level, with your neck and collarbones
-                  in view.
-                </li>
-                <li>· Plain background, no filters.</li>
+                <li>{t("capture.tipLight")}</li>
+                <li>{t("capture.tipEyeLevel")}</li>
+                <li>{t("capture.tipBackground")}</li>
               </>
             ) : (
               <>
-                <li>
-                  · Back of your hand towards the camera, fingers relaxed and
-                  apart.
-                </li>
+                <li>{t("capture.tipHandBack")}</li>
                 <li className="font-medium text-ink" data-testid="wrist-tip">
-                  · Your whole wrist in the middle of the frame, with a little
-                  forearm showing.
+                  {t("capture.tipWrist")}
                 </li>
-                <li>· All five fingers in the frame.</li>
-                <li>· Good light, plain background.</li>
+                <li>{t("capture.tipFingers")}</li>
+                <li>{t("capture.tipHandLight")}</li>
               </>
             )}
           </ul>
@@ -550,7 +552,9 @@ export function CaptureStep({
                 className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink text-sm font-medium text-ivory hover:bg-ink-soft"
               >
                 <CameraIcon />{" "}
-                {isSelfie ? "Take a selfie" : "Photograph my hand"}
+                {isSelfie
+                  ? t("capture.openCamera")
+                  : t("capture.openHandCamera")}
               </button>
             ) : null}
             <label
@@ -561,7 +565,7 @@ export function CaptureStep({
                   : "bg-ink text-ivory hover:bg-ink-soft"
               }`}
             >
-              <UploadIcon /> {busy ? "Reading photo…" : "Upload a photo"}
+              <UploadIcon /> {busy ? t("capture.reading") : t("capture.upload")}
               {uploadInput}
             </label>
             {onSkip ? (
@@ -571,7 +575,7 @@ export function CaptureStep({
                 data-testid="skip-hand"
                 className="min-h-12 w-full text-sm text-ink-soft underline underline-offset-4 hover:text-ink"
               >
-                Skip, try the others
+                {t("capture.skipHand")}
               </button>
             ) : null}
           </div>

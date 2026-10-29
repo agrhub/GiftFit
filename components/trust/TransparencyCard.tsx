@@ -4,6 +4,8 @@
  * cannot render a photo, a hex value or a face attribute.
  */
 import { useId, type ReactNode } from "react";
+import type { Locale } from "@/lib/i18n";
+import { formatExpiry as formatLocalExpiry, rt, type RecipientMessageKey } from "@/lib/i18n/recipient";
 
 export interface TransparencySection {
   heading: string;
@@ -52,30 +54,29 @@ export interface RecipientTransparencyCardProps {
   className?: string;
   /** false for a gift without a try-on (store-URL previews, ADR-055): no photo is ever taken. */
   tryOn?: boolean;
+  /** Recipient page locale (lib/i18n/recipient, A21); default English. */
+  locale?: Locale;
 }
 
-export function RecipientTransparencyCard({ hasHandPhoto = false, expiresAt, className, tryOn = true }: RecipientTransparencyCardProps) {
-  const expiry = formatExpiry(expiresAt);
-  const expiryLine = expiry ? `Everything is deleted when this link expires (${expiry}), or sooner if you tap Delete everything.` : "Everything is deleted when this link expires after 72 hours, or sooner if you tap Delete everything.";
+export function RecipientTransparencyCard({ hasHandPhoto = false, expiresAt, className, tryOn = true, locale = "en" }: RecipientTransparencyCardProps) {
+  const t = (key: RecipientMessageKey, vars?: Record<string, string>) => rt(locale, key, vars);
+  const expiry = formatLocalExpiry(locale, expiresAt);
+  const expiryLine = expiry ? t("privacy.expiryAt", { date: expiry }) : t("privacy.expiry72");
   if (!tryOn) {
     return (
       <TransparencyCard
         className={className}
-        title="Your privacy"
-        intro="Here is exactly what happens with your answers. No photo is taken."
+        title={t("privacy.title")}
+        intro={t("privacy.introNoTryOn")}
         sections={[
-          { heading: "What we use", items: ["No photo: try-on isn't enabled for this store preview. You heart pieces from the store's product photos."] },
+          { heading: t("privacy.use"), items: [t("privacy.useNoTryOn")] },
           {
-            heading: "What we keep",
-            items: [
-              "Only the pieces you heart (and any “wish it came in another metal”).",
-              "If this link reached you by email, we keep your address, sealed, only until the link expires, to know where this one card went. It is never shown to the person choosing your gift or to the store, and it is deleted with everything else.",
-              expiryLine,
-            ],
+            heading: t("privacy.keep"),
+            items: [t("privacy.keepHearts"), t("privacy.keepEmail"), expiryLine],
           },
           {
-            heading: "What the person choosing your gift sees",
-            items: ["Which pieces you hearted, with scores from your hearts, their budget and the occasion.", "Nothing about how you look: no photo of you exists."],
+            heading: t("privacy.sees"),
+            items: [t("privacy.seesHearts"), t("privacy.seesNothing")],
           },
         ]}
       />
@@ -84,41 +85,24 @@ export function RecipientTransparencyCard({ hasHandPhoto = false, expiresAt, cla
   return (
     <TransparencyCard
       className={className}
-      title="Your privacy"
-      intro="Here is exactly what happens with your photos and answers."
+      title={t("privacy.title")}
+      intro={t("privacy.intro")}
       sections={[
         {
-          heading: "What we use",
-          items: [
-            "1 selfie, to estimate your undertone and face shape and to show you the try-ons.",
-            hasHandPhoto
-              ? "1 back-of-hand photo, for rings, bracelets and watches."
-              : "Optional: 1 back-of-hand photo, only if you want to try rings, bracelets or watches.",
-          ],
+          heading: t("privacy.use"),
+          items: [t("privacy.useSelfie"), hasHandPhoto ? t("privacy.useHand") : t("privacy.useHandOptional")],
         },
         {
-          heading: "What we keep",
-          items: [
-            "Your photo is kept for at most 1 hour, only so you can try other metals. It is deleted when you tap Done. “Delete my photo now” removes your selfie, hand photo and every try-on image right away; your picks are kept until Done. If nothing comes in another metal, your photo is deleted as soon as your try-ons are made.",
-            "Your try-on images are shown only to you, through links that stop working within 15 minutes, and are deleted within 1 hour.",
-            "We keep estimates only: undertone (warm, neutral or cool) and face shape, plus the pieces you heart.",
-            "If this link reached you by email, we keep your address, sealed, only until the link expires, to know where this one card went. It is never shown to the person choosing your gift or to the store, and it is deleted with everything else.",
-            expiryLine,
-          ],
+          heading: t("privacy.keep"),
+          items: [t("privacy.keepPhoto"), t("privacy.keepTryOns"), t("privacy.keepEstimates"), t("privacy.keepEmail"), expiryLine],
         },
         {
-          heading: "What the person choosing your gift sees",
-          items: [
-            "Fit scores, short reasons, and which of their picks you hearted.",
-            "Never your photo, your try-on images, your skin color values or your face measurements.",
-            "Some pieces are similar alternatives mixed in with their picks, so you won't know which one they plan to buy.",
-          ],
+          heading: t("privacy.sees"),
+          items: [t("privacy.seesScores"), t("privacy.seesNever"), t("privacy.seesDecoys")],
         },
         {
-          heading: "Who else processes your photo",
-          items: [
-            "YouCam (Perfect Corp.) analyzes your selfie and renders the try-ons. We ask YouCam to delete those tasks when you delete everything or the link expires; YouCam keeps results for at most 24 hours.",
-          ],
+          heading: t("privacy.processor"),
+          items: [t("privacy.processorBody")],
         },
       ]}
     />
