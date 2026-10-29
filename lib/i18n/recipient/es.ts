@@ -22,6 +22,9 @@ export const es: Record<RecipientMessageKey, string> = {
   "error.rateLimited": "Demasiados intentos en poco tiempo. Espera un minuto e inténtalo de nuevo.",
   "error.dailyCap": "Las pruebas están en pausa por hoy. Inténtalo de nuevo más tarde.",
   "error.analysisFailed": "No pudimos leer esa foto. Prueba con otra, mirando hacia la luz.",
+  "error.faceAngle": "Tienes la cabeza inclinada. Sostén el teléfono a la altura de los ojos, levanta un poco la barbilla y mira de frente.",
+  "error.faceNotFound": "No encontramos un rostro claro. Encaja tu cara en el óvalo, sin nadie más en la foto.",
+  "error.photoQuality": "La foto está demasiado oscura o borrosa. Mira hacia la luz y sostén el teléfono firme.",
   "error.server": "Algo salió mal por nuestra parte. Inténtalo de nuevo.",
   "error.generic": "Algo salió mal. Inténtalo de nuevo.",
 

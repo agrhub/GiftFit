@@ -34,6 +34,9 @@ export function recipientErrorMessage(t: RecipientT, err: unknown): string {
   if (err.status === 415 || /_must_be_jpeg_or_png$/.test(err.code)) return t("error.photoType");
   if (err.status === 429 || err.code === "rate_limited") return t("error.rateLimited");
   if (err.code === "daily_cap_reached") return t("error.dailyCap");
+  if (err.code === "face_angle") return t("error.faceAngle");
+  if (err.code === "face_not_found") return t("error.faceNotFound");
+  if (err.code === "photo_quality") return t("error.photoQuality");
   if (err.code === "analysis_failed") return t("error.analysisFailed");
   if (err.code === "link_not_valid" || err.code === "missing_token") return t("error.linkInvalid");
   return err.status >= 500 ? t("error.server") : t("error.generic");

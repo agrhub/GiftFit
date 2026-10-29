@@ -22,6 +22,9 @@ export const id: Record<RecipientMessageKey, string> = {
   "error.rateLimited": "Terlalu banyak percobaan dalam waktu singkat. Tunggu sebentar lalu coba lagi.",
   "error.dailyCap": "Coba pakai dihentikan sementara untuk hari ini. Silakan coba lagi nanti.",
   "error.analysisFailed": "Kami tidak dapat membaca foto itu. Coba foto lain sambil menghadap cahaya.",
+  "error.faceAngle": "Kepalamu agak miring. Pegang ponsel sejajar mata, angkat dagu sedikit, dan lihat lurus ke kamera.",
+  "error.faceNotFound": "Kami tidak menemukan satu wajah yang jelas. Posisikan wajahmu di dalam oval, tanpa orang lain di foto.",
+  "error.photoQuality": "Foto terlalu gelap atau buram. Hadapkan wajah ke cahaya dan pegang ponsel dengan stabil.",
   "error.server": "Terjadi masalah di pihak kami. Silakan coba lagi.",
   "error.generic": "Terjadi masalah. Silakan coba lagi.",
 

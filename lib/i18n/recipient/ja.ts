@@ -22,6 +22,9 @@ export const ja: Record<RecipientMessageKey, string> = {
   "error.rateLimited": "短時間に試行回数が多すぎます。1 分ほど待ってから、もう一度お試しください。",
   "error.dailyCap": "本日の試着は一時停止中です。後ほどもう一度お試しください。",
   "error.analysisFailed": "この写真を読み取れませんでした。光の方を向いて、別の写真でお試しください。",
+  "error.faceAngle": "顔が傾いています。スマートフォンを目の高さに持ち、あごを少し上げて、まっすぐ見てください。",
+  "error.faceNotFound": "はっきりした顔を1つ見つけられませんでした。顔を楕円の中に合わせ、ほかの人が写らないようにしてください。",
+  "error.photoQuality": "写真が暗すぎるか、ぼやけています。光の方を向き、スマートフォンをしっかり持ってください。",
   "error.server": "こちら側で問題が発生しました。もう一度お試しください。",
   "error.generic": "問題が発生しました。もう一度お試しください。",
 

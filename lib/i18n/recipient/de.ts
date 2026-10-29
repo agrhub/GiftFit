@@ -23,6 +23,9 @@ export const de: Record<RecipientMessageKey, string> = {
   "error.rateLimited": "Zu viele Versuche in kurzer Zeit. Bitte warte eine Minute und versuche es erneut.",
   "error.dailyCap": "Anproben sind für heute pausiert. Bitte versuche es später noch einmal.",
   "error.analysisFailed": "Wir konnten das Foto nicht auswerten. Bitte versuche ein anderes, mit dem Gesicht zum Licht.",
+  "error.faceAngle": "Dein Kopf ist geneigt. Halte das Handy auf Augenhöhe, das Kinn leicht angehoben, und schau direkt hinein.",
+  "error.faceNotFound": "Wir haben kein klares Gesicht gefunden. Bring dein Gesicht ins Oval, ohne weitere Personen im Bild.",
+  "error.photoQuality": "Das Foto ist zu dunkel oder unscharf. Dreh dich zum Licht und halte das Handy ruhig.",
   "error.server": "Bei uns ist etwas schiefgelaufen. Bitte versuche es erneut.",
   "error.generic": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
 

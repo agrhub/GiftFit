@@ -22,6 +22,9 @@ export const zh: Record<RecipientMessageKey, string> = {
   "error.rateLimited": "短时间内尝试次数过多。请等待一分钟后重试。",
   "error.dailyCap": "今天的试戴已暂停。请稍后再试。",
   "error.analysisFailed": "无法识别这张照片。请面向光源，换一张照片再试。",
+  "error.faceAngle": "头部有些倾斜。请把手机举到与眼睛齐平，下巴微微抬起，直视镜头。",
+  "error.faceNotFound": "未能识别到一张清晰的人脸。请将脸对准椭圆框，并确保照片中只有你一人。",
+  "error.photoQuality": "照片太暗或模糊。请面向光源，并拿稳手机。",
   "error.server": "我们这边出了点问题。请重试。",
   "error.generic": "出了点问题。请重试。",
 

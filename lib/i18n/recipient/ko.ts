@@ -22,6 +22,9 @@ export const ko: Record<RecipientMessageKey, string> = {
   "error.rateLimited": "짧은 시간에 너무 많이 시도했어요. 1분 정도 기다린 후 다시 시도해 주세요.",
   "error.dailyCap": "오늘은 가상 착용이 일시 중지되었어요. 나중에 다시 시도해 주세요.",
   "error.analysisFailed": "이 사진을 읽을 수 없었어요. 빛을 마주 보고 다른 사진으로 시도해 주세요.",
+  "error.faceAngle": "고개가 기울어져 있어요. 휴대폰을 눈높이에 두고 턱을 살짝 든 채 정면을 바라봐 주세요.",
+  "error.faceNotFound": "선명한 얼굴 하나를 찾지 못했어요. 얼굴을 타원 안에 맞추고, 다른 사람이 함께 찍히지 않게 해 주세요.",
+  "error.photoQuality": "사진이 너무 어둡거나 흐려요. 빛을 마주 보고 휴대폰을 흔들리지 않게 잡아 주세요.",
   "error.server": "저희 쪽에서 문제가 생겼어요. 다시 시도해 주세요.",
   "error.generic": "문제가 생겼어요. 다시 시도해 주세요.",
 

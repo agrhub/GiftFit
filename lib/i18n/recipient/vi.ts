@@ -22,6 +22,9 @@ export const vi: Record<RecipientMessageKey, string> = {
   "error.rateLimited": "Bạn đã thử quá nhiều lần trong thời gian ngắn. Vui lòng đợi một phút rồi thử lại.",
   "error.dailyCap": "Hôm nay tạm ngừng thử đeo. Vui lòng thử lại sau.",
   "error.analysisFailed": "Không đọc được ảnh này. Vui lòng thử ảnh khác, quay mặt về phía ánh sáng.",
+  "error.faceAngle": "Đầu bạn đang cúi hoặc nghiêng. Cầm điện thoại ngang tầm mắt, hơi ngẩng cằm và nhìn thẳng vào máy.",
+  "error.faceNotFound": "Không tìm thấy một khuôn mặt rõ ràng. Đưa mặt vào khung oval và chỉ có mình bạn trong ảnh.",
+  "error.photoQuality": "Ảnh quá tối hoặc bị mờ. Hãy quay mặt về phía sáng và giữ điện thoại thật chắc.",
   "error.server": "Đã có lỗi từ phía chúng tôi. Vui lòng thử lại.",
   "error.generic": "Đã có lỗi xảy ra. Vui lòng thử lại.",
 

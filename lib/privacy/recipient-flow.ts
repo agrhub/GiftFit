@@ -8,6 +8,7 @@
 import type { CaptureResponse, DeletePhotoResponse, DoneResponse, SwatchResponse } from "@/lib/contracts/api";
 import type { JewelryCategory, JewelryRules } from "@/lib/contracts/giftfit";
 import type { ImageContentType, JewelryKind } from "@/lib/youcam/types";
+import { analysisFailureCode, analysisFailureLog } from "./analysis-errors";
 import { purgeYoucamArtifacts, youcamArtifactsOf } from "./delete-everything";
 import { demoSubjectOf, fixtureFileFor, isDemoRequest, isFixtureRow } from "./demo";
 import { CaptureDailyCapError, deleteInputPhotos, photoTtlMs, renderAndStore, runCapture, type CaptureItem, type CapturePhoto, type CapturePorts, type RenderView } from "./capture";
@@ -172,8 +173,8 @@ export async function captureFlow(deps: PrivacyDeps, input: CaptureFlowInput): P
     });
   } catch (err) {
     if (err instanceof CaptureDailyCapError) throw dailyCapError(deps); // photos dropped, half-analysis purged
-    console.error("[privacy] capture failed:", (err as Error).name);
-    throw new FlowError(422, "analysis_failed");
+    console.error("[privacy] capture failed:", analysisFailureLog(err));
+    throw new FlowError(422, analysisFailureCode(err));
   }
   const processingSeconds = Math.round((performance.now() - started) / 100) / 10;
   // "Delete my photo now" arrived while rendering: wipe what this capture produced, show no images.

@@ -16,11 +16,12 @@
  */
 import type { FaceShape, FacialColors, JewelryRules, UndertoneEstimate } from "@/lib/contracts/giftfit";
 import type { PlanItem, YoucamClient } from "@/lib/youcam/client";
-import { DailyCapError } from "@/lib/youcam/errors";
+import { DailyCapError, YoucamTaskError } from "@/lib/youcam/errors";
 import { fitRequestPlan } from "@/lib/youcam/fit-request";
 import { GIFT_FACE_FEATURES, HAND_JEWELRY } from "@/lib/youcam/features";
 import type { ImageContentType, ImageInput, JewelryKind } from "@/lib/youcam/types";
 import type { PaidGrant } from "@/lib/youcam/recording";
+import { analysisCrop } from "./analysis-crop";
 import type { PrivacyDeps } from "./deps";
 import { PHOTO_MAX_TTL_MS } from "./photo-store";
 import { parseInputKey, renderName, tagOf, type RenderKind } from "./renders";
@@ -254,11 +255,27 @@ export function youcamCapturePorts(client: YoucamClient, opts: { fetch?: typeof 
   const doFetch = opts.fetch ?? fetch;
   // A16: the owner-recording grant rides on every task; without it the shared client refuses paid tasks.
   const run = opts.paidGrant ? { paidGrant: opts.paidGrant } : undefined;
+  /**
+   * One analysis half on the face crop (analysis-crop.ts); if YouCam refuses it (a failed task is refunded), that half
+   * alone runs once more on the full frame. So the analyses cost at most 20 + 10 whatever passes where.
+   */
+  const withFallback = async <T>(crop: ImageInput | null, full: ImageInput, task: (img: ImageInput) => Promise<T>): Promise<T> => {
+    if (crop) {
+      try {
+        return await task(crop);
+      } catch (err) {
+        if (!(err instanceof YoucamTaskError)) throw err;
+      }
+    }
+    return task(full);
+  };
   return {
+    // The analyses read the face crop; the try-ons keep the full frame (neck and ears in view).
     async analyze(selfie) {
+      const crop = "bytes" in selfie ? await analysisCrop(selfie).catch(() => null) : null;
       const settled = await Promise.allSettled([
-        client.facialColorTones(selfie, { faceAngleStrictness: "high" }, run),
-        client.faceAttributes(selfie, { features: GIFT_FACE_FEATURES }, run),
+        withFallback(crop, selfie, (img) => client.facialColorTones(img, { faceAngleStrictness: "high" }, run)),
+        withFallback(crop, selfie, (img) => client.faceAttributes(img, { features: GIFT_FACE_FEATURES }, run)),
       ]);
       const failed = settled.find((r): r is PromiseRejectedResult => r.status === "rejected");
       if (failed) {

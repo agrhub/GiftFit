@@ -22,6 +22,9 @@ export const fr: Record<RecipientMessageKey, string> = {
   "error.rateLimited": "Trop de tentatives en peu de temps. Patientez une minute et réessayez.",
   "error.dailyCap": "Les essayages sont en pause pour aujourd'hui. Réessayez plus tard.",
   "error.analysisFailed": "Impossible de lire cette photo. Essayez-en une autre, face à la lumière.",
+  "error.faceAngle": "Votre tête est inclinée. Tenez le téléphone à hauteur des yeux, le menton légèrement relevé, et regardez droit vers l'objectif.",
+  "error.faceNotFound": "Nous n'avons pas trouvé de visage net. Placez votre visage dans l'ovale, sans personne d'autre sur la photo.",
+  "error.photoQuality": "La photo est trop sombre ou floue. Tournez-vous vers la lumière et tenez le téléphone bien stable.",
   "error.server": "Un problème est survenu de notre côté. Veuillez réessayer.",
   "error.generic": "Un problème est survenu. Veuillez réessayer.",
 

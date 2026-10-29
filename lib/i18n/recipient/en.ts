@@ -24,6 +24,9 @@ export const en = {
   "error.rateLimited": "Too many tries in a short time. Please wait a minute and try again.",
   "error.dailyCap": "Try-ons are paused for today. Please try again later.",
   "error.analysisFailed": "We couldn't read that photo. Please try another one, facing the light.",
+  "error.faceAngle": "Your head is tilted. Hold the phone at eye level, chin slightly up, and look straight at it.",
+  "error.faceNotFound": "We couldn't find one clear face. Fit your face in the oval, with no one else in the photo.",
+  "error.photoQuality": "The photo is too dark or blurry. Face the light and hold the phone steady.",
   "error.server": "Something went wrong on our side. Please try again.",
   "error.generic": "Something went wrong. Please try again.",
 
