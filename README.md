@@ -23,7 +23,9 @@ Traditional Virtual Try-On (VTO) is built for people shopping for themselves. Gi
 - [Key Features](#-key-features)
 - [YouCam AI APIs Integration](#-youcam-ai-apis-integration)
 - [System Architecture](#-system-architecture)
+- [Live Deployment](#-live-deployment)
 - [Getting Started](#-getting-started)
+- [Deploying to Google Cloud Run](#-deploying-to-google-cloud-run)
 - [Testing & Quality Gates](#-testing--quality-gates)
 - [Privacy & Fairness by Design](#-privacy--fairness-by-design)
 - [Image Provenance & Licenses](#-image-provenance--licenses)
@@ -81,7 +83,7 @@ Traditional Virtual Try-On (VTO) is built for people shopping for themselves. Gi
 - **Widget UI:** English and Vietnamese (reviewed), plus Japanese, Korean, Simplified Chinese, Thai, Indonesian, Spanish, French and German (machine-translated, not yet reviewed by native speakers). Stores choose with `data-langs` (e.g. `data-langs="en,ja,de"`; default all) and `data-lang` (fallback); the widget starts in the page's or browser's language within that list and follows each shopper message: one of the ten when it is one, English for any other language (never a missing locale). The GiftFit site and its language switcher stay English/Vietnamese.
 - **Chat:** the Concierge always replies in the language of the shopper's latest message, whatever it is. Its fixed lines (closing line, refusal, store-preview lines) and the deterministic fallback answer exist in the ten widget languages and are English for any other.
 - **Voice:** Speech-to-Text uses Google chirp_3 with automatic language identification (`languageCodes: ["auto"]`; `VOICE_STT_LANGUAGE=fixed` goes back to the widget's language) and reports the language it heard. Spoken replies use the reply's own language and come from Google Cloud Text-to-Speech only (ADR-059): Chirp 3 HD where Google has it, else Neural2, else Standard (static table in `lib/voice/voices.ts`, checked against Google's voice list). If the server voice is unavailable or capped, the widget uses the browser's own voice; languages without a Google voice are shown as text only.
-- **Gift flow:** the e-card, its language picker (all ten), share text and e-mails start in the giver's conversation language (English for any other). The recipient page and Fit Report are English; their "preview expired" line follows the visitor's browser language when it is one of the ten. The e-card, e-mail and fallback-answer translations other than English and Vietnamese are machine-translated, not yet reviewed by native speakers.
+- **Gift flow:** the e-card, its language picker (all ten), share text and e-mails start in the giver's conversation language (English for any other). The recipient page and the Fit Report use the recipient's browser language when it is one of the ten, else the giver's conversation language, else English; the shared header is in the page's language from the first paint, and a refused selfie gets a specific hint ("hold the phone at eye level, chin slightly up") in that language. Translations other than English and Vietnamese are machine-translated, not yet reviewed by native speakers.
 
 ---
 
@@ -117,31 +119,91 @@ Our own figures, not industry averages. Dates are when they were measured; price
 
 ## 🏗 System Architecture
 
+```mermaid
+flowchart LR
+  subgraph Browsers
+    S["Store page<br/>(any origin, one script tag)"]
+    W["Giver: Mark-kun widget<br/>(iframe on GiftFit's origin)"]
+    R["Recipient: phone<br/>consent, selfie, try-ons, hearts"]
+    F["Giver: Fit Report<br/>scores only, 0 photos"]
+    M["Merchant: store-URL preview<br/>(sandboxed snapshot, 24 h)"]
+  end
+  subgraph CR["GiftFit app on Cloud Run (Next.js 15)"]
+    C["Gift Concierge"]
+    P["Capture & privacy guard<br/>face crop, 15-min image links"]
+    E["Fit Engine + decoys"]
+    G["Giver response filter<br/>no image link, color or face field"]
+    K["Cost guard<br/>SHA-256 cache, unit caps"]
+    V["Store preview fetcher<br/>SSRF guards, sanitized HTML, CSP"]
+  end
+  subgraph Services
+    A["Claude (Anthropic)<br/>catalog + brief text, never photos"]
+    Y["YouCam APIs<br/>Color Tones 20 · Face Attributes 10 · Jewelry VTO 1"]
+    T["Google Speech-to-Text / TTS"]
+    D[("Firestore (TTL) +<br/>private Cloud Storage")]
+  end
+  S -. embeds .-> W
+  W <-->|chat, brief| C
+  R <-->|selfie, try-ons| P
+  G -->|scores, hearts, prices| F
+  M <--> V
+  C <--> A
+  P <-->|face crop / photo| Y
+  P --> K
+  W <-->|audio| T
+  CR <--> D
+  V -->|read-only fetch| X["Public store sites<br/>JSON-LD, Shopify, WooCommerce"]
+```
+
+The giver's side only ever receives scores, reasons, hearts and prices. Photos and face data stay on the recipient's side and in YouCam, and are deleted on schedule (photo ≤ 1 h, gift link 72 h, preview 24 h). The fictional demo store runs as a second Cloud Run service on its own origin, so the one-script-tag integration and the iframe boundary are tested exactly as a real store would use them.
+
 ```
 giftfit/
 ├── app/                           # Next.js 15 App Router
 │   ├── (site)/                    # GiftFit home (/), /merchants, judge demo (/demo); old store paths 308 to the demo store
 │   ├── (widget)/                  # Gift assistant frame (/w) opened by giftfit.js
 │   ├── (gift)/                    # Giver (/g/[token]) & Recipient (/r/[token]) flows
+│   ├── (preview)/                 # Store-URL previews (/s/[key]): sanitized snapshot + the assistant
 │   ├── (retailer)/                # Retailer Console (/retailer) & embed panel
-│   └── api/                       # API route handlers (fit, recipient, retailer, demo)
+│   ├── owner/                     # Owner-only recording switch (/owner/recording)
+│   └── api/                       # API route handlers (fit, recipient, preview, voice, widget, demo, health)
 ├── components/                    # UI Components
 │   ├── gift/                      # Giver panel, recipient carousel, camera capture, report
 │   ├── store/                     # Aurum catalog view model and formatting helpers
 │   ├── widget/                    # Gift assistant: chat, character, voice, e-card and sharing
 │   └── trust/                     # Privacy cards, transparency disclaimers, purge buttons
 ├── lib/                           # Core Business Logic
+│   ├── anthropic/                 # Claude client and the daily spend cap
+│   ├── concierge/                 # Gift Concierge: tool use over the catalog, recorded mock
 │   ├── contracts/                 # Strict TypeScript schemas & vocabulary
+│   ├── email/                     # Gift-card and "Fit Report ready" emails (off unless enabled)
 │   ├── fit/                       # Fit scoring, decoy algorithms, Claude explainers
-│   ├── privacy/                   # HMAC tokens, photo store, leak scanner, fairness
+│   ├── i18n/                      # The ten widget languages and language detection
+│   ├── preview/                   # Store-URL preview: fetcher, SSRF guards, snapshot sanitizer, caps
+│   ├── privacy/                   # HMAC tokens, photo store, capture face crop, leak scanner, fairness
+│   ├── store/                     # Memory or Firestore repositories, GCS photo store
 │   ├── verticals/                 # CIELAB undertone rules & jewelry styling heuristics
-│   └── youcam/                    # Typed YouCam API client, mock engine & cost guard
+│   ├── voice/                     # Google Speech-to-Text / Text-to-Speech, voices, caps
+│   └── youcam/                    # Typed YouCam API client, mock engine, cost guard, recording switch
 ├── db/                            # Drizzle ORM schema, migrations & seed scripts
 ├── fixtures/                      # Mock images & synthetic AI demo profiles
 ├── packages/plugin/               # Embeddable giftfit.js script tag
 ├── demo-store/                    # The demo store (separate origin): static pages for every Aurum design
+├── deploy/                        # Cloud Run deployment guide
 └── tests/                         # E2E test suites (Playwright) & leak guards
 ```
+
+---
+
+## 🌐 Live Deployment
+
+| | URL |
+|---|---|
+| GiftFit (home, widget, API) | https://giftfit-469920173665.us-central1.run.app |
+| Judge demo, no selfie | https://giftfit-469920173665.us-central1.run.app/demo |
+| Demo store (fictional, separate origin) | https://giftfit-demo-store-469920173665.us-central1.run.app |
+
+Paid YouCam calls are switched off on the public deployment (`GET /api/health` shows `"youcamPaid": false`), so a live selfie try-on is not available there. The demo video shows a real run end to end; the judge demo replays pre-recorded YouCam try-ons of AI-generated models at 0 units.
 
 ---
 
@@ -175,6 +237,19 @@ cp .env.example .env.local
 ```
 > **Note:** By default, all variables are optional for local development. As copied, the application runs entirely in **MOCK MODE** (0 YouCam units spent, in-memory DB and photo storage).
 
+Turn on real services one at a time. Every variable, with its default, is documented in [`.env.example`](.env.example).
+
+| To use | Set in `.env.local` |
+|---|---|
+| Claude (Gift Concierge, Fit Report reasons) | `ANTHROPIC_API_KEY`; optional `ANTHROPIC_DAILY_USD_CAP` (default 3 USD/day) |
+| Real YouCam calls (spends units) | `YOUCAM_API_KEY`, `YOUCAM_MOCK=0`, `YOUCAM_ALLOW_PAID=1`; keep the caps `YOUCAM_MAX_UNITS_PER_RUN`, `YOUCAM_DAILY_UNIT_CAP`, `YOUCAM_TOTAL_UNIT_CAP` |
+| Voice (Google STT / TTS) | Application Default Credentials (`gcloud auth application-default login`) on a project with `speech.googleapis.com` and `texttospeech.googleapis.com` enabled; optional `GOOGLE_CLOUD_PROJECT` |
+| Firestore + Cloud Storage instead of memory | `STORE=firestore`, `FIRESTORE_DATABASE_ID`, `GCS_PHOTO_BUCKET`, `GOOGLE_CLOUD_PROJECT` (ADC as above) |
+| Production secrets | `GIFTFIT_URL_SIGNING_SECRET`, `FIT_DECOY_SECRET`, `CRON_SECRET` (random, ≥ 32 characters) |
+| Email (off by default) | `EMAIL_PROVIDER`, `SMTP_*` or `RESEND_API_KEY`, `EMAIL_FROM`, `APP_BASE_URL`, and `EMAIL_SEND_ENABLED=1` |
+
+Never commit `.env.local`.
+
 ### 3. Run Development Server
 ```bash
 npm run dev
@@ -193,9 +268,22 @@ To test the complete recipient journey immediately without spending YouCam credi
 
 ---
 
+## ☁️ Deploying to Google Cloud Run
+
+The full, step-by-step guide is [deploy/README.md](deploy/README.md). In short:
+
+1. **Project setup:** enable Cloud Run, Cloud Build, Artifact Registry, Secret Manager, Cloud Scheduler, Firestore, Cloud Storage, Speech-to-Text and Text-to-Speech; create the `giftfit-run` service account with `roles/datastore.user` and `roles/speech.client`.
+2. **State:** a named Firestore database with TTL on `expiresAt`, and a private photo bucket (uniform access, public access prevented, 1-day lifecycle delete, no soft delete) where the service account has `roles/storage.objectAdmin`.
+3. **Secrets:** `YOUCAM_API_KEY`, `ANTHROPIC_API_KEY`, `GIFTFIT_URL_SIGNING_SECRET`, `FIT_DECOY_SECRET` and `CRON_SECRET` in Secret Manager, readable only by the service account.
+4. **Deploy** with `gcloud run deploy giftfit --source .` as a **no-traffic candidate** (`--no-traffic --tag candidate`): 1 vCPU, 1 GiB, min 0 / max 1 instances, `STORE=firestore`, `YOUCAM_ALLOW_PAID=0`, `APP_BASE_URL` set to the service URL. Check `/api/health` on the candidate's tag URL, then shift traffic with `gcloud run services update-traffic`.
+5. **Demo store:** `gcloud run deploy giftfit-demo-store --source demo-store` with `GIFTFIT_ORIGIN` set to the app's URL, and add the store's URL to the app's `GIFTFIT_WIDGET_ORIGINS`.
+6. **Purge:** a Cloud Scheduler job calls `GET /api/recipient/purge-expired` hourly with the cron secret.
+
+---
+
 ## 🧪 Testing & Quality Gates
 
-GiftFit enforces strict quality, privacy, and performance gates:
+GiftFit enforces strict quality, privacy, and performance gates (about 2,330 Vitest tests, plus Playwright end-to-end suites for the API, the UI and the cross-origin plugin):
 
 ```bash
 # Run full quality gate (Lint + Typecheck + Unit Tests + Gate Build)
