@@ -14,7 +14,7 @@ import type { NextConfig } from "next";
  *    `next build` runs on its own, because `npm run gate` has just run `npm run lint` and
  *    `npm run typecheck` as separate steps. A plain `next build` (Vercel, local) still runs both.
  *
- * 3. `output: "standalone"` (Cloud Run, deploy/README.md): `next build` writes .next/standalone/server.js
+ * 3. `output: "standalone"` (Cloud Run, docs/deploy.md): `next build` writes .next/standalone/server.js
  *    plus only the traced node_modules. It honours PORT and HOSTNAME. public/ and .next/static are
  *    copied next to it by the Dockerfile (Next does not copy them). Runtime-read files are listed in
  *    outputFileTracingIncludes below. Playwright and Chromium are excluded: Tier 3 live rendering is
@@ -31,7 +31,7 @@ const SERVER_EXTERNALS = [
   "cheerio",
   "drizzle-orm",
   "fast-xml-parser",
-  // GCP-native state (A11): Firestore + Cloud Storage via ADC; nodemailer for lib/email.
+  // GCP-native state (A11): Firestore + Cloud Storage via ADC; nodemailer for server/email.
   "@google-cloud/firestore",
   "@google-cloud/storage",
   // Voice (A13, ADR-052): Speech-to-Text V2 and Text-to-Speech via ADC (gRPC; loaded on first use).
@@ -63,7 +63,7 @@ const nextConfig: NextConfig = {
       // /w (A6 widget frame) gets its frame-ancestors at request time in middleware.ts (GIFTFIT_WIDGET_ORIGINS).
       { source: "/((?!embed(?:/|$)|w(?:/|$)|s/[^/]+/snapshot(?:/|$)).*)", headers: [{ key: "Content-Security-Policy", value: "frame-ancestors 'self'" }, { key: "X-Frame-Options", value: "SAMEORIGIN" }] },
       // Store-page snapshots (A15): config headers win over a route's own, so the strict no-script policy
-      // is set here too (same string as SNAPSHOT_CSP in lib/preview/page-snapshot-http.ts; a test compares them).
+      // is set here too (same string as SNAPSHOT_CSP in server/preview/page-snapshot-http.ts; a test compares them).
       ...["/s/:key/snapshot", "/s/:key/snapshot/:path*"].map((source) => ({
         source,
         headers: [
@@ -89,7 +89,7 @@ const nextConfig: NextConfig = {
     "/api/youcam/**": ["./fixtures/youcam/*.json", "./fixtures/youcam/images/**/*"],
     "/api/health": ["./fixtures/youcam/ai-demo/showcase/manifest.json"],
     "/api/ingest/**": ["./fixtures/ingest/**/*"],
-    "/giftfit.js": ["./packages/plugin/giftfit.js"],
+    "/giftfit.js": ["./client/plugin/giftfit.js"],
   },
   // Local-only trees that file tracing must never walk into a deployment bundle.
   outputFileTracingExcludes: {
@@ -102,7 +102,7 @@ const nextConfig: NextConfig = {
       // Root-level survey snapshots only ("*" does not cross "/"; fixtures/ingest/**/*.html stay).
       "*.html",
       "docs/**",
-      "data/aurum/photo-inbox/**",
+      "fixtures/aurum/photo-inbox/**",
       // Real recordings of a person's face stay local (ADR-025), never in an image.
       "fixtures/youcam/real/**",
       // No browser automation in deployments (Tier 3 live ingest is disabled there).

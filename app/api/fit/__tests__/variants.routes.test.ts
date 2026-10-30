@@ -1,18 +1,18 @@
 /**
  * Metal variants through the giver routes (ADR-032), over the single store (MemoryPrivacyRepos).
  * The recipient side (A5) is not built yet, so hearts and wishes are written as PrivacyRepos rows
- * directly, using the reading convention in lib/fit/repository.ts parseHeartRows:
+ * directly, using the reading convention in server/fit/repository.ts parseHeartRows:
  * a design id, a variant id (`<designId>:<metal>`) or `wish:<designId>`.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { CreateFitRequestResponse, GiverReportStatus } from "@/lib/contracts/api";
-import type { CatalogSku, MetalVariant } from "@/lib/contracts/giftfit";
-import { configureFit, resetFitDeps } from "@/lib/fit/deps";
-import { PrivacyFitRepository, StaticCatalog, WISH_PREFIX } from "@/lib/fit/repository";
-import { carouselSwatches, swatchCap } from "@/lib/fit/variants";
-import { fakeRules, makeCatalog, sku } from "@/lib/fit/__tests__/fixtures";
-import { findGiverLeaks } from "@/lib/privacy/giver-guard";
-import { MemoryPrivacyRepos } from "@/lib/privacy/repos/memory";
+import type { CreateFitRequestResponse, GiverReportStatus } from "@/server/contracts/api";
+import type { CatalogSku, MetalVariant } from "@/server/contracts/giftfit";
+import { configureFit, resetFitDeps } from "@/server/fit/deps";
+import { PrivacyFitRepository, StaticCatalog, WISH_PREFIX } from "@/server/fit/repository";
+import { carouselSwatches, swatchCap } from "@/server/fit/variants";
+import { fakeRules, makeCatalog, sku } from "@/server/fit/__tests__/fixtures";
+import { findGiverLeaks } from "@/server/privacy/giver-guard";
+import { MemoryPrivacyRepos } from "@/server/privacy/repos/memory";
 import { POST as reportPOST } from "../report/route";
 import { POST as requestsPOST } from "../requests/route";
 

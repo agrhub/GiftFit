@@ -4,7 +4,7 @@
  *   npx tsx scripts/store-live-check.ts
  *
  * Talks to Firestore database `giftfit-db` and bucket `gcp-project-405602-giftfit-photos` ONLY (both are
- * validated by lib/store/config.ts: a non-giftfit database or bucket is refused), with Application
+ * validated by server/store/config.ts: a non-giftfit database or bucket is refused), with Application
  * Default Credentials (`gcloud auth application-default login`). Everything it writes uses a unique
  * `livecheck-` id and is deleted at the end, also on failure.
  *
@@ -19,21 +19,21 @@ import { randomBytes } from "node:crypto";
 import { deflateSync } from "node:zlib";
 import { GET as tryonGET } from "@/app/api/recipient/tryon/[id]/route";
 import { POST as deletePhotoPOST } from "@/app/api/recipient/delete-photo/route";
-import { aurumCatalogSource } from "@/lib/privacy/catalog";
-import { deleteEverything } from "@/lib/privacy/delete-everything";
-import type { PrivacyDeps } from "@/lib/privacy/deps";
-import { GcsPhotoStore, gcsObjectApi } from "@/lib/privacy/photo-store-gcs";
-import { FirestoreRateLimitStore } from "@/lib/privacy/rate-limit-firestore";
-import { FirestorePrivacyRepos } from "@/lib/privacy/repos/firestore";
-import { setPrivacyDeps } from "@/lib/privacy/runtime";
-import { RECIPIENT_COOKIE } from "@/lib/privacy/session";
-import { signTryOnUrl } from "@/lib/privacy/signed-url";
-import { newFitRequestTokens } from "@/lib/privacy/tokens";
-import { firestoreDatabaseId, gcsPhotoBucket } from "@/lib/store/config";
-import { FirestoreDailyCounterStore } from "@/lib/store/daily-counter";
-import { COLLECTIONS, type FsDb } from "@/lib/store/firestore-types";
-import { newFirestoreDb, newGcsBucket, type GcsBucketLike } from "@/lib/store/gcp-clients";
-import { FirestoreAuditSink } from "@/lib/youcam/audit";
+import { aurumCatalogSource } from "@/server/privacy/catalog";
+import { deleteEverything } from "@/server/privacy/delete-everything";
+import type { PrivacyDeps } from "@/server/privacy/deps";
+import { GcsPhotoStore, gcsObjectApi } from "@/server/privacy/photo-store-gcs";
+import { FirestoreRateLimitStore } from "@/server/privacy/rate-limit-firestore";
+import { FirestorePrivacyRepos } from "@/server/privacy/repos/firestore";
+import { setPrivacyDeps } from "@/server/privacy/runtime";
+import { RECIPIENT_COOKIE } from "@/server/privacy/session";
+import { signTryOnUrl } from "@/server/privacy/signed-url";
+import { newFitRequestTokens } from "@/server/privacy/tokens";
+import { firestoreDatabaseId, gcsPhotoBucket } from "@/server/store/config";
+import { FirestoreDailyCounterStore } from "@/server/store/daily-counter";
+import { COLLECTIONS, type FsDb } from "@/server/store/firestore-types";
+import { newFirestoreDb, newGcsBucket, type GcsBucketLike } from "@/server/store/gcp-clients";
+import { FirestoreAuditSink } from "@/server/youcam/audit";
 
 const PROJECT = process.env.GOOGLE_CLOUD_PROJECT?.trim() || "gcp-project-405602";
 const DATABASE_ID = firestoreDatabaseId({ FIRESTORE_DATABASE_ID: process.env.FIRESTORE_DATABASE_ID || "giftfit-db" });

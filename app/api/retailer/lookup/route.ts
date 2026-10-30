@@ -1,9 +1,9 @@
 /**
  * GET /api/retailer/lookup?store=aurum&sku=&url=&name= (owner: A6). Public and CORS-enabled: the
- * script tag (packages/plugin/giftfit.js) asks whether a PDP's product is in the store's catalog.
+ * script tag (client/plugin/giftfit.js) asks whether a PDP's product is in the store's catalog.
  * Product data only.
  */
-import { handleLookup, LOOKUP_CORS } from "@/lib/metrics/api";
+import { handleLookup, LOOKUP_CORS } from "@/server/metrics/api";
 
 export const runtime = "nodejs";
 

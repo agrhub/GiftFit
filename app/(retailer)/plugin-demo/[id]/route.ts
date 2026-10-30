@@ -2,7 +2,7 @@
  * /plugin-demo/<slug> (owner: A6): the script-tag demo used to be an Aurum PDP on this origin. Every
  * demo-store product page now carries the one-line snippet, so this answers 308 to that page.
  */
-import { storeRedirect } from "@/lib/site/config";
+import { storeRedirect } from "@/server/site/config";
 
 type Ctx = { params: Promise<{ id: string }> };
 

@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clearFixtureMemo } from "../../lib/youcam/mock";
+import { clearFixtureMemo } from "../../server/youcam/mock";
 import { isBodyRejection, main, parseArgs, readImage, sniffContentType, variantOrder } from "../youcam-smoke";
 
 let dir: string;

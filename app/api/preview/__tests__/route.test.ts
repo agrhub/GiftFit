@@ -4,16 +4,16 @@
  * token, cold-start handling, the Firestore repo, and the giver guard on every response.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { findGiverLeaks } from "@/lib/privacy/giver-guard";
-import { setRateLimitOverride } from "@/lib/privacy/rate-limit";
-import { PREVIEW_COLLECTION, FirestorePreviewRepo, MemoryPreviewRepo, PREVIEW_TTL_MS, DEFAULT_PREVIEW_SETTINGS, type PreviewRecord } from "@/lib/preview/repo";
-import { drainPreviewJobsForTests, setPreviewDepsForTests } from "@/lib/preview/service";
-import { hashOwnerToken, ownerTokenMatches } from "@/lib/preview/tokens";
-import type { StoreIngestResult } from "@/lib/preview/types";
-import { fakeNet, html, PUBLIC_IP, shopifyProducts } from "@/lib/preview/__tests__/fake-site";
-import { MemoryDailyCounterStore, dailyCounterKey, type DailyCounterStore } from "@/lib/store/daily-counter";
-import { FakeFirestore } from "@/lib/store/__tests__/fake-firestore";
-import type { Resolver } from "@/lib/ingest/safe-fetch";
+import { findGiverLeaks } from "@/server/privacy/giver-guard";
+import { setRateLimitOverride } from "@/server/privacy/rate-limit";
+import { PREVIEW_COLLECTION, FirestorePreviewRepo, MemoryPreviewRepo, PREVIEW_TTL_MS, DEFAULT_PREVIEW_SETTINGS, type PreviewRecord } from "@/server/preview/repo";
+import { drainPreviewJobsForTests, setPreviewDepsForTests } from "@/server/preview/service";
+import { hashOwnerToken, ownerTokenMatches } from "@/server/preview/tokens";
+import type { StoreIngestResult } from "@/server/preview/types";
+import { fakeNet, html, PUBLIC_IP, shopifyProducts } from "@/server/preview/__tests__/fake-site";
+import { MemoryDailyCounterStore, dailyCounterKey, type DailyCounterStore } from "@/server/store/daily-counter";
+import { FakeFirestore } from "@/server/store/__tests__/fake-firestore";
+import type { Resolver } from "@/server/ingest/safe-fetch";
 import { POST } from "../route";
 import { GET } from "../[key]/route";
 

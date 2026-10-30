@@ -27,7 +27,7 @@ agent/
 .giftfit/
 
 fixtures/youcam/real/
-data/aurum/photo-inbox/
+fixtures/aurum/photo-inbox/
 
 docs/
 /*.html

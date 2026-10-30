@@ -5,7 +5,7 @@
     "license": "CC BY 4.0",
     "fitzpatrickMapping": "approximate, ours (no official MST to Fitzpatrick mapping)"
   },
-  "_generator": "lib/privacy/fairness/fixtures.ts",
+  "_generator": "server/privacy/fairness/fixtures.ts",
   "fixtures": [
     {
       "id": "mst1-m14",

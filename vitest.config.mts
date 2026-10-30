@@ -19,11 +19,11 @@ export default defineConfig({
     testTimeout: 20_000,
     coverage: {
       provider: "v8",
-      include: ["lib/youcam/**/*.ts"],
-      exclude: ["lib/youcam/**/__tests__/**", "lib/youcam/index.ts"],
+      include: ["server/youcam/**/*.ts"],
+      exclude: ["server/youcam/**/__tests__/**", "server/youcam/index.ts"],
       reporter: ["text", "text-summary"],
       thresholds: {
-        "lib/youcam/**": { lines: 90 },
+        "server/youcam/**": { lines: 90 },
       },
     },
   },

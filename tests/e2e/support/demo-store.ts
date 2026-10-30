@@ -1,6 +1,6 @@
 /**
- * Starts the demo store (demo-store/server.mjs) on 127.0.0.1:<port> for a spec, a second origin next to
- * the app (owner: A6). Pages are committed (node demo-store/generate.mjs), so there is no build step.
+ * Starts the demo store (server/demo-store/server.mjs) on 127.0.0.1:<port> for a spec, a second origin next to
+ * the app (owner: A6). Pages are committed (node server/demo-store/generate.mjs), so there is no build step.
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import path from "node:path";
@@ -12,7 +12,7 @@ export interface DemoStore {
 
 export async function startDemoStore(port: number, appOrigin: string): Promise<DemoStore> {
   const url = `http://127.0.0.1:${port}`;
-  const child: ChildProcess = spawn(process.execPath, [path.join("demo-store", "server.mjs")], {
+  const child: ChildProcess = spawn(process.execPath, [path.join("server", "demo-store", "server.mjs")], {
     env: { ...process.env, GIFTFIT_ORIGIN: appOrigin, PORT: String(port), HOST: "127.0.0.1" },
     stdio: "ignore",
   });

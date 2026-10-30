@@ -5,16 +5,16 @@
  * labelled on every card that counts them, and real numbers are always shown next to them.
  */
 import Link from "next/link";
-import { FIT_WEIGHTS_VERSION } from "@/lib/fit/weights";
-import { categoryInfo } from "@/components/store/format";
-import { loadIngestConfig } from "@/lib/ingest/config";
-import { buildRetailerSnapshot, type DataView } from "@/lib/metrics/console";
-import { MIN_COHORT, type CohortMix } from "@/lib/metrics/types";
-import { getPurchaseLog } from "@/lib/metrics/purchases";
-import { SYNTHETIC_ASSUMPTIONS } from "@/lib/metrics/synthetic";
-import { FACE_SHAPE_WORDS } from "@/lib/privacy/labels";
-import { getPrivacyDeps } from "@/lib/privacy/runtime";
-import type { Metal } from "@/lib/contracts/giftfit";
+import { FIT_WEIGHTS_VERSION } from "@/server/fit/weights";
+import { categoryInfo } from "@/client/store/format";
+import { loadIngestConfig } from "@/server/ingest/config";
+import { buildRetailerSnapshot, type DataView } from "@/server/metrics/console";
+import { MIN_COHORT, type CohortMix } from "@/server/metrics/types";
+import { getPurchaseLog } from "@/server/metrics/purchases";
+import { SYNTHETIC_ASSUMPTIONS } from "@/server/metrics/synthetic";
+import { FACE_SHAPE_WORDS } from "@/server/privacy/labels";
+import { getPrivacyDeps } from "@/server/privacy/runtime";
+import type { Metal } from "@/server/contracts/giftfit";
 import { IngestBox } from "./_components/IngestBox";
 import { ReturnRiskCard } from "./_components/ReturnRiskCard";
 import { ScriptTagCard } from "./_components/ScriptTagCard";
@@ -134,7 +134,7 @@ export default async function RetailerConsolePage({ searchParams }: { searchPara
           </p>
           <HowCalculated>
             <Formula>{"coverage(tone) = SKUs whose metal is \"recommended\" for tone / all SKUs"}</Formula>
-            <p>Rule table: lib/verticals/jewelry.ts (jewelryRules.metalFit), sourced in docs/research/jewelry_rules.md.</p>
+            <p>Rule table: server/verticals/jewelry.ts (jewelryRules.metalFit), sourced in docs/research/jewelry_rules.md.</p>
           </HowCalculated>
         </Card>
         <Card title="Return cost avoided" eyebrow="Estimate" badge={<DataBadge synthetic={synthetic} />} testId="kpi-return">

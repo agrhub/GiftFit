@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { makeStack, seedFullRequest, type SeededRequest, type TestStack } from "@/lib/privacy/__tests__/helpers";
-import { setPrivacyDeps } from "@/lib/privacy/runtime";
-import { RECIPIENT_COOKIE } from "@/lib/privacy/session";
-import { signTryOnUrl } from "@/lib/privacy/signed-url";
-import { FIT_REQUEST_TTL_MS, newToken } from "@/lib/privacy/tokens";
+import { makeStack, seedFullRequest, type SeededRequest, type TestStack } from "@/server/privacy/__tests__/helpers";
+import { setPrivacyDeps } from "@/server/privacy/runtime";
+import { RECIPIENT_COOKIE } from "@/server/privacy/session";
+import { signTryOnUrl } from "@/server/privacy/signed-url";
+import { FIT_REQUEST_TTL_MS, newToken } from "@/server/privacy/tokens";
 import { POST as deletePOST } from "../delete/route";
 import { GET as purgeGET } from "../purge-expired/route";
 import { GET as tryonGET } from "../tryon/[id]/route";

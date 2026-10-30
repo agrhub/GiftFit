@@ -6,13 +6,13 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
-import { CodeBlock } from "@/components/site/CodeBlock";
-import { btnPrimary, btnSecondary, Credits } from "@/components/site/Landing";
-import { LandingRoot } from "@/components/site/LandingRoot";
-import { giftfitSnippet } from "@/components/site/snippets";
-import { translator, type MessageKey } from "@/lib/i18n";
-import { siteLocale } from "@/lib/site/locale";
-import { siteOrigin } from "@/lib/site/snippet";
+import { CodeBlock } from "@/client/site/CodeBlock";
+import { btnPrimary, btnSecondary, Credits } from "@/client/site/Landing";
+import { LandingRoot } from "@/client/site/LandingRoot";
+import { giftfitSnippet } from "@/client/site/snippets";
+import { translator, type MessageKey } from "@/server/i18n";
+import { siteLocale } from "@/server/site/locale";
+import { siteOrigin } from "@/server/site/snippet";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "For merchants" };
@@ -26,7 +26,7 @@ const PATHS: Array<[MessageKey, MessageKey]> = [
 ];
 
 const ISSUES_URL = "https://github.com/agrhub/GiftFit/issues";
-/** Same string as lib/ingest/safe-fetch.ts PREVIEW_USER_AGENT (kept literal so this page has no crawler import). */
+/** Same string as server/ingest/safe-fetch.ts PREVIEW_USER_AGENT (kept literal so this page has no crawler import). */
 const PREVIEW_BOT_UA = "GiftFitPreviewBot/1.0 (+https://giftfit-469920173665.us-central1.run.app/merchants)";
 const ROBOTS_OPT_OUT = ["User-agent: GiftFitPreviewBot", "Disallow: /"].join("\n");
 

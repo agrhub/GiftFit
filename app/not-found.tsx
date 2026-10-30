@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
-import { SiteHeader, SkipLink } from "@/components/site/SiteHeader";
+import { SiteHeader, SkipLink } from "@/client/site/SiteHeader";
 
 export const metadata: Metadata = { title: "Page not found", robots: { index: false, follow: false } };
 export const viewport: Viewport = { themeColor: "#090b11" };

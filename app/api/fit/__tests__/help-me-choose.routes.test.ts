@@ -4,20 +4,20 @@
  * and "not tried on" picks, giver-safe, cached so Claude runs once.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { CreateFitRequestResponse, GiverReportStatus } from "@/lib/contracts/api";
-import type { CatalogSku } from "@/lib/contracts/giftfit";
-import aurum from "@/data/aurum/catalog.json";
-import { ClaudeSpendRefused } from "@/lib/fit/claude";
-import { configureFit, resetFitDeps } from "@/lib/fit/deps";
-import { PrivacyFitRepository, StaticCatalog, briefOf } from "@/lib/fit/repository";
-import { type TasteClient, type TasteInput, templateTasteSummary } from "@/lib/fit/taste";
-import { eligibleVariants, variantsOf } from "@/lib/fit/variants";
-import { fakeRules } from "@/lib/fit/__tests__/fixtures";
-import { resolveCarousel } from "@/lib/privacy/carousel";
-import { findGiverLeaks } from "@/lib/privacy/giver-guard";
-import { MemoryPrivacyRepos } from "@/lib/privacy/repos/memory";
-import { setPrivacyDeps } from "@/lib/privacy/runtime";
-import { hashToken } from "@/lib/privacy/tokens";
+import type { CreateFitRequestResponse, GiverReportStatus } from "@/server/contracts/api";
+import type { CatalogSku } from "@/server/contracts/giftfit";
+import aurum from "@/fixtures/aurum/catalog.json";
+import { ClaudeSpendRefused } from "@/server/fit/claude";
+import { configureFit, resetFitDeps } from "@/server/fit/deps";
+import { PrivacyFitRepository, StaticCatalog, briefOf } from "@/server/fit/repository";
+import { type TasteClient, type TasteInput, templateTasteSummary } from "@/server/fit/taste";
+import { eligibleVariants, variantsOf } from "@/server/fit/variants";
+import { fakeRules } from "@/server/fit/__tests__/fixtures";
+import { resolveCarousel } from "@/server/privacy/carousel";
+import { findGiverLeaks } from "@/server/privacy/giver-guard";
+import { MemoryPrivacyRepos } from "@/server/privacy/repos/memory";
+import { setPrivacyDeps } from "@/server/privacy/runtime";
+import { hashToken } from "@/server/privacy/tokens";
 import { POST as reportPOST } from "../report/route";
 import { POST as requestsPOST } from "../requests/route";
 

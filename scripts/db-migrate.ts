@@ -1,5 +1,5 @@
 /**
- * Applies db/migrations to the database in DATABASE_URL (Neon).
+ * Applies server/db/migrations to the database in DATABASE_URL (Neon).
  * Usage: npm run db:migrate
  */
 import { loadEnvConfig } from "@next/env";
@@ -15,7 +15,7 @@ async function main() {
     console.error("DATABASE_URL is not set (put it in .env.local).");
     process.exit(2);
   }
-  await migrate(drizzle(neon(url)), { migrationsFolder: "db/migrations" });
+  await migrate(drizzle(neon(url)), { migrationsFolder: "server/db/migrations" });
   console.log("migrations applied");
 }
 

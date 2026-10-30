@@ -2,19 +2,19 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
-import { EARRING_SHAPES, METALS, NECKLACE_STYLES, OCCASIONS, type CatalogSku, type MetalVariant } from "@/lib/contracts/giftfit";
+import { EARRING_SHAPES, METALS, NECKLACE_STYLES, OCCASIONS, type CatalogSku, type MetalVariant } from "@/server/contracts/giftfit";
 import { buildCatalog, STORE } from "../build";
 import { PRICE_BANDS, priceBand } from "../materials";
 import { CATEGORIES, expectedTone, validateCatalog } from "../validate";
 
 const ROOT = path.resolve(__dirname, "../../..");
-const skus = JSON.parse(readFileSync(path.join(ROOT, "data/aurum/catalog.json"), "utf8")) as CatalogSku[];
-const store = JSON.parse(readFileSync(path.join(ROOT, "data/aurum/store.json"), "utf8"));
+const skus = JSON.parse(readFileSync(path.join(ROOT, "fixtures/aurum/catalog.json"), "utf8")) as CatalogSku[];
+const store = JSON.parse(readFileSync(path.join(ROOT, "fixtures/aurum/store.json"), "utf8"));
 const byCat = (c: string) => skus.filter((s) => s.category === c);
 const vectorOf = (s: CatalogSku) => `/catalog/aurum/${String(s.attributes.sku).toLowerCase()}.png`;
 
 describe("Aurum catalog: schema and vocabulary", () => {
-  it("validates every SKU against lib/contracts/giftfit.ts", () => {
+  it("validates every SKU against server/contracts/giftfit.ts", () => {
     expect(validateCatalog(skus)).toEqual([]);
   });
 

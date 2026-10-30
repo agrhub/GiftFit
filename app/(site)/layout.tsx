@@ -1,5 +1,5 @@
 import type { Viewport } from "next";
-import { SiteHeader, SkipLink } from "@/components/site/SiteHeader";
+import { SiteHeader, SkipLink } from "@/client/site/SiteHeader";
 
 export const viewport: Viewport = { themeColor: "#090b11" };
 

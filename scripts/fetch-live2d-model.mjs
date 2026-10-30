@@ -3,7 +3,7 @@
  * Fetches the one Live2D model the widget uses (Mark-kun, a Live2D Original Character sample) from
  * Live2D's own repository at a pinned tag into public/live2d/models/Mark/ (git-ignored), verifying
  * every file against the sha256 manifest below, and copies the Cubism Web Framework's WebGL shaders
- * from the vendor/CubismWebFramework submodule into public/live2d/shaders/WebGL/ (also git-ignored).
+ * from the client/vendor/CubismWebFramework submodule into public/live2d/shaders/WebGL/ (also git-ignored).
  *
  * ADR-050: the model and Core are never committed; no sound files; the model is not modified. Core
  * (public/live2d/core/live2dcubismcore.min.js) is placed by hand after accepting Live2D's licence;
@@ -11,7 +11,7 @@
  * the files are present and verified).
  *
  * Terms: Free Material License Agreement v1.6 and Terms of Use for Live2D Cubism Sample Data v1.7
- * (https://www.live2d.com/eula/live2d-sample-model-terms_en.html). See data/LICENSES.md.
+ * (https://www.live2d.com/eula/live2d-sample-model-terms_en.html). See docs/LICENSES.md.
  */
 import { createHash } from "node:crypto";
 import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
@@ -19,10 +19,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const TAG = "5-r.5"; // matches the vendor/CubismWebFramework submodule and the Core build
+const TAG = "5-r.5"; // matches the client/vendor/CubismWebFramework submodule and the Core build
 const BASE = `https://raw.githubusercontent.com/Live2D/CubismWebSamples/${TAG}/Samples/Resources/Mark/`;
 const OUT = path.join(ROOT, "public", "live2d", "models", "Mark");
-const SHADERS_SRC = path.join(ROOT, "vendor", "CubismWebFramework", "Shaders", "WebGL");
+const SHADERS_SRC = path.join(ROOT, "client", "vendor", "CubismWebFramework", "Shaders", "WebGL");
 const SHADERS_OUT = path.join(ROOT, "public", "live2d", "shaders", "WebGL");
 const CORE = path.join(ROOT, "public", "live2d", "core", "live2dcubismcore.min.js");
 
@@ -70,7 +70,7 @@ async function copyShaders() {
   try {
     names = (await readdir(SHADERS_SRC)).filter((n) => /\.(vert|frag)$/.test(n));
   } catch {
-    throw new Error("vendor/CubismWebFramework is missing: run `git submodule update --init vendor/CubismWebFramework`");
+    throw new Error("client/vendor/CubismWebFramework is missing: run `git submodule update --init client/vendor/CubismWebFramework`");
   }
   await mkdir(SHADERS_OUT, { recursive: true });
   for (const n of names) await copyFile(path.join(SHADERS_SRC, n), path.join(SHADERS_OUT, n));

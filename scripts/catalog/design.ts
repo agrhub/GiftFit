@@ -1,5 +1,5 @@
 /** Render-time description of one product (not stored in catalog.json except via the SKU fields). */
-import type { JewelryCategory, Metal } from "@/lib/contracts/giftfit";
+import type { JewelryCategory, Metal } from "@/server/contracts/giftfit";
 import type { PearlTone, StoneColor } from "./svg";
 
 export interface Design {

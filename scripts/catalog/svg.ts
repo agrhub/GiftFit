@@ -3,7 +3,7 @@
  * Everything is drawn from code (no third-party artwork): metals are layered gradients,
  * stones are faceted polygons with radial gradients, pearls are radial gradients with a sheen.
  */
-import type { Metal } from "@/lib/contracts/giftfit";
+import type { Metal } from "@/server/contracts/giftfit";
 
 export const CANVAS = 1024;
 

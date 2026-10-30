@@ -20,7 +20,7 @@
       "AUR-EAR-042",
       "AUR-EAR-038"
     ],
-    "note": "Decoys from lib/fit selectDecoys(seed, request) on 2026-10-15; rebuild and compare before relying on them."
+    "note": "Decoys from server/fit selectDecoys(seed, request) on 2026-10-15; rebuild and compare before relying on them."
   },
   "subjects": {
     "showcase-latina-medium-warm": {
@@ -83,6 +83,6 @@
       "AUR-RNG-016",
       "AUR-NEC-016"
     ],
-    "note": "Decoys from lib/fit selectDecoys with gender-presentation parity (A3, 2026-10-15); all six rendered (ADR-038)."
+    "note": "Decoys from server/fit selectDecoys with gender-presentation parity (A3, 2026-10-15); all six rendered (ADR-038)."
   }
 }

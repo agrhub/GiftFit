@@ -4,16 +4,16 @@
  * stage of the flow; hearts, wishes and the numeric profile stay. Mock YouCam only (0 units).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CaptureResponse, RecipientSessionResponse, SwatchResponse } from "@/lib/contracts/api";
-import { makeStack, type TestStack } from "@/lib/privacy/__tests__/helpers";
-import { youcamCapturePorts, type CapturePorts } from "@/lib/privacy/capture";
-import { deleteEverything } from "@/lib/privacy/delete-everything";
-import { setPrivacyDeps } from "@/lib/privacy/runtime";
-import { RECIPIENT_COOKIE } from "@/lib/privacy/session";
-import { newFitRequestTokens } from "@/lib/privacy/tokens";
-import { MemoryAuditSink } from "@/lib/youcam/audit";
-import { MemoryResultCache } from "@/lib/youcam/cache";
-import { createYoucamClient } from "@/lib/youcam/client";
+import type { CaptureResponse, RecipientSessionResponse, SwatchResponse } from "@/server/contracts/api";
+import { makeStack, type TestStack } from "@/server/privacy/__tests__/helpers";
+import { youcamCapturePorts, type CapturePorts } from "@/server/privacy/capture";
+import { deleteEverything } from "@/server/privacy/delete-everything";
+import { setPrivacyDeps } from "@/server/privacy/runtime";
+import { RECIPIENT_COOKIE } from "@/server/privacy/session";
+import { newFitRequestTokens } from "@/server/privacy/tokens";
+import { MemoryAuditSink } from "@/server/youcam/audit";
+import { MemoryResultCache } from "@/server/youcam/cache";
+import { createYoucamClient } from "@/server/youcam/client";
 import { GET as captureGET, POST as capturePOST } from "../capture/route";
 import { POST as consentPOST } from "../consent/route";
 import { POST as deletePhotoPOST } from "../delete-photo/route";
@@ -191,7 +191,7 @@ describe("POST /api/recipient/delete-photo (every face-derived image)", () => {
     expect(stack.deleteTask).not.toHaveBeenCalled();
   });
 
-  it("empties the real lib/youcam result cache through client.purge", async () => {
+  it("empties the real server/youcam result cache through client.purge", async () => {
     const { request, token } = await seed();
     await consented(token);
     await capture(token);

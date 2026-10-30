@@ -70,15 +70,18 @@ __pycache__/
 /.giftfit/
 
 # Flow originals (wired copies live in public/catalog/aurum/photo/)
-/data/aurum/photo-inbox/*.jpg
-/data/aurum/photo-inbox/variants/*.jpg
+/fixtures/aurum/photo-inbox/*.jpg
+/fixtures/aurum/photo-inbox/variants/*.jpg
 
 # Live2D Cubism Core and models (proprietary, never committed; ADR-050)
 /public/live2d/
-# Internal agent notes and research
+# Internal agent notes and research (docs/ holds them locally; only the public docs below are tracked)
 MASTER_PLAN.md
 STATUS.md
-docs/
+/docs/*
+!/docs/deploy.md
+!/docs/LICENSES.md
+!/docs/video-scenes/
 
 
 # Retired in-browser voice assets (ADR-059): local copies only, never committed

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { SiteHeader } from "@/components/site/SiteHeader";
+import { SiteHeader } from "@/client/site/SiteHeader";
 
 /** Unexpected errors on any GiftFit route, in the site's dark design. No error detail is shown. */
 export default function ErrorPage({ reset }: { error: Error & { digest?: string }; reset: () => void }) {

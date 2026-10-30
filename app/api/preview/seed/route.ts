@@ -11,12 +11,12 @@
  * the pinned socket goes to the local port over plain HTTP); every other SafeFetcher rule (URL policy,
  * robots.txt, User-Agent, size/time caps, redirects) and the sanitizer run unchanged.
  */
-import { pinnedRequest } from "@/lib/ingest/safe-fetch";
-import { capturePageSnapshot } from "@/lib/preview/page-snapshot";
-import { defaultPageSnapshotStore } from "@/lib/preview/page-snapshot-store";
-import { defaultPreviewRepo, PREVIEW_KEY_RE } from "@/lib/preview/repo";
-import { safeEqual } from "@/lib/privacy/tokens";
-import { fixturePreview, type FixtureKind } from "@/lib/widget/preview-fixtures";
+import { pinnedRequest } from "@/server/ingest/safe-fetch";
+import { capturePageSnapshot } from "@/server/preview/page-snapshot";
+import { defaultPageSnapshotStore } from "@/server/preview/page-snapshot-store";
+import { defaultPreviewRepo, PREVIEW_KEY_RE } from "@/server/preview/repo";
+import { safeEqual } from "@/server/privacy/tokens";
+import { fixturePreview, type FixtureKind } from "@/server/widget/preview-fixtures";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

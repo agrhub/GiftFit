@@ -1,5 +1,5 @@
 /** Price bands, metal and stone assignment rules for the Aurum catalog (all deterministic). */
-import type { JewelryCategory, Metal, MetalTone } from "@/lib/contracts/giftfit";
+import type { JewelryCategory, Metal, MetalTone } from "@/server/contracts/giftfit";
 import type { PearlTone, StoneColor } from "./svg";
 
 export type Band = 0 | 1 | 2 | 3;

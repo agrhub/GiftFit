@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CharacterDemo } from "@/components/widget/character/CharacterDemo";
+import { CharacterDemo } from "@/client/widget/character/CharacterDemo";
 
 export const metadata: Metadata = {
   title: "Widget character preview",

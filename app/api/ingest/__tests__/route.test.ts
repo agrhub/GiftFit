@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { resetJobs, waitForJob } from "@/workers/ingest/jobs";
+import { resetJobs, waitForJob } from "@/server/ingest/worker/jobs";
 import { GET as getJob } from "../[jobId]/route";
 import { GET, POST } from "../route";
 

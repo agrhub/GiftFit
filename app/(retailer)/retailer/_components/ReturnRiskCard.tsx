@@ -1,7 +1,7 @@
 "use client";
 /**
- * Return-Risk before/after (owner: A6). Uses A3's published model as is (lib/fit/returnRisk.ts,
- * lib/fit/WEIGHTS.md): every input is editable here and every default cites docs/research/market.md.
+ * Return-Risk before/after (owner: A6). Uses A3's published model as is (server/fit/returnRisk.ts,
+ * server/fit/WEIGHTS.md): every input is editable here and every default cites docs/research/market.md.
  */
 import { useId, useMemo, useState } from "react";
 import {
@@ -11,7 +11,7 @@ import {
   RETURN_RISK_FORMULA,
   RETURN_RISK_LABEL,
   portfolioReturnRisk,
-} from "@/lib/fit/returnRisk";
+} from "@/server/fit/returnRisk";
 import { Card, DataBadge, Formula, HowCalculated, int, pct, usd } from "./ui";
 
 const RATE_OPTIONS = Object.entries(RETURN_RATE_PRESETS).map(([k, v]) => ({ key: k, value: v.rate, source: v.source }));

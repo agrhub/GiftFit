@@ -71,18 +71,18 @@ Traditional Virtual Try-On (VTO) is built for people shopping for themselves. Gi
 
 ## ✨ Key Features
 
-- **Decoy Mixing Engine (`lib/fit/decoys.ts`):** Statistically leveled to keep recipient guess probability at random chance ($\approx 0.171$, matching the ideal $1/6 \approx 0.167$).
-- **Multi-Factor Fit Engine (`lib/fit/score.ts`):** With a try-on, combines recipient hearts (60%), metal and undertone harmony (10%), style and face-shape compatibility (15%), and budget/occasion fit (15%). Without a try-on (store-URL previews, or a recipient who skips the photo), undertone and face shape are not used at all: hearts (80%) and budget/occasion (20%). The undertone is an estimate from one photo, which the recipient can correct. Formula: `lib/fit/WEIGHTS.md`.
+- **Decoy Mixing Engine (`server/fit/decoys.ts`):** Statistically leveled to keep recipient guess probability at random chance ($\approx 0.171$, matching the ideal $1/6 \approx 0.167$).
+- **Multi-Factor Fit Engine (`server/fit/score.ts`):** With a try-on, combines recipient hearts (60%), metal and undertone harmony (10%), style and face-shape compatibility (15%), and budget/occasion fit (15%). Without a try-on (store-URL previews, or a recipient who skips the photo), undertone and face shape are not used at all: hearts (80%) and budget/occasion (20%). The undertone is an estimate from one photo, which the recipient can correct. Formula: `server/fit/WEIGHTS.md`.
 - **AI Gift Concierge (Anthropic Claude):** Natural language gift consultation (`@anthropic-ai/sdk`) that generates grounded shortlist recommendations from catalog inventory.
 - **Retailer Console (`/retailer`):** E-commerce dashboard showing completion funnels, hearted-to-purchased conversion rates, undertone catalog coverage, and estimated return-risk reduction.
-- **Universal Drop-In Plugin (`packages/plugin/giftfit.js`):** A lightweight 1-line script tag injecting an accessible shadow-DOM "Gift it right" trigger into any e-commerce PDP.
+- **Universal Drop-In Plugin (`client/plugin/giftfit.js`):** A lightweight 1-line script tag injecting an accessible shadow-DOM "Gift it right" trigger into any e-commerce PDP.
 
 ### Languages
 
 - **Language follows the shopper, in any language.** Every message whose language is clear (any language: scripts, Vietnamese letters, common words) sets the conversation's language; very short or language-neutral messages ("ok", "$150", an emoji, a product name) keep the language so far, or the page/browser language at the start.
 - **Widget UI:** English and Vietnamese (reviewed), plus Japanese, Korean, Simplified Chinese, Thai, Indonesian, Spanish, French and German (machine-translated, not yet reviewed by native speakers). No language attribute is needed: the widget offers all ten, starts in the store page's language (`<html lang>`), then the browser's, and follows each shopper message: one of the ten when it is one, English for any other language (never a missing locale). Optional, for stores that want fewer: `data-langs` limits the list (e.g. `data-langs="en,ja,de"`) and `data-lang` sets the fallback. The GiftFit site itself (home, merchants, preview pages) has no language switcher: it is in Vietnamese for a Vietnamese browser and in English otherwise.
 - **Chat:** the Concierge always replies in the language of the shopper's latest message, whatever it is. Its fixed lines (closing line, refusal, store-preview lines) and the deterministic fallback answer exist in the ten widget languages and are English for any other.
-- **Voice:** Speech-to-Text uses Google chirp_3 with automatic language identification (`languageCodes: ["auto"]`; `VOICE_STT_LANGUAGE=fixed` goes back to the widget's language) and reports the language it heard. Spoken replies use the reply's own language and come from Google Cloud Text-to-Speech only (ADR-059): Chirp 3 HD where Google has it, else Neural2, else Standard (static table in `lib/voice/voices.ts`, checked against Google's voice list). If the server voice is unavailable or capped, the widget uses the browser's own voice; languages without a Google voice are shown as text only.
+- **Voice:** Speech-to-Text uses Google chirp_3 with automatic language identification (`languageCodes: ["auto"]`; `VOICE_STT_LANGUAGE=fixed` goes back to the widget's language) and reports the language it heard. Spoken replies use the reply's own language and come from Google Cloud Text-to-Speech only (ADR-059): Chirp 3 HD where Google has it, else Neural2, else Standard (static table in `server/voice/voices.ts`, checked against Google's voice list). If the server voice is unavailable or capped, the widget uses the browser's own voice; languages without a Google voice are shown as text only.
 - **Gift flow:** the e-card, its language picker (all ten), share text and e-mails start in the giver's conversation language (English for any other). The recipient page and the Fit Report use the recipient's browser language when it is one of the ten, else the giver's conversation language, else English; the shared header is in the page's language from the first paint, and a refused selfie gets a specific hint ("hold the phone at eye level, chin slightly up") in that language. Translations other than English and Vietnamese are machine-translated, not yet reviewed by native speakers.
 
 ---
@@ -101,7 +101,7 @@ GiftFit deeply integrates **7 Perfect Corp / YouCam AI APIs**:
 | **Bracelet 2D VTO** | Simulates bangles and chain bracelets on the wrist | 1 unit / render |
 | **Watch 2D VTO** | Renders dress watches and chronographs upright on the wrist | 1 unit / render |
 
-### Safety & Cost Guard (`lib/youcam/cost-guard.ts`)
+### Safety & Cost Guard (`server/youcam/cost-guard.ts`)
 - **Default Mock Mode (`YOUCAM_MOCK=1`):** Complete local development and test runs cost **0 units**.
 - **The public site spends 0 units:** visitors get the judge demo (pre-recorded try-ons of an AI-generated model) and hearts-only gifts from the product photos; no selfie goes to YouCam. There is no judges' reserve: judges watch the demo video.
 - **Real try-on only in the owner's recording session:** `YOUCAM_RECORDING=on` plus an owner cookie minted from a secret token (`/owner/recording`); off by default. `GET /api/health` reports `youcamPaid: false` whenever no paid call is possible.
@@ -167,31 +167,37 @@ giftfit/
 │   ├── (retailer)/                # Retailer Console (/retailer) & embed panel
 │   ├── owner/                     # Owner-only recording switch (/owner/recording)
 │   └── api/                       # API route handlers (fit, recipient, preview, voice, widget, demo, health)
-├── components/                    # UI Components
+├── public/                        # Static assets: catalog images, widget files
+├── client/                        # Browser UI
 │   ├── gift/                      # Giver panel, recipient carousel, camera capture, report
 │   ├── store/                     # Aurum catalog view model and formatting helpers
 │   ├── widget/                    # Gift assistant: chat, character, voice, e-card and sharing
-│   └── trust/                     # Privacy cards, transparency disclaimers, purge buttons
-├── lib/                           # Core Business Logic
+│   ├── trust/                     # Privacy cards, transparency disclaimers, purge buttons
+│   ├── plugin/                    # Embeddable giftfit.js script tag
+│   └── vendor/                    # Live2D Cubism Web Framework (git submodule)
+├── server/                        # Core logic (a few pure modules, e.g. i18n and contracts, are shared with the client)
 │   ├── anthropic/                 # Claude client and the daily spend cap
 │   ├── concierge/                 # Gift Concierge: tool use over the catalog, recorded mock
 │   ├── contracts/                 # Strict TypeScript schemas & vocabulary
+│   ├── db/                        # Drizzle ORM schema, migrations & seed scripts
+│   ├── demo-store/                # The demo store (separate Cloud Run service): static pages for every Aurum design
 │   ├── email/                     # Gift-card and "Fit Report ready" emails (off unless enabled)
 │   ├── fit/                       # Fit scoring, decoy algorithms, Claude explainers
 │   ├── i18n/                      # The ten widget languages and language detection
+│   ├── ingest/                    # Store-URL catalog ingest; worker/ holds the CLI and job runner
 │   ├── preview/                   # Store-URL preview: fetcher, SSRF guards, snapshot sanitizer, caps
 │   ├── privacy/                   # HMAC tokens, photo store, capture face crop, leak scanner, fairness
 │   ├── store/                     # Memory or Firestore repositories, GCS photo store
 │   ├── verticals/                 # CIELAB undertone rules & jewelry styling heuristics
 │   ├── voice/                     # Google Speech-to-Text / Text-to-Speech, voices, caps
 │   └── youcam/                    # Typed YouCam API client, mock engine, cost guard, recording switch
-├── db/                            # Drizzle ORM schema, migrations & seed scripts
-├── fixtures/                      # Mock images & synthetic AI demo profiles
-├── packages/plugin/               # Embeddable giftfit.js script tag
-├── demo-store/                    # The demo store (separate origin): static pages for every Aurum design
-├── deploy/                        # Cloud Run deployment guide
-└── tests/                         # E2E test suites (Playwright) & leak guards
+├── fixtures/                      # Aurum catalog data, mock images, synthetic AI demo profiles, ingest snapshots
+├── scripts/                       # Catalog, smoke-test and ops scripts
+├── tests/                         # E2E test suites (Playwright) & leak guards
+└── docs/                          # Deploy guide, licences and provenance, demo-video scene templates
 ```
+
+Unit tests live next to the code they cover, in `__tests__/` folders.
 
 ---
 
@@ -257,7 +263,7 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000) for the GiftFit home. The storefront is the separate demo store (one page per Aurum design, each with the one-line snippet):
 
 ```bash
-GIFTFIT_ORIGIN=http://localhost:3000 PORT=4320 node demo-store/server.mjs   # http://localhost:4320
+GIFTFIT_ORIGIN=http://localhost:3000 PORT=4320 node server/demo-store/server.mjs   # http://localhost:4320
 ```
 
 Set `GIFTFIT_DEMO_STORE_URL=http://localhost:4320` in `.env.local` so the home page's "Open the demo store" button and the old `/p/…`, `/c/…`, `/cart` paths (308) point there.
@@ -270,13 +276,13 @@ To test the complete recipient journey immediately without spending YouCam credi
 
 ## ☁️ Deploying to Google Cloud Run
 
-The full, step-by-step guide is [deploy/README.md](deploy/README.md). In short:
+The full, step-by-step guide is [docs/deploy.md](docs/deploy.md). In short:
 
 1. **Project setup:** enable Cloud Run, Cloud Build, Artifact Registry, Secret Manager, Cloud Scheduler, Firestore, Cloud Storage, Speech-to-Text and Text-to-Speech; create the `giftfit-run` service account with `roles/datastore.user` and `roles/speech.client`.
 2. **State:** a named Firestore database with TTL on `expiresAt`, and a private photo bucket (uniform access, public access prevented, 1-day lifecycle delete, no soft delete) where the service account has `roles/storage.objectAdmin`.
 3. **Secrets:** `YOUCAM_API_KEY`, `ANTHROPIC_API_KEY`, `GIFTFIT_URL_SIGNING_SECRET`, `FIT_DECOY_SECRET` and `CRON_SECRET` in Secret Manager, readable only by the service account.
 4. **Deploy** with `gcloud run deploy giftfit --source .` as a **no-traffic candidate** (`--no-traffic --tag candidate`): 1 vCPU, 1 GiB, min 0 / max 1 instances, `STORE=firestore`, `YOUCAM_ALLOW_PAID=0`, `APP_BASE_URL` set to the service URL. Check `/api/health` on the candidate's tag URL, then shift traffic with `gcloud run services update-traffic`.
-5. **Demo store:** `gcloud run deploy giftfit-demo-store --source demo-store` with `GIFTFIT_ORIGIN` set to the app's URL, and add the store's URL to the app's `GIFTFIT_WIDGET_ORIGINS`.
+5. **Demo store:** `gcloud run deploy giftfit-demo-store --source server/demo-store` with `GIFTFIT_ORIGIN` set to the app's URL, and add the store's URL to the app's `GIFTFIT_WIDGET_ORIGINS`.
 6. **Purge:** a Cloud Scheduler job calls `GET /api/recipient/purge-expired` hourly with the cron secret.
 
 ---
@@ -293,7 +299,7 @@ npm run gate
 npm run e2e
 
 # Run the undertone fairness audit across Fitzpatrick I-VI fixtures
-npx tsx lib/privacy/fairness/run.ts
+npx tsx server/privacy/fairness/run.ts
 ```
 
 ### Verified Guarantees:
@@ -305,7 +311,7 @@ npx tsx lib/privacy/fairness/run.ts
 
 ## ⚖️ Privacy & Fairness by Design
 
-1. **Undertone is a weak estimate, and we say so:** YouCam returns a skin color, not an undertone; GiftFit estimates warm/neutral/cool from its CIELAB hue angle with thresholds of our own. On our synthetic Monk/Fitzpatrick I–VI harness it still misclassifies about 27% overall, and on the real API five AI-generated portraits spanned only 57.9–64.3° of hue (4 of 5 at confidence ≤ 0.20), so one photo carries little undertone signal. That is why it is low-weight (10% at most, shrunk further at low confidence), labelled an *estimate*, correctable by the recipient in one tap, never says a metal should be avoided, and is not used at all when no photo is taken. Details and re-run command: `lib/privacy/fairness/`.
+1. **Undertone is a weak estimate, and we say so:** YouCam returns a skin color, not an undertone; GiftFit estimates warm/neutral/cool from its CIELAB hue angle with thresholds of our own. On our synthetic Monk/Fitzpatrick I–VI harness it still misclassifies about 27% overall, and on the real API five AI-generated portraits spanned only 57.9–64.3° of hue (4 of 5 at confidence ≤ 0.20), so one photo carries little undertone signal. That is why it is low-weight (10% at most, shrunk further at low confidence), labelled an *estimate*, correctable by the recipient in one tap, never says a metal should be avoided, and is not used at all when no photo is taken. Details and re-run command: `server/privacy/fairness/`.
 2. **Short-TTL Storage:** Selfies and hand photos sit in a private Google Cloud Storage bucket (us-central1) for at most 1 hour, only to try other metals; Done or "Delete my photo now" deletes them at once, and a 1-day lifecycle rule is the backstop. Everything else lives in Firestore with 72-hour expiry (store previews 24–72 hours).
 3. **Signed HMAC URLs:** Try-on images use tamper-proof HMAC SHA-256 tokens valid for $\le 15$ minutes and bound to the recipient's secure cookie session.
 
@@ -316,8 +322,8 @@ npx tsx lib/privacy/fairness/run.ts
 All product and model imagery in GiftFit is strictly synthetic and rights-cleared:
 - **Catalog Products (`public/catalog/aurum/`):** 161 jewelry items for the fictional *Aurum Jewelry* store: SVG/PNG drawn in code (CC0), plus AI-generated product photos via Google Flow. No real brand trademarks are used.
 - **Demo Models (`fixtures/youcam/ai-demo/`):** All people displayed in demo fixtures and screenshots are **fictional, AI-generated models** created by the team. No real individuals' biometrics or likenesses exist in this repository.
-- Full provenance log: [data/LICENSES.md](data/LICENSES.md) and [fixtures/youcam/ai-demo/README.md](fixtures/youcam/ai-demo/README.md).
-- **Widget character (Live2D):** This content uses sample data owned and copyrighted by Live2D Inc. The sample data are utilized in accordance with terms and conditions set by Live2D Inc. This content itself is created at the author's sole discretion. Live2D Cubism Core (Live2D Proprietary Software License) and the Cubism Web Framework (Live2D Open Software License, git submodule) are not covered by this repository's MIT licence; none of these files are committed. Live2D and Cubism are trademarks of Live2D Inc.; GiftFit is not made or endorsed by Live2D Inc. Details: [data/LICENSES.md](data/LICENSES.md).
+- Full provenance log: [docs/LICENSES.md](docs/LICENSES.md) and [fixtures/youcam/ai-demo/README.md](fixtures/youcam/ai-demo/README.md).
+- **Widget character (Live2D):** This content uses sample data owned and copyrighted by Live2D Inc. The sample data are utilized in accordance with terms and conditions set by Live2D Inc. This content itself is created at the author's sole discretion. Live2D Cubism Core (Live2D Proprietary Software License) and the Cubism Web Framework (Live2D Open Software License, git submodule) are not covered by this repository's MIT licence; none of these files are committed. Live2D and Cubism are trademarks of Live2D Inc.; GiftFit is not made or endorsed by Live2D Inc. Details: [docs/LICENSES.md](docs/LICENSES.md).
 
 ---
 

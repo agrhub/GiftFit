@@ -32,13 +32,13 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { loadEnvConfig } from "@next/env";
-import { jsonlAuditPath } from "../lib/youcam/audit";
-import { createYoucamClient } from "../lib/youcam/client";
-import { JEWELRY_BODY_VARIANTS, type JewelryBodyVariant } from "../lib/youcam/config";
-import { YoucamApiError } from "../lib/youcam/errors";
-import { fixtureName } from "../lib/youcam/features";
-import { analyzeRecipient, fitRequestPlan, runTryOns, type TryOnItem, type TryOnResult } from "../lib/youcam/fit-request";
-import type { ImageContentType, ImageInput } from "../lib/youcam/types";
+import { jsonlAuditPath } from "../server/youcam/audit";
+import { createYoucamClient } from "../server/youcam/client";
+import { JEWELRY_BODY_VARIANTS, type JewelryBodyVariant } from "../server/youcam/config";
+import { YoucamApiError } from "../server/youcam/errors";
+import { fixtureName } from "../server/youcam/features";
+import { analyzeRecipient, fitRequestPlan, runTryOns, type TryOnItem, type TryOnResult } from "../server/youcam/fit-request";
+import type { ImageContentType, ImageInput } from "../server/youcam/types";
 
 const IMAGES = path.join("fixtures", "youcam", "images");
 

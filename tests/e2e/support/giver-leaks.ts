@@ -1,7 +1,7 @@
 /**
  * Independent leak scanner for giver-facing HTTP responses (owner: A8).
  *
- * Deliberately separate from A5's lib/privacy/giver-guard.ts: the route handlers already run
+ * Deliberately separate from A5's server/privacy/giver-guard.ts: the route handlers already run
  * giverJson(), so re-using the same function here would only prove the guard agrees with itself.
  * This scanner works on the raw bytes the browser would receive (body text, parsed JSON and the
  * response headers) and fails on:
@@ -107,9 +107,9 @@ function isImageUrl(s: string, opts: ScanOptions): string | null {
 }
 
 /**
- * The only face-related keys a giver may receive (lib/contracts/api.ts GiverReportStatus, ADR-021):
+ * The only face-related keys a giver may receive (server/contracts/api.ts GiverReportStatus, ADR-021):
  * label strings under recipientLabels. Matched by an independent strict pattern (not imported from
- * lib/privacy) so a bug in the production label builder is still caught here.
+ * server/privacy) so a bug in the production label builder is still caught here.
  */
 const ALLOWED_LABELS: Record<string, RegExp> = {
   "recipientLabels.undertone": /^(Warm|Neutral|Cool) undertone (estimate( \(low confidence\))?|\(their choice\))$/,

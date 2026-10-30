@@ -1,12 +1,12 @@
 /**
  * GET /api/preview/<key> → { state: "queued"|"crawling"|"ready"|"refused"|"failed", domain, name?, productCount?, reason? }
  * (owner: A10; ADR-055). 404 { error: "not_found" } for unknown or expired keys. No products or URLs here:
- * the preview page reads them server-side through lib/preview/catalog.ts.
+ * the preview page reads them server-side through server/preview/catalog.ts.
  */
-import { clientKey } from "@/lib/privacy/client-ip";
-import { giverJson } from "@/lib/privacy/giver-guard";
-import { rateLimitsEnabled, takeRate } from "@/lib/privacy/rate-limit";
-import { getPreviewStatus } from "@/lib/preview/service";
+import { clientKey } from "@/server/privacy/client-ip";
+import { giverJson } from "@/server/privacy/giver-guard";
+import { rateLimitsEnabled, takeRate } from "@/server/privacy/rate-limit";
+import { getPreviewStatus } from "@/server/preview/service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -4,17 +4,17 @@
  * and the giver's report through A3's adapter. Mock YouCam only (0 units).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CaptureResponse, RecipientSessionResponse, SwatchResponse } from "@/lib/contracts/api";
-import { configureFit, resetFitDeps } from "@/lib/fit/deps";
-import { makeStack, type TestStack } from "@/lib/privacy/__tests__/helpers";
-import { youcamCapturePorts, type CapturePorts } from "@/lib/privacy/capture";
-import { deleteEverything } from "@/lib/privacy/delete-everything";
-import { setPrivacyDeps } from "@/lib/privacy/runtime";
-import { RECIPIENT_COOKIE } from "@/lib/privacy/session";
-import { newFitRequestTokens } from "@/lib/privacy/tokens";
-import { MemoryAuditSink } from "@/lib/youcam/audit";
-import { MemoryResultCache } from "@/lib/youcam/cache";
-import { createYoucamClient } from "@/lib/youcam/client";
+import type { CaptureResponse, RecipientSessionResponse, SwatchResponse } from "@/server/contracts/api";
+import { configureFit, resetFitDeps } from "@/server/fit/deps";
+import { makeStack, type TestStack } from "@/server/privacy/__tests__/helpers";
+import { youcamCapturePorts, type CapturePorts } from "@/server/privacy/capture";
+import { deleteEverything } from "@/server/privacy/delete-everything";
+import { setPrivacyDeps } from "@/server/privacy/runtime";
+import { RECIPIENT_COOKIE } from "@/server/privacy/session";
+import { newFitRequestTokens } from "@/server/privacy/tokens";
+import { MemoryAuditSink } from "@/server/youcam/audit";
+import { MemoryResultCache } from "@/server/youcam/cache";
+import { createYoucamClient } from "@/server/youcam/client";
 import { POST as reportPOST } from "@/app/api/fit/report/route";
 import { POST as capturePOST } from "../capture/route";
 import { POST as consentPOST } from "../consent/route";
@@ -145,7 +145,7 @@ describe("session swatches", () => {
     const shortTitles = new Set(request.shortlistIds.map((id) => titleOf.get(id)));
     const counts = (pick: boolean) => s.items.filter((i) => shortTitles.has(i.title) === pick).map((i) => i.swatches.length);
     const maxShort = Math.max(...counts(true));
-    // The design with the most swatches is never only a shortlist design (lib/fit swatchCap leveling).
+    // The design with the most swatches is never only a shortlist design (server/fit swatchCap leveling).
     expect(counts(false).some((n) => n >= maxShort)).toBe(true);
     const shape = (pick: boolean) => new Set(s.items.filter((i) => shortTitles.has(i.title) === pick).flatMap((i) => i.swatches.map((w) => Object.keys(w).sort().join())));
     expect([...shape(true)]).toEqual([...shape(false)]);
@@ -301,7 +301,7 @@ describe("hearts per variant and metal wishes", () => {
     expect((await heartsPOST(post("/api/recipient/hearts", recipientToken, { hearts: [{ itemId: halo.itemId, swatchId: "x" }] }))).status).toBe(400);
     expect((await heartsPOST(post("/api/recipient/hearts", recipientToken, { hearts: "x" }))).status).toBe(400);
 
-    // Wish: no render, idempotent, visible to lib/fit as `wish:<designId>`.
+    // Wish: no render, idempotent, visible to server/fit as `wish:<designId>`.
     const before = renders;
     const aster = s.items.find((i) => i.title !== "Halo Drop Earrings" && i.swatches.length === 1)!;
     expect(await (await wishPOST(post("/api/recipient/wish-metal", recipientToken, { itemId: aster.itemId }))).json()).toEqual({ wished: [aster.itemId] });

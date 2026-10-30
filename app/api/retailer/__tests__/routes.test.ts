@@ -4,14 +4,14 @@
  * tokens or recipient data.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { DEFAULT_STORE } from "@/lib/metrics/catalog";
-import { MemoryPurchaseLog, setPurchaseLog } from "@/lib/metrics/purchases";
-import type { PrivacyDeps } from "@/lib/privacy/deps";
-import { findGiverLeaks } from "@/lib/privacy/giver-guard";
-import { MemoryPrivacyRepos } from "@/lib/privacy/repos/memory";
-import { ROUTE_MANIFEST } from "@/lib/privacy/route-manifest";
-import { setPrivacyDeps } from "@/lib/privacy/runtime";
-import { newFitRequestTokens } from "@/lib/privacy/tokens";
+import { DEFAULT_STORE } from "@/server/metrics/catalog";
+import { MemoryPurchaseLog, setPurchaseLog } from "@/server/metrics/purchases";
+import type { PrivacyDeps } from "@/server/privacy/deps";
+import { findGiverLeaks } from "@/server/privacy/giver-guard";
+import { MemoryPrivacyRepos } from "@/server/privacy/repos/memory";
+import { ROUTE_MANIFEST } from "@/server/privacy/route-manifest";
+import { setPrivacyDeps } from "@/server/privacy/runtime";
+import { newFitRequestTokens } from "@/server/privacy/tokens";
 import { GET as lookupGET, OPTIONS as lookupOPTIONS } from "../lookup/route";
 import { GET as metricsGET } from "../metrics/route";
 import { POST as purchasePOST } from "../purchase/route";

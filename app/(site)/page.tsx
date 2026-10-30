@@ -6,10 +6,10 @@
  */
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
-import { Landing } from "@/components/site/Landing";
-import { demoStoreUrl } from "@/lib/site/config";
-import { siteLocale } from "@/lib/site/locale";
-import { siteOrigin } from "@/lib/site/snippet";
+import { Landing } from "@/client/site/Landing";
+import { demoStoreUrl } from "@/server/site/config";
+import { siteLocale } from "@/server/site/locale";
+import { siteOrigin } from "@/server/site/snippet";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { JudgeDemo } from "@/components/gift/JudgeDemo";
-import { demoStoreUrl } from "@/lib/site/config";
+import { JudgeDemo } from "@/client/gift/JudgeDemo";
+import { demoStoreUrl } from "@/server/site/config";
 
 export const dynamic = "force-dynamic";
 

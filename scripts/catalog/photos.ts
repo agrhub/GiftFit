@@ -1,6 +1,6 @@
 /**
  * Photo-real images for the 12 demo-critical SKUs (ADR-018): AI-generated with Google Flow from team-written
- * text prompts (data/aurum/photo-inbox/PROVENANCE.md), stored as public/catalog/aurum/photo/<sku>.jpg.
+ * text prompts (fixtures/aurum/photo-inbox/PROVENANCE.md), stored as public/catalog/aurum/photo/<sku>.jpg.
  *
  * Wiring rules (applied by generate.ts, also with --data-only):
  *  - images[0] = the photo; the vector render stays in images[] as a fallback.
@@ -11,7 +11,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import type { CatalogSku } from "@/lib/contracts/giftfit";
+import type { CatalogSku } from "@/server/contracts/giftfit";
 import { checkVtoSpec } from "./spec-check";
 
 export interface PhotoReview {
@@ -47,13 +47,13 @@ export const PHOTO_REVIEW: Record<string, PhotoReview> = {
     specOk: true,
     note: "v2: worn front view, whole necklace inside the frame with both chain ends at the upper left and right, upturned crescent pendant, rose gold, no stones.",
     version: "v2",
-    source: "data/aurum/photo-inbox/aur-nec-009-v2.jpg",
+    source: "fixtures/aurum/photo-inbox/aur-nec-009-v2.jpg",
   },
   "AUR-NEC-017": {
     specOk: true,
     note: "v3: rigid yellow gold pavé collar shown front-on as an open U, both tips inside the frame, clear pavé, no chain (the tips are the anchor points).",
     version: "v3",
-    source: "data/aurum/photo-inbox/aur-nec-017-v3.jpg",
+    source: "fixtures/aurum/photo-inbox/aur-nec-017-v3.jpg",
     // measured on the v3 photo: centres of the two open tips
     anchors: {
       necklace_anchor_point: [
@@ -68,7 +68,7 @@ export const PHOTO_REVIEW: Record<string, PhotoReview> = {
     note: "v2: tennis bracelet tilted about 45 degrees, clear open ellipse with the front stones facing the camera, white metal, clear stones, no clasp visible.",
     version: "v2",
     // the inbox names were swapped: aur-nec-017-v2.jpg contains this bracelet (aur-brc-003-v2.jpg is a crescent necklace)
-    source: "data/aurum/photo-inbox/aur-nec-017-v2.jpg",
+    source: "fixtures/aurum/photo-inbox/aur-nec-017-v2.jpg",
   },
   "AUR-WCH-002": { specOk: true, note: "Watch upright and front-facing, two-tone case, silver dial, black leather straps cut straight, no buckle or clasp, no dial text." },
 };

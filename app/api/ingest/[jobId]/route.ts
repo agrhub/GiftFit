@@ -1,9 +1,9 @@
 /**
  * GET /api/ingest/<jobId> → { id, url, status, progress, skuCount, coverage, tier, platform, error }
  */
-import { loadIngestConfig } from "@/lib/ingest/config";
-import { getJob } from "@/workers/ingest/jobs";
-import { authorised } from "@/lib/ingest/auth";
+import { loadIngestConfig } from "@/server/ingest/config";
+import { getJob } from "@/server/ingest/worker/jobs";
+import { authorised } from "@/server/ingest/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -10,9 +10,9 @@
  *   npx tsx scripts/voice-smoke.ts --dry     no Google calls: transcodes the mock tone and probes the clips
  */
 import { spawn } from "node:child_process";
-import { checkClip, type ClipContainer } from "@/lib/voice/audio";
-import { googleSttEngine, googleTtsEngine, speechClient, ttsClient } from "@/lib/voice/google";
-import { mockToneWav } from "@/lib/voice/mock";
+import { checkClip, type ClipContainer } from "@/server/voice/audio";
+import { googleSttEngine, googleTtsEngine, speechClient, ttsClient } from "@/server/voice/google";
+import { mockToneWav } from "@/server/voice/mock";
 
 const SAMPLES = {
   en: { text: "I am looking for a silver ring for my sister's birthday.", words: ["silver", "ring", "sister"] },

@@ -3,7 +3,7 @@
  * funnel, hearted→bought, Undertone Coverage, Return-Risk inputs and k-anonymous mixes. Aggregates
  * only; synthetic demo requests are counted separately and labelled.
  */
-import { handleMetrics } from "@/lib/metrics/api";
+import { handleMetrics } from "@/server/metrics/api";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -1,4 +1,4 @@
-# Build context for the Cloud Run image (owner: A8, deploy/README.md). Keep in sync with .gcloudignore.
+# Build context for the Cloud Run image (owner: A8, docs/deploy.md). Keep in sync with .gcloudignore.
 # Secrets: never in the context. Production secrets come from Secret Manager at deploy time.
 .env
 .env.*
@@ -28,7 +28,7 @@ agent
 
 # Real recordings of a person's face and the photo inbox stay on the dev machine (ADR-025)
 fixtures/youcam/real
-data/aurum/photo-inbox
+fixtures/aurum/photo-inbox
 
 # Docs and screenshots are not needed at runtime
 docs

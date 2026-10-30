@@ -1,6 +1,6 @@
 /** Small presentational pieces of the Retailer Console (owner: A6). Server-safe (no hooks). */
 import type { ReactNode } from "react";
-import type { Rate } from "@/lib/metrics/types";
+import type { Rate } from "@/server/metrics/types";
 
 export const pct = (v: number | null | undefined, digits = 0) => (v === null || v === undefined || !Number.isFinite(v) ? "–" : `${(v * 100).toFixed(digits)}%`);
 export const ratePct = (r: Rate, digits = 0) => pct(r.value, digits);

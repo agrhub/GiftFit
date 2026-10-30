@@ -4,12 +4,12 @@
  * the cost guard decides any real call). Cached per (photo, variant): repeats are free and don't
  * count. At most 4 extra renders per Fit Request; the 5th returns `cap_reached` without a call.
  */
-import { FlowError, flowErrorResponse, swatchFlow, tryOnOffCode } from "@/lib/privacy/recipient-flow";
-import { takeRateFor } from "@/lib/privacy/rate-limit";
-import { getPrivacyDeps } from "@/lib/privacy/runtime";
-import { recipientError, recipientJson, resolveRecipientSession } from "@/lib/privacy/session";
-import { grantFor, requestTryOn } from "@/lib/privacy/tryon-mode";
-import { resolveCarousel } from "@/lib/privacy/carousel";
+import { FlowError, flowErrorResponse, swatchFlow, tryOnOffCode } from "@/server/privacy/recipient-flow";
+import { takeRateFor } from "@/server/privacy/rate-limit";
+import { getPrivacyDeps } from "@/server/privacy/runtime";
+import { recipientError, recipientJson, resolveRecipientSession } from "@/server/privacy/session";
+import { grantFor, requestTryOn } from "@/server/privacy/tryon-mode";
+import { resolveCarousel } from "@/server/privacy/carousel";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

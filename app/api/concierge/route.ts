@@ -5,18 +5,18 @@
  * Nothing is created here: the giver confirms the brief, then the normal POST /api/fit/requests runs.
  *
  * Per-IP limit `concierge` (20/h, 60/day) → 429 + Retry-After before any Claude call. Every streamed
- * event passes assertGiverSafe (lib/concierge/stream.ts); error responses go through giverJson.
+ * event passes assertGiverSafe (server/concierge/stream.ts); error responses go through giverJson.
  * Catalog only: no recipient data, no photos, no YouCam calls.
  */
-import { buildConciergeCatalog } from "@/lib/concierge/catalog";
-import { runConcierge } from "@/lib/concierge/engine";
-import { runGenericConcierge } from "@/lib/concierge/generic";
-import { parseConciergeRequest } from "@/lib/concierge/request";
-import { conciergeNdjson, NDJSON_CONTENT_TYPE } from "@/lib/concierge/stream";
-import { giverJson } from "@/lib/privacy/giver-guard";
-import { giverRateLimit } from "@/lib/privacy/rate-limit";
-import { loadPreviewStore, previewKeyOf } from "@/lib/widget/preview";
-import { tryOnOfferedTo } from "@/lib/privacy/tryon-mode";
+import { buildConciergeCatalog } from "@/server/concierge/catalog";
+import { runConcierge } from "@/server/concierge/engine";
+import { runGenericConcierge } from "@/server/concierge/generic";
+import { parseConciergeRequest } from "@/server/concierge/request";
+import { conciergeNdjson, NDJSON_CONTENT_TYPE } from "@/server/concierge/stream";
+import { giverJson } from "@/server/privacy/giver-guard";
+import { giverRateLimit } from "@/server/privacy/rate-limit";
+import { loadPreviewStore, previewKeyOf } from "@/server/widget/preview";
+import { tryOnOfferedTo } from "@/server/privacy/tryon-mode";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

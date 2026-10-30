@@ -1,13 +1,13 @@
 /**
  * Mock-mode API smoke for the giver routes (owner: A8), against the production build.
  *
- * Unit tests (lib/privacy/__tests__/giver-routes.probe.test.ts, app/api/fit/__tests__) call the
+ * Unit tests (server/privacy/__tests__/giver-routes.probe.test.ts, app/api/fit/__tests__) call the
  * handlers in-process. This spec covers what they cannot: the compiled `next start` server with
  * its externalised server packages, real HTTP serialisation and headers, and the route table as
  * actually built. Every giver route listed in A5's route manifest must be exercised here.
  */
 import { expect, test, type APIResponse } from "@playwright/test";
-import { ROUTE_MANIFEST } from "../../../lib/privacy/route-manifest";
+import { ROUTE_MANIFEST } from "../../../server/privacy/route-manifest";
 import { scanGiverResponse } from "../support/giver-leaks";
 
 // app/api/fit/requests is exercised end to end in gift-journey.spec.ts (P3 merge).

@@ -3,7 +3,7 @@
  * shortlisted pieces of the giver's Fit Request were bought as a gift. Same-origin only (no CORS).
  * Stores (fit request id, catalog id, time): no recipient data.
  */
-import { handlePurchase } from "@/lib/metrics/api";
+import { handlePurchase } from "@/server/metrics/api";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

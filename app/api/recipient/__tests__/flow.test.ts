@@ -1,19 +1,19 @@
 /**
- * P3 recipient flow (ADR-021, lib/contracts/api.ts): session → consent → capture → hearts → done,
- * on the in-memory stack with the lib/youcam mock client (YOUCAM_MOCK, 0 units).
+ * P3 recipient flow (ADR-021, server/contracts/api.ts): session → consent → capture → hearts → done,
+ * on the in-memory stack with the server/youcam mock client (YOUCAM_MOCK, 0 units).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CaptureResponse, DoneResponse, RecipientSessionResponse } from "@/lib/contracts/api";
-import { AURUM, makeStack, seedAurumRequest, type TestStack } from "@/lib/privacy/__tests__/helpers";
-import type { CapturePorts } from "@/lib/privacy/capture";
-import { deleteEverything } from "@/lib/privacy/delete-everything";
-import { setPrivacyDeps } from "@/lib/privacy/runtime";
-import { RECIPIENT_COOKIE } from "@/lib/privacy/session";
-import { FIT_REQUEST_TTL_MS, newToken } from "@/lib/privacy/tokens";
-import { MemoryAuditSink } from "@/lib/youcam/audit";
-import { MemoryResultCache } from "@/lib/youcam/cache";
-import { createYoucamClient } from "@/lib/youcam/client";
-import { youcamCapturePorts } from "@/lib/privacy/capture";
+import type { CaptureResponse, DoneResponse, RecipientSessionResponse } from "@/server/contracts/api";
+import { AURUM, makeStack, seedAurumRequest, type TestStack } from "@/server/privacy/__tests__/helpers";
+import type { CapturePorts } from "@/server/privacy/capture";
+import { deleteEverything } from "@/server/privacy/delete-everything";
+import { setPrivacyDeps } from "@/server/privacy/runtime";
+import { RECIPIENT_COOKIE } from "@/server/privacy/session";
+import { FIT_REQUEST_TTL_MS, newToken } from "@/server/privacy/tokens";
+import { MemoryAuditSink } from "@/server/youcam/audit";
+import { MemoryResultCache } from "@/server/youcam/cache";
+import { createYoucamClient } from "@/server/youcam/client";
+import { youcamCapturePorts } from "@/server/privacy/capture";
 import { GET as captureGET, POST as capturePOST } from "../capture/route";
 import { POST as consentPOST } from "../consent/route";
 import { POST as deletePOST } from "../delete/route";

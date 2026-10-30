@@ -5,8 +5,8 @@
  * ids or recipient data ever cross the frame boundary.
  */
 import type { Metadata } from "next";
-import { getProduct, toGiftPiece } from "@/components/store/catalog";
-import { findStore } from "@/lib/metrics/catalog";
+import { getProduct, toGiftPiece } from "@/client/store/catalog";
+import { findStore } from "@/server/metrics/catalog";
 import { EmbedPanel } from "./EmbedPanel";
 import { parentOrigin } from "./origin";
 

@@ -14,9 +14,9 @@
  *   logs and Referer headers.
  */
 import { NextResponse, type NextRequest } from "next/server";
-import { widgetFrameAncestors } from "@/lib/widget/config";
-import { isReadyPreviewStore } from "@/lib/widget/preview-key";
-import { adminKeyOf, forbiddenHtml, OWNER_COOKIE, verifyOwner } from "@/lib/widget/preview-admin";
+import { widgetFrameAncestors } from "@/server/widget/config";
+import { isReadyPreviewStore } from "@/server/widget/preview-key";
+import { adminKeyOf, forbiddenHtml, OWNER_COOKIE, verifyOwner } from "@/server/widget/preview-admin";
 
 export const config = {
   matcher: ["/w", "/w/:path*", "/s/:path*", "/admin/:path*"],

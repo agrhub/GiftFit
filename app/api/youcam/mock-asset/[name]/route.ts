@@ -4,8 +4,8 @@
  * URLs. Only active in mock mode; 404 otherwise.
  */
 import { promises as fs } from "node:fs";
-import { loadYoucamConfig } from "@/lib/youcam/config";
-import { fixtureImagePath } from "@/lib/youcam/mock";
+import { loadYoucamConfig } from "@/server/youcam/config";
+import { fixtureImagePath } from "@/server/youcam/mock";
 
 export const runtime = "nodejs";
 

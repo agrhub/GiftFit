@@ -3,7 +3,7 @@
  * the preview's own catalog (jewelry → brief; other stores → products only), a Fit Request from a
  * preview on the PUBLIC production site (A16: YOUCAM_MOCK=0, recording switch off) is hearts-only (session
  * tryOn:false, capture and swatch refused, no YouCam), and every giver response stays leak-free. The try-on
- * path for previews (owner recording / mock) is in lib/privacy/__tests__/tryon-mode.test.ts.
+ * path for previews (owner recording / mock) is in server/privacy/__tests__/tryon-mode.test.ts.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as conciergePOST } from "@/app/api/concierge/route";
@@ -15,15 +15,15 @@ import { POST as donePOST } from "@/app/api/recipient/done/route";
 import { POST as heartsPOST } from "@/app/api/recipient/hearts/route";
 import { POST as sessionPOST } from "@/app/api/recipient/session/route";
 import { POST as swatchPOST } from "@/app/api/recipient/swatch/route";
-import type { ConciergeEvent } from "@/lib/concierge/types";
-import type { CreateFitRequestResponse, RecipientSessionResponse } from "@/lib/contracts/api";
-import { resetFitDeps } from "@/lib/fit/deps";
-import { findGiverLeaks } from "@/lib/privacy/giver-guard";
-import { makeStack, type TestStack } from "@/lib/privacy/__tests__/helpers";
-import { setPrivacyDeps } from "@/lib/privacy/runtime";
-import { defaultPreviewRepo, type MemoryPreviewRepo } from "@/lib/preview/repo";
-import { PreviewAwareCatalog, previewKeyOfSkuId } from "@/lib/widget/preview";
-import { fixturePreview } from "@/lib/widget/preview-fixtures";
+import type { ConciergeEvent } from "@/server/concierge/types";
+import type { CreateFitRequestResponse, RecipientSessionResponse } from "@/server/contracts/api";
+import { resetFitDeps } from "@/server/fit/deps";
+import { findGiverLeaks } from "@/server/privacy/giver-guard";
+import { makeStack, type TestStack } from "@/server/privacy/__tests__/helpers";
+import { setPrivacyDeps } from "@/server/privacy/runtime";
+import { defaultPreviewRepo, type MemoryPreviewRepo } from "@/server/preview/repo";
+import { PreviewAwareCatalog, previewKeyOfSkuId } from "@/server/widget/preview";
+import { fixturePreview } from "@/server/widget/preview-fixtures";
 
 const repo = defaultPreviewRepo() as MemoryPreviewRepo;
 let stack: TestStack;
@@ -161,7 +161,7 @@ describe("gift links outlive the preview (ADR-055 fixes)", () => {
 
   it("the create response names the giver's own pieces (never decoys) with merchant images", async () => {
     const key = await seed("jewelry");
-    const view = (await (await import("@/lib/widget/preview")).loadPreviewStore(key))!;
+    const view = (await (await import("@/server/widget/preview")).loadPreviewStore(key))!;
     const pick = view.skus[0].id;
     const res = await create(key, { mode: "i_have_ideas", shortlistIds: [pick], categories: undefined });
     expect(res.status).toBe(201);
@@ -191,7 +191,7 @@ describe("gift links outlive the preview (ADR-055 fixes)", () => {
     for (const r of report.results) expect(named.has(r.skuId)).toBe(true);
     expect(report.products.every((p: { title: string; url: string; image?: string }) => p.title && p.url.startsWith("https://lumen-jewelry.example/") && (!p.image || p.image.startsWith("https://giftfit.example/catalog/")))).toBe(true);
     // Only the merchant images it names are allowed through the guard.
-    const { findGiverLeaks } = await import("@/lib/privacy/giver-guard");
+    const { findGiverLeaks } = await import("@/server/privacy/giver-guard");
     expect(findGiverLeaks(report, { allowedImageUrls: report.products.map((p: { image?: string }) => p.image).filter(Boolean) })).toEqual([]);
 
     // A second request whose recipient never finished: no report possible, a clear state instead.

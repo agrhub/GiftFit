@@ -1,9 +1,9 @@
 /**
- * Validates catalog rows against the binding vocabulary in lib/contracts/giftfit.ts.
- * Used by db/seed.ts (before any write) and by the catalog tests.
+ * Validates catalog rows against the binding vocabulary in server/contracts/giftfit.ts.
+ * Used by server/db/seed.ts (before any write) and by the catalog tests.
  */
 import { z } from "zod";
-import { EARRING_SHAPES, METALS, NECKLACE_STYLES, OCCASIONS, type CatalogSku, type Metal, type MetalTone } from "@/lib/contracts/giftfit";
+import { EARRING_SHAPES, METALS, NECKLACE_STYLES, OCCASIONS, type CatalogSku, type Metal, type MetalTone } from "@/server/contracts/giftfit";
 
 export const CATEGORIES = ["earring", "necklace", "ring", "bracelet", "watch"] as const;
 

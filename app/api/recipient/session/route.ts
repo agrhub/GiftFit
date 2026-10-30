@@ -4,9 +4,9 @@
  * item ids in a per-request shuffled order, and the HttpOnly gf_recipient cookie for signed
  * try-on images. Catalog ids, shortlist and decoys are never distinguishable.
  */
-import { sessionResponse } from "@/lib/privacy/carousel";
-import { getPrivacyDeps } from "@/lib/privacy/runtime";
-import { recipientError, recipientJson, recipientSessionCookie, resolveRecipientSession } from "@/lib/privacy/session";
+import { sessionResponse } from "@/server/privacy/carousel";
+import { getPrivacyDeps } from "@/server/privacy/runtime";
+import { recipientError, recipientJson, recipientSessionCookie, resolveRecipientSession } from "@/server/privacy/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

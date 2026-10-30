@@ -5,8 +5,8 @@
  * { type: "giftfit:close" } from it.
  */
 import { useCallback, useEffect, useState } from "react";
-import { GiverPanel } from "@/components/gift/GiverPanel";
-import type { GiftPiece } from "@/components/gift/giverDraft";
+import { GiverPanel } from "@/client/gift/GiverPanel";
+import type { GiftPiece } from "@/client/gift/giverDraft";
 
 type Outgoing = "giftfit:ready" | "giftfit:sent" | "giftfit:close";
 

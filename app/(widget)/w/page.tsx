@@ -5,14 +5,14 @@
  * Framing is limited by the frame-ancestors CSP set at request time in middleware.ts.
  */
 import { headers } from "next/headers";
-import { appBaseUrl } from "@/lib/email/links";
-import { parseLangList, translator, detectLocale } from "@/lib/i18n";
-import { facebookAppId, isWidgetOriginAllowed } from "@/lib/widget/config";
-import { exactOrigin } from "@/lib/widget/protocol";
-import { findStore } from "@/lib/metrics/catalog";
-import { loadPreviewStore, previewKeyOf } from "@/lib/widget/preview";
-import { WidgetApp, type WidgetPreview } from "@/components/widget/WidgetApp";
-import { tryOnOfferedTo } from "@/lib/privacy/tryon-mode";
+import { appBaseUrl } from "@/server/email/links";
+import { parseLangList, translator, detectLocale } from "@/server/i18n";
+import { facebookAppId, isWidgetOriginAllowed } from "@/server/widget/config";
+import { exactOrigin } from "@/server/widget/protocol";
+import { findStore } from "@/server/metrics/catalog";
+import { loadPreviewStore, previewKeyOf } from "@/server/widget/preview";
+import { WidgetApp, type WidgetPreview } from "@/client/widget/WidgetApp";
+import { tryOnOfferedTo } from "@/server/privacy/tryon-mode";
 
 export const dynamic = "force-dynamic";
 

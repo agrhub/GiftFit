@@ -5,17 +5,17 @@
  * Aurum requests with a capture are unchanged.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { CreateFitRequestResponse, GiverReportStatus } from "@/lib/contracts/api";
-import type { CatalogSku } from "@/lib/contracts/giftfit";
-import aurum from "@/data/aurum/catalog.json";
-import { configureFit, resetFitDeps } from "@/lib/fit/deps";
-import { NO_TRYON_WORDS } from "@/lib/fit/explain";
-import { PrivacyFitRepository, StaticCatalog } from "@/lib/fit/repository";
-import type { TasteClient, TasteInput } from "@/lib/fit/taste";
-import { fakeRules } from "@/lib/fit/__tests__/fixtures";
-import { findGiverLeaks } from "@/lib/privacy/giver-guard";
-import { MemoryPrivacyRepos } from "@/lib/privacy/repos/memory";
-import { setPrivacyDeps } from "@/lib/privacy/runtime";
+import type { CreateFitRequestResponse, GiverReportStatus } from "@/server/contracts/api";
+import type { CatalogSku } from "@/server/contracts/giftfit";
+import aurum from "@/fixtures/aurum/catalog.json";
+import { configureFit, resetFitDeps } from "@/server/fit/deps";
+import { NO_TRYON_WORDS } from "@/server/fit/explain";
+import { PrivacyFitRepository, StaticCatalog } from "@/server/fit/repository";
+import type { TasteClient, TasteInput } from "@/server/fit/taste";
+import { fakeRules } from "@/server/fit/__tests__/fixtures";
+import { findGiverLeaks } from "@/server/privacy/giver-guard";
+import { MemoryPrivacyRepos } from "@/server/privacy/repos/memory";
+import { setPrivacyDeps } from "@/server/privacy/runtime";
 import { POST as reportPOST } from "../report/route";
 import { POST as requestsPOST } from "../requests/route";
 

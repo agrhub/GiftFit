@@ -7,9 +7,9 @@
  * Errors: 400 invalid_url | blocked_url (resolved addresses are never echoed), 429 rate_limited | daily_cap
  * (Retry-After), 503 unavailable (counters or storage down: fail closed) | disabled (PREVIEW_ENABLED=off).
  */
-import { giverJson } from "@/lib/privacy/giver-guard";
-import { giverRateLimit } from "@/lib/privacy/rate-limit";
-import { createPreview } from "@/lib/preview/service";
+import { giverJson } from "@/server/privacy/giver-guard";
+import { giverRateLimit } from "@/server/privacy/rate-limit";
+import { createPreview } from "@/server/preview/service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -1,18 +1,18 @@
 /**
  * A21: POST /api/fit/requests stores the giver's conversation language (`giverLang`) with the Fit Request,
  * as a short BCP-47 base; anything else is dropped (never refused). The recipient page reads it back by
- * recipient token (lib/privacy/giver-lang.ts) and the giver routes see it on StoredFitRequest.
+ * recipient token (server/privacy/giver-lang.ts) and the giver routes see it on StoredFitRequest.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { CreateFitRequestResponse } from "@/lib/contracts/api";
-import type { CatalogSku } from "@/lib/contracts/giftfit";
-import { giverLangOf } from "@/lib/fit/api";
-import { configureFit, getFitDeps, resetFitDeps } from "@/lib/fit/deps";
-import { PrivacyFitRepository, StaticCatalog } from "@/lib/fit/repository";
-import { fakeRules, makeCatalog, sku } from "@/lib/fit/__tests__/fixtures";
-import { giverLangForRecipientToken } from "@/lib/privacy/giver-lang";
-import { MemoryPrivacyRepos } from "@/lib/privacy/repos/memory";
-import { setPrivacyDeps } from "@/lib/privacy/runtime";
+import type { CreateFitRequestResponse } from "@/server/contracts/api";
+import type { CatalogSku } from "@/server/contracts/giftfit";
+import { giverLangOf } from "@/server/fit/api";
+import { configureFit, getFitDeps, resetFitDeps } from "@/server/fit/deps";
+import { PrivacyFitRepository, StaticCatalog } from "@/server/fit/repository";
+import { fakeRules, makeCatalog, sku } from "@/server/fit/__tests__/fixtures";
+import { giverLangForRecipientToken } from "@/server/privacy/giver-lang";
+import { MemoryPrivacyRepos } from "@/server/privacy/repos/memory";
+import { setPrivacyDeps } from "@/server/privacy/runtime";
 import { POST as requestsPOST } from "../requests/route";
 
 const T0 = new Date("2026-10-20T12:00:00Z");

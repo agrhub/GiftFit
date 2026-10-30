@@ -2,13 +2,13 @@
  * Metal variants (ADR-032 / ADR-034 / ADR-035). Every SKU gets `variants` (length >= 1); variants[0] is the existing default
  * listing and mirrors the top-level price / attributes.metal / images / vto_image. Six demo designs gain extra
  * metals whose photos are Flow edit-mode copies of the team's own photo ("change only the metal"), stored in
- * public/catalog/aurum/photo/variants/<sku>-<metal>.jpg (provenance: data/aurum/photo-inbox/variants/PROVENANCE.md).
+ * public/catalog/aurum/photo/variants/<sku>-<metal>.jpg (provenance: fixtures/aurum/photo-inbox/variants/PROVENANCE.md).
  *
  * Pricing (USD; reasoning in docs/reports/A2.md "Metal variants" and "Variant batch 2"): see EXTRA_METALS.
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import type { CatalogSku, Metal, MetalVariant } from "@/lib/contracts/giftfit";
+import type { CatalogSku, Metal, MetalVariant } from "@/server/contracts/giftfit";
 import { priceBand, toneOf, type PriceBandId } from "./materials";
 import { checkVtoSpec } from "./spec-check";
 

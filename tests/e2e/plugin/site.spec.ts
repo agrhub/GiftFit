@@ -9,7 +9,7 @@
  *   - the seeded judge demo still runs /demo → /r/… → /g/….
  */
 import { expect, test } from "@playwright/test";
-import rawCatalog from "../../../data/aurum/catalog.json";
+import rawCatalog from "../../../fixtures/aurum/catalog.json";
 import { startDemoStore, type DemoStore } from "../support/demo-store";
 
 const STORE_PORT = 4340;

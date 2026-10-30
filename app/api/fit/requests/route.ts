@@ -1,12 +1,12 @@
 /**
- * POST /api/fit/requests (giver-facing). Body: CreateFitRequestBody (lib/contracts/api.ts).
+ * POST /api/fit/requests (giver-facing). Body: CreateFitRequestBody (server/contracts/api.ts).
  * Returns CreateFitRequestResponse (201): the giver token, the recipient link path and expiry.
  * Decoys are chosen server-side and never returned; tokens are stored only as SHA-256 hashes.
- * Optional `Idempotency-Key` header: a retry with the same key gets the same response (lib/fit/idempotency.ts).
+ * Optional `Idempotency-Key` header: a retry with the same key gets the same response (server/fit/idempotency.ts).
  */
-import { handleCreateRequest } from "@/lib/fit/api";
-import { giverRateLimit } from "@/lib/privacy/rate-limit";
-import { getFitDeps } from "@/lib/fit/deps";
+import { handleCreateRequest } from "@/server/fit/api";
+import { giverRateLimit } from "@/server/privacy/rate-limit";
+import { getFitDeps } from "@/server/fit/deps";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

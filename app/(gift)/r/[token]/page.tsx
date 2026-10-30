@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { cache } from "react";
-import { GiftPageShell } from "@/components/gift/GiftPageShell";
-import { RecipientFlow } from "@/components/gift/recipient/RecipientFlow";
-import { parseAcceptLanguage, recipientLocale, rt } from "@/lib/i18n/recipient";
-import { giverLangForRecipientToken } from "@/lib/privacy/giver-lang";
-import { getPrivacyDeps } from "@/lib/privacy/runtime";
+import { GiftPageShell } from "@/client/gift/GiftPageShell";
+import { RecipientFlow } from "@/client/gift/recipient/RecipientFlow";
+import { parseAcceptLanguage, recipientLocale, rt } from "@/server/i18n/recipient";
+import { giverLangForRecipientToken } from "@/server/privacy/giver-lang";
+import { getPrivacyDeps } from "@/server/privacy/runtime";
 
 /**
  * The page language (A21): the recipient's browser language when it is one of the ten UI locales, else

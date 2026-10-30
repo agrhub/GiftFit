@@ -1,5 +1,5 @@
 {
-  "_note": "Self-authored sample rows for an invented jewelry store (A2's data/aurum/catalog.json did not exist yet). Source of the client-rendered fixture site built by workers/ingest/fixture-site.ts. Not real products, prices or brands.",
+  "_note": "Self-authored sample rows for an invented jewelry store (A2's fixtures/aurum/catalog.json did not exist yet). Source of the client-rendered fixture site built by server/ingest/worker/fixture-site.ts. Not real products, prices or brands.",
   "rows": [
     { "slug": "aurora-pearl-drop-earrings", "title": "Aurora Pearl Drop Earrings", "crumb": "Earrings", "price": "$185.00", "metal": "14k Yellow Gold", "stone": "Freshwater pearl", "length": null, "sku": "AU-E-001", "template": "A", "images": 3,
       "description": "A single freshwater pearl hangs from a polished teardrop setting. Light enough for every day, special enough for an anniversary.", "related": ["luna-small-hoops", "elara-v-pendant"] },

@@ -1,5 +1,5 @@
 /** GET /api/fit/weights (public). The published Fit Score weights and Return-Risk formula. */
-import { handleWeights } from "@/lib/fit/api";
+import { handleWeights } from "@/server/fit/api";
 
 export const runtime = "nodejs";
 

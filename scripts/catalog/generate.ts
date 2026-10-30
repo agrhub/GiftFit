@@ -2,19 +2,19 @@
  * Generates the Aurum Jewelry demo catalog: renders every product image from code (SVG -> sharp),
  * checks it against the YouCam 2d-vto product spec, and writes
  *   public/catalog/aurum/<sku>.png   (1024 px, pure white background, one product)
- *   data/aurum/catalog.json          (CatalogSku[], deterministic ids)
- *   data/aurum/store.json            (the Aurum Jewelry store row)
+ *   fixtures/aurum/catalog.json          (CatalogSku[], deterministic ids)
+ *   fixtures/aurum/store.json            (the Aurum Jewelry store row)
  *   + wires the photo-real images in public/catalog/aurum/photo/ (scripts/catalog/photos.ts, ADR-018)
  *   + adds metal variants to every SKU (scripts/catalog/variants.ts, ADR-032/034)
  * Usage: npx tsx scripts/catalog/generate.ts [--only=AUR-EAR-001,...] [--data-only]
  *   --data-only  rebuild catalog.json from the tables without re-rendering: anchor points are reused from the
  *                current catalog.json and the existing vector PNGs are re-checked (seconds instead of minutes).
- * Spends 0 YouCam units. Images are CC0 by the team (data/LICENSES.md).
+ * Spends 0 YouCam units. Images are CC0 by the team (docs/LICENSES.md).
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { buildCatalog, STORE, type BuiltSku } from "./build";
-import type { CatalogSku } from "@/lib/contracts/giftfit";
+import type { CatalogSku } from "@/server/contracts/giftfit";
 import { composeImage } from "./compose";
 import { applyPhotos } from "./photos";
 import { applyVariants } from "./variants";
@@ -23,7 +23,7 @@ import { checkVtoSpec } from "./spec-check";
 
 const ROOT = process.cwd();
 const IMG_DIR = path.join(ROOT, "public/catalog/aurum");
-const DATA_DIR = path.join(ROOT, "data/aurum");
+const DATA_DIR = path.join(ROOT, "fixtures/aurum");
 
 async function renderOne(b: BuiltSku): Promise<{ bytes: number; ok: boolean; reasons: string[] }> {
   const composed = await composeImage(renderDesign(b.design));

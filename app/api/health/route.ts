@@ -1,6 +1,6 @@
 /**
  * GET /api/health  (audience: internal; owner: A8)
- * Liveness/readiness for Cloud Run and the deploy smoke check (deploy/README.md).
+ * Liveness/readiness for Cloud Run and the deploy smoke check (docs/deploy.md).
  * Reports configuration flags only: never a key, a secret, a balance or any request data.
  *   ok               always true when the process answers
  *   mock             YouCam calls are mocked (no network to YouCam)
@@ -16,8 +16,8 @@
  */
 import { access } from "node:fs/promises";
 import path from "node:path";
-import { loadYoucamConfig } from "@/lib/youcam/config";
-import { paidReadiness } from "@/lib/youcam/recording";
+import { loadYoucamConfig } from "@/server/youcam/config";
+import { paidReadiness } from "@/server/youcam/recording";
 import { buildVersion } from "./version";
 
 export const runtime = "nodejs";

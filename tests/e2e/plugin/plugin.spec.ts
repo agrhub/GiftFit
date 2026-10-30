@@ -1,7 +1,7 @@
 /**
  * Script tag on a static cross-origin page (owner: A6; A8 granted tests/e2e/plugin/).
  *
- * Starts packages/plugin/demo/serve-host.mjs on 127.0.0.1:4310 (a different origin from the app),
+ * Starts client/plugin/demo/serve-host.mjs on 127.0.0.1:4310 (a different origin from the app),
  * loads a framework-free product page with one <script src="<app>/giftfit.js"> tag and checks:
  *   - the "Gift it right" button is injected (shadow root) and keeps its own styles against hostile host CSS;
  *   - clicking opens the Giver Panel in an iframe served by the app origin;
@@ -25,7 +25,7 @@ let server: ChildProcess | undefined;
 test.describe.configure({ mode: "serial" });
 
 test.beforeAll(async ({ baseURL }) => {
-  server = spawn(process.execPath, [path.join("packages", "plugin", "demo", "serve-host.mjs"), String(HOST_PORT)], {
+  server = spawn(process.execPath, [path.join("client", "plugin", "demo", "serve-host.mjs"), String(HOST_PORT)], {
     env: { ...process.env, GIFTFIT_ORIGIN: new URL(baseURL!).origin },
     stdio: "ignore",
   });

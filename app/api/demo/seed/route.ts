@@ -3,13 +3,13 @@
  * Seeded judge demo (MASTER_PLAN §8): creates a fresh Fit Request for an AI-generated model from the
  * committed showcase fixtures, already consented and captured, so /r/<token> opens on the carousel.
  * No selfie, no YouCam call, 0 units. Rate-limited per trusted client IP (10 per hour, salted hash only;
- * lib/privacy/rate-limit.ts). The response holds
+ * server/privacy/rate-limit.ts). The response holds
  * only links and labels.
  */
-import { giverJson } from "@/lib/privacy/giver-guard";
-import { DemoError, seedDemoRequest } from "@/lib/privacy/demo";
-import { takeRateFor } from "@/lib/privacy/rate-limit";
-import { getPrivacyDeps } from "@/lib/privacy/runtime";
+import { giverJson } from "@/server/privacy/giver-guard";
+import { DemoError, seedDemoRequest } from "@/server/privacy/demo";
+import { takeRateFor } from "@/server/privacy/rate-limit";
+import { getPrivacyDeps } from "@/server/privacy/runtime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -19,7 +19,7 @@
     "test:coverage": "vitest run --coverage",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/db-migrate.ts",
-    "seed": "tsx db/seed.ts",
+    "seed": "tsx server/db/seed.ts",
     "youcam:smoke": "tsx scripts/youcam-smoke.ts",
     "youcam:placeholders": "tsx scripts/youcam-placeholders.ts"
   },

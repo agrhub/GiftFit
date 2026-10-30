@@ -5,7 +5,7 @@
  * Same-origin only (the browser sends Origin; a cross-site POST is refused). The token is never logged
  * or echoed.
  */
-import { ownerCookie, verifyOwner } from "@/lib/widget/preview-admin";
+import { ownerCookie, verifyOwner } from "@/server/widget/preview-admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

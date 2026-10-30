@@ -2,10 +2,10 @@
  * POST /api/recipient/consent  (audience: recipient)  body { accepted: true } → RecipientSessionResponse
  * Records consent (recipient_profiles.consent_at) and moves the request to `consented`. Idempotent.
  */
-import { sessionResponse } from "@/lib/privacy/carousel";
-import { recordConsent } from "@/lib/privacy/recipient-flow";
-import { getPrivacyDeps } from "@/lib/privacy/runtime";
-import { recipientError, recipientJson, resolveRecipientSession } from "@/lib/privacy/session";
+import { sessionResponse } from "@/server/privacy/carousel";
+import { recordConsent } from "@/server/privacy/recipient-flow";
+import { getPrivacyDeps } from "@/server/privacy/runtime";
+import { recipientError, recipientJson, resolveRecipientSession } from "@/server/privacy/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

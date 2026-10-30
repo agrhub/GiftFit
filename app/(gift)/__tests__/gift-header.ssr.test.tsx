@@ -5,14 +5,14 @@
  */
 import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Locale } from "@/lib/i18n";
-import { rt } from "@/lib/i18n/recipient";
+import type { Locale } from "@/server/i18n";
+import { rt } from "@/server/i18n/recipient";
 
 const env = vi.hoisted(() => ({ acceptLanguage: null as string | null, giverLang: undefined as string | undefined }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers(env.acceptLanguage ? { "accept-language": env.acceptLanguage } : {}) }));
-vi.mock("@/lib/privacy/runtime", () => ({ getPrivacyDeps: async () => ({}) }));
-vi.mock("@/lib/privacy/giver-lang", () => ({ giverLangForRecipientToken: async () => env.giverLang }));
-vi.mock("@/lib/fit/deps", () => ({ getFitDeps: () => ({ repository: { findByGiverToken: async () => ({ giverLang: env.giverLang }) } }) }));
+vi.mock("@/server/privacy/runtime", () => ({ getPrivacyDeps: async () => ({}) }));
+vi.mock("@/server/privacy/giver-lang", () => ({ giverLangForRecipientToken: async () => env.giverLang }));
+vi.mock("@/server/fit/deps", () => ({ getFitDeps: () => ({ repository: { findByGiverToken: async () => ({ giverLang: env.giverLang }) } }) }));
 
 import GiverReportPage from "../g/[token]/page";
 import GiftLayout from "../layout";

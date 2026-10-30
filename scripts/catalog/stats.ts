@@ -4,7 +4,7 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import type { CatalogSku } from "@/lib/contracts/giftfit";
+import type { CatalogSku } from "@/server/contracts/giftfit";
 
 export function catalogStats(skus: CatalogSku[]): Record<string, number> {
   const t: Record<string, number> = {};
@@ -27,7 +27,7 @@ export function catalogStats(skus: CatalogSku[]): Record<string, number> {
 }
 
 if (process.argv[1] && /stats\.ts$/.test(process.argv[1])) {
-  const file = path.join(process.cwd(), "data/aurum/catalog.json");
+  const file = path.join(process.cwd(), "fixtures/aurum/catalog.json");
   const skus = JSON.parse(readFileSync(file, "utf8")) as CatalogSku[];
   const t = catalogStats(skus);
   console.log(`${skus.length} SKUs`);

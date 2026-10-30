@@ -1,22 +1,22 @@
 /**
  * POST /api/recipient/capture  (audience: recipient, contract: CaptureResponse)
  * multipart/form-data: `selfie` (jpeg/png ≤ 10 MB, required), `hand` (optional).
- * Runs Facial Color Tones + Face Attributes + jewelry try-ons through lib/youcam (YOUCAM_MOCK=1 by
+ * Runs Facial Color Tones + Face Attributes + jewelry try-ons through server/youcam (YOUCAM_MOCK=1 by
  * default; the cost guard decides any real call). Photos are deleted in `finally` (runCapture).
  * Items needing a hand photo without one come back as `skipped_needs_hand`.
- * A16: who gets a try-on is decided here per call (lib/privacy/tryon-mode.ts): public production recipients get
+ * A16: who gets a try-on is decided here per call (server/privacy/tryon-mode.ts): public production recipients get
  * 409 before the upload is read (no YouCam call); only the owner's recording session gets a paid grant.
  *
  * GET /api/recipient/capture (ADR-023): the same CaptureResponse for an already-captured session,
  * with freshly signed image URLs; 404 { error: "not_captured" } before capture.
  */
-import { jewelryRules } from "@/lib/verticals/jewelry";
-import { FlowError, flowErrorResponse, captureFlow, capturedView, readPhoto, tryOnOffCode } from "@/lib/privacy/recipient-flow";
-import { takeRateFor } from "@/lib/privacy/rate-limit";
-import { getPrivacyDeps } from "@/lib/privacy/runtime";
-import { recipientError, recipientJson, resolveRecipientSession } from "@/lib/privacy/session";
-import { resolveCarousel } from "@/lib/privacy/carousel";
-import { grantFor, requestTryOn } from "@/lib/privacy/tryon-mode";
+import { jewelryRules } from "@/server/verticals/jewelry";
+import { FlowError, flowErrorResponse, captureFlow, capturedView, readPhoto, tryOnOffCode } from "@/server/privacy/recipient-flow";
+import { takeRateFor } from "@/server/privacy/rate-limit";
+import { getPrivacyDeps } from "@/server/privacy/runtime";
+import { recipientError, recipientJson, resolveRecipientSession } from "@/server/privacy/session";
+import { resolveCarousel } from "@/server/privacy/carousel";
+import { grantFor, requestTryOn } from "@/server/privacy/tryon-mode";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

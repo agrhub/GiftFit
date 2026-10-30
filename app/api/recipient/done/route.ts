@@ -3,10 +3,10 @@
  * Marks the Fit Request completed and deletes the try-on renders now, so no image of the
  * recipient is stored any more (input photos were already deleted at capture).
  */
-import { FlowError, doneFlow } from "@/lib/privacy/recipient-flow";
-import { getPrivacyDeps } from "@/lib/privacy/runtime";
-import { recipientError, recipientJson, resolveRecipientSession } from "@/lib/privacy/session";
-import { notifyGiverReportReady } from "@/lib/widget/server";
+import { FlowError, doneFlow } from "@/server/privacy/recipient-flow";
+import { getPrivacyDeps } from "@/server/privacy/runtime";
+import { recipientError, recipientJson, resolveRecipientSession } from "@/server/privacy/session";
+import { notifyGiverReportReady } from "@/server/widget/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

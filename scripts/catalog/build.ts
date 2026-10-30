@@ -2,7 +2,7 @@
  * Builds the Aurum Jewelry catalog rows (deterministic, no I/O). Image-dependent fields
  * (`vto_spec_ok`, `vto_params`) are filled by generate.ts after rendering.
  */
-import type { CatalogSku, GiftFitAttributes, JewelryCategory, Occasion } from "@/lib/contracts/giftfit";
+import type { CatalogSku, GiftFitAttributes, JewelryCategory, Occasion } from "@/server/contracts/giftfit";
 import type { Design } from "./design";
 import { EARRINGS, NECKLACES, type Entry } from "./entries-face";
 import { BRACELETS, RINGS, WATCHES, type WatchEntry } from "./entries-hand";

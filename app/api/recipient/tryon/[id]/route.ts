@@ -5,10 +5,10 @@
  * and this try-on id, an unexpired exp (<= 15 min), and the try-on belonging to the session's
  * Fit Request. Every failure is a bare 403/404 with no body detail. Never cached.
  */
-import { readFixtureImage } from "@/lib/privacy/demo";
-import { getPrivacyDeps } from "@/lib/privacy/runtime";
-import { recipientError, resolveRecipientSession } from "@/lib/privacy/session";
-import { verifyTryOnSignature } from "@/lib/privacy/signed-url";
+import { readFixtureImage } from "@/server/privacy/demo";
+import { getPrivacyDeps } from "@/server/privacy/runtime";
+import { recipientError, resolveRecipientSession } from "@/server/privacy/session";
+import { verifyTryOnSignature } from "@/server/privacy/signed-url";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

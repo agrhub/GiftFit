@@ -1,4 +1,4 @@
-# GiftFit on Cloud Run (owner: A8). Built remotely by Cloud Build: see deploy/README.md.
+# GiftFit on Cloud Run (owner: A8). Built remotely by Cloud Build: see docs/deploy.md.
 # Multi-stage: the runtime image holds only Next's standalone server, its traced node_modules,
 # public/, .next/static and the files read from disk at runtime. No Playwright, no Chromium,
 # no dev dependencies, no tests, no real face recordings.
@@ -53,7 +53,7 @@ COPY --from=build --chown=node:node /app/fixtures/youcam/ai-demo ./fixtures/youc
 COPY --from=build --chown=node:node /app/fixtures/youcam/images ./fixtures/youcam/images
 COPY --from=build --chown=node:node /app/fixtures/youcam/*.json ./fixtures/youcam/
 COPY --from=build --chown=node:node /app/fixtures/ingest ./fixtures/ingest
-COPY --from=build --chown=node:node /app/packages/plugin/giftfit.js ./packages/plugin/giftfit.js
+COPY --from=build --chown=node:node /app/client/plugin/giftfit.js ./client/plugin/giftfit.js
 
 USER node
 EXPOSE 8080

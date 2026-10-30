@@ -3,8 +3,8 @@
  * random seed: it never reproduces the decoys of a stored Fit Request.
  * Returns DecoysResponse: decoy ids, ok flag and fallback reason codes. No recipient data exists here.
  */
-import { handleDecoys } from "@/lib/fit/api";
-import { getFitDeps } from "@/lib/fit/deps";
+import { handleDecoys } from "@/server/fit/api";
+import { getFitDeps } from "@/server/fit/deps";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

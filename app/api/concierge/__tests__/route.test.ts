@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { findGiverLeaks } from "@/lib/privacy/giver-guard";
-import { setRateLimitOverride, setRateLimitStore } from "@/lib/privacy/rate-limit";
-import { privacyState } from "@/lib/privacy/global-state";
-import type { ConciergeEvent } from "@/lib/concierge/types";
+import { findGiverLeaks } from "@/server/privacy/giver-guard";
+import { setRateLimitOverride, setRateLimitStore } from "@/server/privacy/rate-limit";
+import { privacyState } from "@/server/privacy/global-state";
+import type { ConciergeEvent } from "@/server/concierge/types";
 import { POST } from "../route";
 
 const EN = "Anniversary gift for my wife. She loves minimal, delicate pieces and mostly wears gold. Budget around $300.";

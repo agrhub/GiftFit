@@ -13,11 +13,11 @@
  * Prints only: accepted/rejected counts, the SMTP response line (addresses redacted) and the
  * messageId. Never the host, user, password or any address.
  */
-import { readEmailConfig } from "../lib/email/config";
-import { appBaseUrl } from "../lib/email/links";
-import { classifySmtpError, createSmtpSender } from "../lib/email/providers/smtp";
-import { giftCardEmail } from "../lib/email/templates";
-import { EmailSendError } from "../lib/email/types";
+import { readEmailConfig } from "../server/email/config";
+import { appBaseUrl } from "../server/email/links";
+import { classifySmtpError, createSmtpSender } from "../server/email/providers/smtp";
+import { giftCardEmail } from "../server/email/templates";
+import { EmailSendError } from "../server/email/types";
 import { loadScriptEnv } from "./email-env";
 
 const TEST_SUBJECT = "[GiftFit test] Gift card delivery check";

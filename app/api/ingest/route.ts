@@ -7,9 +7,9 @@
  * only with INGEST_FIXTURE=1; never raw IPs), one running job per host, politeness inside the pipeline.
  */
 import { z } from "zod";
-import { authorised } from "@/lib/ingest/auth";
-import { isHostAllowed, loadIngestConfig } from "@/lib/ingest/config";
-import { listJobs, startIngestJob } from "@/workers/ingest/jobs";
+import { authorised } from "@/server/ingest/auth";
+import { isHostAllowed, loadIngestConfig } from "@/server/ingest/config";
+import { listJobs, startIngestJob } from "@/server/ingest/worker/jobs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

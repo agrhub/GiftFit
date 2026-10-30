@@ -22,7 +22,7 @@ test.use({
 });
 
 test.beforeAll(async ({ baseURL }) => {
-  server = spawn(process.execPath, [path.join("demo-store", "server.mjs")], {
+  server = spawn(process.execPath, [path.join("server", "demo-store", "server.mjs")], {
     env: { ...process.env, GIFTFIT_ORIGIN: new URL(baseURL!).origin, PORT: String(STORE_PORT), HOST: "127.0.0.1" },
     stdio: "ignore",
   });

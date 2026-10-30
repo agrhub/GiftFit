@@ -1,6 +1,6 @@
 /**
  * app/api/fit/* are giver-facing. These tests call the real route modules over the single store
- * (lib/privacy MemoryPrivacyRepos, ADR-021) and check the P3 flow end to end:
+ * (server/privacy MemoryPrivacyRepos, ADR-021) and check the P3 flow end to end:
  * create → report(waiting) → recipient data written through PrivacyRepos → report(completed),
  * and that responses carry only the contract types: no tokens beyond the giver's own, no decoy
  * ids, no hex, CIELAB or photo URLs.
@@ -8,19 +8,19 @@
 import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { CreateFitRequestResponse, GiverReportStatus } from "@/lib/contracts/api";
-import type { CatalogSku } from "@/lib/contracts/giftfit";
-import { GIVER_FIT_ROUTES, type DecoysResponse } from "@/lib/fit/api";
-import { configureFit, getFitDeps, resetFitDeps } from "@/lib/fit/deps";
-import type { ExplainClient } from "@/lib/fit/explain";
-import { PrivacyFitRepository, StaticCatalog } from "@/lib/fit/repository";
-import { fakeRules, makeCatalog, sku } from "@/lib/fit/__tests__/fixtures";
-import type { PrivacyDeps } from "@/lib/privacy/deps";
-import { findGiverLeaks } from "@/lib/privacy/giver-guard";
-import { MemoryPrivacyRepos } from "@/lib/privacy/repos/memory";
-import { ROUTE_MANIFEST } from "@/lib/privacy/route-manifest";
-import { setPrivacyDeps } from "@/lib/privacy/runtime";
-import { hashToken } from "@/lib/privacy/tokens";
+import type { CreateFitRequestResponse, GiverReportStatus } from "@/server/contracts/api";
+import type { CatalogSku } from "@/server/contracts/giftfit";
+import { GIVER_FIT_ROUTES, type DecoysResponse } from "@/server/fit/api";
+import { configureFit, getFitDeps, resetFitDeps } from "@/server/fit/deps";
+import type { ExplainClient } from "@/server/fit/explain";
+import { PrivacyFitRepository, StaticCatalog } from "@/server/fit/repository";
+import { fakeRules, makeCatalog, sku } from "@/server/fit/__tests__/fixtures";
+import type { PrivacyDeps } from "@/server/privacy/deps";
+import { findGiverLeaks } from "@/server/privacy/giver-guard";
+import { MemoryPrivacyRepos } from "@/server/privacy/repos/memory";
+import { ROUTE_MANIFEST } from "@/server/privacy/route-manifest";
+import { setPrivacyDeps } from "@/server/privacy/runtime";
+import { hashToken } from "@/server/privacy/tokens";
 import { POST as decoysPOST } from "../decoys/route";
 import { POST as reportPOST } from "../report/route";
 import { POST as requestsPOST } from "../requests/route";
@@ -148,7 +148,7 @@ describe("POST /api/fit/requests", () => {
     expect(recipientToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(recipientToken).not.toBe(body.giverToken);
 
-    // Single store: exactly one row, in lib/privacy, with hashes only.
+    // Single store: exactly one row, in server/privacy, with hashes only.
     expect(repos.requests.size).toBe(1);
     const row = repos.requests.get(body.fitRequestId)!;
     expect(row.giverTokenHash).toBe(hashToken(body.giverToken));
@@ -308,7 +308,7 @@ describe("POST /api/fit/decoys (preview)", () => {
 });
 
 describe("wiring and inventory", () => {
-  it("the default repository writes to lib/privacy's store (single system of record)", async () => {
+  it("the default repository writes to server/privacy's store (single system of record)", async () => {
     const shared = new MemoryPrivacyRepos(() => now);
     setPrivacyDeps({ repos: shared } as unknown as PrivacyDeps);
     expect(getFitDeps().repository).toBeInstanceOf(PrivacyFitRepository);

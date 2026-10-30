@@ -1,5 +1,5 @@
 /** Earring and necklace design tables (invented names; no real brands, designers or model names). */
-import type { EarringShape, Metal, NecklaceStyle, Occasion } from "@/lib/contracts/giftfit";
+import type { EarringShape, Metal, NecklaceStyle, Occasion } from "@/server/contracts/giftfit";
 import type { Band, Slot } from "./materials";
 
 export type Gender = "feminine" | "masculine" | "unisex";

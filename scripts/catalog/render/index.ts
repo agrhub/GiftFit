@@ -1,4 +1,4 @@
-import type { JewelryCategory } from "@/lib/contracts/giftfit";
+import type { JewelryCategory } from "@/server/contracts/giftfit";
 import type { Design, RenderOut } from "../design";
 import { renderEarring } from "./earring";
 import { renderNecklace } from "./necklace";

@@ -1,7 +1,7 @@
 /**
  * Embeddable gift assistant on a second origin (owner: A6, ADR-046).
  *
- * Starts the demo store (demo-store/server.mjs) on 127.0.0.1:4320, a different origin from the app,
+ * Starts the demo store (server/demo-store/server.mjs) on 127.0.0.1:4320, a different origin from the app,
  * whose product pages carry JSON-LD for real Aurum items and one <script src="<app>/giftfit.js"> tag:
  *   launcher appears (shadow root + iframe, immune to the store's CSS) → "Gift this?" tip → panel →
  *   Gift Concierge in mock mode (keyless fixture replay) → brief → Fit Request → themed e-card,
@@ -23,7 +23,7 @@ test.describe.configure({ mode: "serial" });
 test.use({ extraHTTPHeaders: { "X-Forwarded-For": "203.0.113.46" } });
 
 test.beforeAll(async ({ baseURL }) => {
-  server = spawn(process.execPath, [path.join("demo-store", "server.mjs")], {
+  server = spawn(process.execPath, [path.join("server", "demo-store", "server.mjs")], {
     env: { ...process.env, GIFTFIT_ORIGIN: new URL(baseURL!).origin, PORT: String(STORE_PORT), HOST: "127.0.0.1" },
     stdio: "ignore",
   });

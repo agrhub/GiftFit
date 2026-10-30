@@ -5,13 +5,13 @@
  * (catalog and variant ids never leave the server). Analysis tasks and renders whose image is gone
  * are not listed.
  */
-import { itemIdFor, resolveCarousel } from "@/lib/privacy/carousel";
-import { expiryFromKey } from "@/lib/privacy/photo-store";
-import { parseRenderRef, tagOf } from "@/lib/privacy/renders";
-import { getPrivacyDeps } from "@/lib/privacy/runtime";
-import { isRenderFeature } from "@/lib/privacy/repos/types";
-import { recipientError, recipientJson, resolveRecipientSession } from "@/lib/privacy/session";
-import { signTryOnUrl } from "@/lib/privacy/signed-url";
+import { itemIdFor, resolveCarousel } from "@/server/privacy/carousel";
+import { expiryFromKey } from "@/server/privacy/photo-store";
+import { parseRenderRef, tagOf } from "@/server/privacy/renders";
+import { getPrivacyDeps } from "@/server/privacy/runtime";
+import { isRenderFeature } from "@/server/privacy/repos/types";
+import { recipientError, recipientJson, resolveRecipientSession } from "@/server/privacy/session";
+import { signTryOnUrl } from "@/server/privacy/signed-url";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getDb, resetDb } from "@/db/index";
+import { getDb, resetDb } from "@/server/db/index";
 import {
   buildCatalogUpsert,
   buildStaleDelete,
@@ -11,7 +11,7 @@ import {
   type CatalogRow,
   type SeedWriter,
   type StoreRow,
-} from "@/db/seed";
+} from "@/server/db/seed";
 
 /** In-memory stand-in for the two tables, with Postgres upsert-by-id semantics. */
 function memoryDb() {
@@ -47,7 +47,7 @@ afterEach(() => {
   resetDb();
 });
 
-describe("db/seed.ts", () => {
+describe("server/db/seed.ts", () => {
   const { store, skus } = loadAurum();
 
   it("is idempotent: a second run leaves exactly the same rows", async () => {

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { GiftPageShell } from "@/components/gift/GiftPageShell";
-import { GiverReport } from "@/components/gift/report/GiverReport";
-import { getFitDeps } from "@/lib/fit/deps";
-import { type Locale, uiLocaleFor } from "@/lib/i18n";
-import { rt } from "@/lib/i18n/report";
+import { GiftPageShell } from "@/client/gift/GiftPageShell";
+import { GiverReport } from "@/client/gift/report/GiverReport";
+import { getFitDeps } from "@/server/fit/deps";
+import { type Locale, uiLocaleFor } from "@/server/i18n";
+import { rt } from "@/server/i18n/report";
 
 /**
  * The report's language, known on the server: the giver's language when the request was made

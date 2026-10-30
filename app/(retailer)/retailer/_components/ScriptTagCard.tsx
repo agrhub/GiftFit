@@ -42,7 +42,7 @@ export function ScriptTagCard({ storeKey, demoSlug }: { storeKey: string; demoSl
           shadow root so the store&apos;s CSS and ours never mix. The Giver Panel opens in an iframe from this app; the two talk only through origin-checked postMessage, and no token,
           request id or recipient data crosses the frame.
         </p>
-        <p>Cross-origin demo: <code>GIFTFIT_ORIGIN={origin} node packages/plugin/demo/serve-host.mjs</code>, then open http://127.0.0.1:4310/.</p>
+        <p>Cross-origin demo: <code>GIFTFIT_ORIGIN={origin} node client/plugin/demo/serve-host.mjs</code>, then open http://127.0.0.1:4310/.</p>
       </HowCalculated>
     </Card>
   );

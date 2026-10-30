@@ -2,9 +2,9 @@
  * POST /api/recipient/wish-metal  (audience: recipient)  body { itemId } → { wished: itemId[] }
  * "Love the style, wish it came in another metal": stores a metal_wishes row. No render.
  */
-import { FlowError, wishMetalFlow } from "@/lib/privacy/recipient-flow";
-import { getPrivacyDeps } from "@/lib/privacy/runtime";
-import { recipientError, recipientJson, resolveRecipientSession } from "@/lib/privacy/session";
+import { FlowError, wishMetalFlow } from "@/server/privacy/recipient-flow";
+import { getPrivacyDeps } from "@/server/privacy/runtime";
+import { recipientError, recipientJson, resolveRecipientSession } from "@/server/privacy/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

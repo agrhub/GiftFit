@@ -1,7 +1,7 @@
 /**
  * Mock-mode API smoke for recipient deletion and the expiry cron (owner: A8), against the
  * production build. The full delete-everything behaviour (blobs, cache, tasks, rows, receipt) is
- * unit-tested in lib/privacy/__tests__/delete-everything.test.ts, drizzle-delete.test.ts and
+ * unit-tested in server/privacy/__tests__/delete-everything.test.ts, drizzle-delete.test.ts and
  * app/api/recipient/__tests__/routes.test.ts. This spec checks the deployed surface: status codes,
  * no-store caching, cookie clearing and CRON_SECRET auth, with the real env handling of `next start`
  * (NODE_ENV=production, where GIFTFIT_URL_SIGNING_SECRET is mandatory).

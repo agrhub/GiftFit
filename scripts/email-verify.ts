@@ -8,8 +8,8 @@
  * certificate error, ...). It never prints the host, user, password or any address.
  * Run it sparingly: repeated failed logins can trip the mail server's brute-force lockout.
  */
-import { readSmtpConfig } from "../lib/email/config";
-import { classifySmtpError, createSmtpTransport } from "../lib/email/providers/smtp";
+import { readSmtpConfig } from "../server/email/config";
+import { classifySmtpError, createSmtpTransport } from "../server/email/providers/smtp";
 import { loadScriptEnv } from "./email-env";
 
 async function main(): Promise<void> {

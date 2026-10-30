@@ -11,7 +11,7 @@
  * the real verification is the first paid call (docs/hackathon/first_real_calls.md).
  */
 import sharp from "sharp";
-import type { JewelryCategory } from "@/lib/contracts/giftfit";
+import type { JewelryCategory } from "@/server/contracts/giftfit";
 
 export interface SpecCheck {
   ok: boolean;

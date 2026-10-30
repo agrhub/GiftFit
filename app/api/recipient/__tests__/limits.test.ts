@@ -5,24 +5,24 @@
  * owner (YOUCAM_RECORDING=on + the gf_rec cookie); a public recipient gets 409 before any call.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RecipientSessionResponse, SwatchResponse } from "@/lib/contracts/api";
+import type { RecipientSessionResponse, SwatchResponse } from "@/server/contracts/api";
 import { POST as requestsPOST } from "@/app/api/fit/requests/route";
 import { POST as seedPOST } from "@/app/api/demo/seed/route";
-import { makeStack, seedAurumRequest, type TestStack } from "@/lib/privacy/__tests__/helpers";
-import { CaptureDailyCapError, youcamCapturePorts, type CapturePorts } from "@/lib/privacy/capture";
-import { resetPrivacyState } from "@/lib/privacy/global-state";
-import { rateKeysForTests, setRateLimitOverride } from "@/lib/privacy/rate-limit";
-import { setPrivacyDeps } from "@/lib/privacy/runtime";
-import { newFitRequestTokens } from "@/lib/privacy/tokens";
-import { MemoryAuditSink } from "@/lib/youcam/audit";
-import { MemoryResultCache } from "@/lib/youcam/cache";
-import { createYoucamClient, type YoucamClient } from "@/lib/youcam/client";
-import { DailyCapError } from "@/lib/youcam/errors";
+import { makeStack, seedAurumRequest, type TestStack } from "@/server/privacy/__tests__/helpers";
+import { CaptureDailyCapError, youcamCapturePorts, type CapturePorts } from "@/server/privacy/capture";
+import { resetPrivacyState } from "@/server/privacy/global-state";
+import { rateKeysForTests, setRateLimitOverride } from "@/server/privacy/rate-limit";
+import { setPrivacyDeps } from "@/server/privacy/runtime";
+import { newFitRequestTokens } from "@/server/privacy/tokens";
+import { MemoryAuditSink } from "@/server/youcam/audit";
+import { MemoryResultCache } from "@/server/youcam/cache";
+import { createYoucamClient, type YoucamClient } from "@/server/youcam/client";
+import { DailyCapError } from "@/server/youcam/errors";
 import { POST as capturePOST } from "../capture/route";
 import { POST as consentPOST } from "../consent/route";
 import { POST as sessionPOST } from "../session/route";
 import { POST as swatchPOST } from "../swatch/route";
-import { RECORDING_COOKIE, recordingCookieValue } from "@/lib/youcam/recording";
+import { RECORDING_COOKIE, recordingCookieValue } from "@/server/youcam/recording";
 
 const REC_TOKEN = "rec-token-for-tests-0123456789abcdefghijklmnop";
 let ownerCookie = "";

@@ -2,11 +2,11 @@
  * POST /api/youcam/webhook
  * Receives YouCam task-completion notifications (Standard Webhooks, HMAC-SHA256).
  * Bad or missing signatures get 401. A verified event wakes any in-process poller
- * (lib/youcam/webhook.ts) and is audited; polling stays the fallback.
+ * (server/youcam/webhook.ts) and is audited; polling stays the fallback.
  */
-import { createDefaultAuditSink } from "@/lib/youcam/audit";
-import { loadYoucamConfig } from "@/lib/youcam/config";
-import { WebhookSignatureError, notifyTaskCompleted, verifyYoucamWebhook } from "@/lib/youcam/webhook";
+import { createDefaultAuditSink } from "@/server/youcam/audit";
+import { loadYoucamConfig } from "@/server/youcam/config";
+import { WebhookSignatureError, notifyTaskCompleted, verifyYoucamWebhook } from "@/server/youcam/webhook";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

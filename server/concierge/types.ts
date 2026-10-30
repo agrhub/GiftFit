@@ -1,0 +1,119 @@
+/**
+ * Gift Concierge contract (owner: A7, ADR-040/045/046). UI-agnostic and safe to import from the
+ * browser: types and constants only. The Giver Panel, the /concierge-demo page and the future
+ * embeddable widget all speak this contract.
+ *
+ * POST /api/concierge  body: ConciergeRequestBody
+ *   200  application/x-ndjson, one ConciergeEvent per line:
+ *        start → (text | tool)* → final          (or start → … → error on an internal failure)
+ *   400  {"error":"invalid_request" | "message_too_long"}
+ *   429  {"error":"rate_limited"} + Retry-After (per-IP `concierge` scope)
+ */
+import type { GiftBrief } from "@/server/contracts/api";
+import type { JewelryCategory, Metal } from "@/server/contracts/giftfit";
+
+export interface ConciergeChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ConciergeRequestBody {
+  messages: ConciergeChatMessage[];
+  /** Optional page context from the embeddable widget (ADR-046): product facts only. */
+  context?: ConciergePageContext;
+  /**
+   * Which catalog to ground on (ADR-055): absent / "aurum" = the Aurum demo catalog; "preview:<key>" = a
+   * ready store-URL preview (jewelry → the usual tools and a draft brief; any other store → product
+   * suggestions only, no brief). Unknown or not-ready previews → 404 store_not_found.
+   */
+  store?: string;
+  /**
+   * The widget's page / browser / UI language as a BCP 47 tag (ADR-057): only used while the shopper's own
+   * language is unclear ("ok", "$150", a product name). Malformed values are ignored.
+   */
+  lang?: string;
+}
+
+/** A suggested product from a non-jewelry preview store (no Fit Request for these). */
+export interface ConciergeProductSuggestion {
+  productId: string;
+  title: string;
+  price: number | null;
+  currency: string | null;
+  /** Public product image on the store (never a try-on). */
+  image?: string;
+  /** The product page on the store. */
+  url: string;
+  reason: string;
+}
+
+/**
+ * The store page the shopper is on (embeddable widget, A6). Product facts only, read from the host page
+ * and therefore untrusted: the server prefers catalog facts when `catalogId` resolves, sanitises the rest,
+ * and hands it to the model as a labelled data note, never as instructions.
+ */
+export interface ConciergePageContext {
+  product?: {
+    catalogId?: string;
+    title?: string;
+    price?: number;
+    currency?: string;
+    sku?: string;
+  };
+}
+
+/** History caps (enforced by the route and the engine). */
+export const CONCIERGE_LIMITS = {
+  /** Older messages beyond this are dropped (oldest first). */
+  maxMessages: 12,
+  /** A single message over this is rejected with 400 message_too_long. */
+  maxMessageChars: 1_500,
+  /** Total characters kept from the history (oldest dropped first). */
+  maxTotalChars: 6_000,
+  /** At most 3 suggested designs. */
+  maxSuggestions: 3,
+} as const;
+
+export const CONCIERGE_TOOL_NAMES = ["search_catalog", "fit_preview", "check_budget_and_metals", "create_fit_request"] as const;
+export type ConciergeToolName = (typeof CONCIERGE_TOOL_NAMES)[number];
+
+/** One suggested design, grounded in the catalog; prices come from the catalog, never from the model. */
+export interface ConciergeSuggestion {
+  catalogId: string;
+  title: string;
+  category: JewelryCategory;
+  style: string;
+  /** Why it fits (model- or template-written, scrubbed of ids, URLs and hex values). */
+  reason: string;
+  /** Metal variants within the brief's budget cap and metal lock (≥ 1), cheapest first. */
+  eligibleMetals: Array<{ metal: Metal; price: number }>;
+  fromPrice: number;
+  currency: string;
+  /** Public catalog product image (never a try-on). */
+  image?: string;
+}
+
+/** Where the answer came from. `fallback` = deterministic keyword/budget parsing + catalog filters. */
+export type ConciergeSource = "claude" | "mock" | "fallback";
+
+export type ConciergeDegradeReason = "no_key" | "spend_cap" | "api_error" | "refusal" | "disabled";
+
+export type ConciergeEvent =
+  | { type: "start"; source: ConciergeSource }
+  | { type: "text"; delta: string }
+  | { type: "tool"; name: ConciergeToolName; summary: string }
+  | {
+      type: "final";
+      /** A DRAFT brief for the giver to confirm in the UI; absent when the concierge still needs input. */
+      brief?: GiftBrief;
+      suggestions: ConciergeSuggestion[];
+      source: ConciergeSource;
+      /** True when Claude could not be used (spend cap, API error) and the deterministic fallback answered. */
+      degraded: boolean;
+      degradeReason?: ConciergeDegradeReason;
+      /** Short assumptions the fallback made (e.g. "Budget assumed: $250"). */
+      notes?: string[];
+      /** Non-jewelry preview stores (ADR-055): grounded product picks; `suggestions` is then empty and there is no brief. */
+      products?: ConciergeProductSuggestion[];
+    }
+  | { type: "error"; error: "internal_error" };

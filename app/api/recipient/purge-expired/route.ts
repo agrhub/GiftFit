@@ -4,9 +4,9 @@
  * <= 1 h TTL. Requires `Authorization: Bearer $CRON_SECRET` (Vercel Cron sends it). Expired
  * requests are also purged lazily on first touch, so this is the backstop, not the only path.
  */
-import { purgeExpired } from "@/lib/privacy/delete-everything";
-import { getPrivacyDeps } from "@/lib/privacy/runtime";
-import { safeEqual } from "@/lib/privacy/tokens";
+import { purgeExpired } from "@/server/privacy/delete-everything";
+import { getPrivacyDeps } from "@/server/privacy/runtime";
+import { safeEqual } from "@/server/privacy/tokens";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

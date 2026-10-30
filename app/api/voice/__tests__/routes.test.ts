@@ -5,17 +5,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST as sttPOST } from "@/app/api/voice/stt/route";
 import { POST as ttsPOST } from "@/app/api/voice/tts/route";
-import { findGiverLeaks } from "@/lib/privacy/giver-guard";
-import { setRateLimitOverride } from "@/lib/privacy/rate-limit";
-import { MemoryDailyCounterStore, type DailyCounterStore } from "@/lib/store/daily-counter";
-import { dailyKey, sessionCounterKey } from "@/lib/voice/caps";
-import { VoiceEngineError, type SttEngine, type TtsEngine } from "@/lib/voice/google";
-import { VOICE_LANGS } from "@/lib/voice/config";
-import { MOCK_TRANSCRIPTS } from "@/lib/voice/mock";
-import { mockSttEngine, mockTtsEngine, type VoiceServerDeps } from "@/lib/voice/server";
-import { handleStt } from "@/lib/voice/stt";
-import { handleTts } from "@/lib/voice/tts";
-import { mp4Clip, oggOpusClip, webmClip } from "@/lib/voice/__tests__/containers";
+import { findGiverLeaks } from "@/server/privacy/giver-guard";
+import { setRateLimitOverride } from "@/server/privacy/rate-limit";
+import { MemoryDailyCounterStore, type DailyCounterStore } from "@/server/store/daily-counter";
+import { dailyKey, sessionCounterKey } from "@/server/voice/caps";
+import { VoiceEngineError, type SttEngine, type TtsEngine } from "@/server/voice/google";
+import { VOICE_LANGS } from "@/server/voice/config";
+import { MOCK_TRANSCRIPTS } from "@/server/voice/mock";
+import { mockSttEngine, mockTtsEngine, type VoiceServerDeps } from "@/server/voice/server";
+import { handleStt } from "@/server/voice/stt";
+import { handleTts } from "@/server/voice/tts";
+import { mp4Clip, oggOpusClip, webmClip } from "@/server/voice/__tests__/containers";
 
 const NOW = Date.parse("2026-10-27T10:00:00Z");
 const SESSION = "3b241101-e2bb-4255-8caf-4136c566a962";

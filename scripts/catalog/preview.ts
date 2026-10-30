@@ -3,7 +3,7 @@
  *   npx tsx scripts/catalog/preview.ts <category> <outFile.png>
  */
 import sharp from "sharp";
-import type { JewelryCategory, Metal } from "@/lib/contracts/giftfit";
+import type { JewelryCategory, Metal } from "@/server/contracts/giftfit";
 import { composeImage } from "./compose";
 import type { Design } from "./design";
 import { renderDesign, VARIANTS } from "./render";

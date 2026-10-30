@@ -4,8 +4,8 @@
  * POST { undertone: "warm" | "neutral" | "cool" | null } -> sets (or clears) the override.
  * The recipient's override always wins over the estimate in the Fit Engine.
  */
-import { getPrivacyDeps } from "@/lib/privacy/runtime";
-import { recipientError, resolveRecipientSession } from "@/lib/privacy/session";
+import { getPrivacyDeps } from "@/server/privacy/runtime";
+import { recipientError, resolveRecipientSession } from "@/server/privacy/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

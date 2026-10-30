@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { completedStatus, resetWebhookSignals, signYoucamWebhook } from "@/lib/youcam/webhook";
+import { completedStatus, resetWebhookSignals, signYoucamWebhook } from "@/server/youcam/webhook";
 import { GET as mockAsset } from "../../mock-asset/[name]/route";
 import { POST } from "../route";
 

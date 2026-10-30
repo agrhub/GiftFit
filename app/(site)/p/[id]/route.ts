@@ -1,5 +1,5 @@
-/** /p/<id | slug | sku>: the old Aurum product page, now on the demo store (308; lib/site/config.ts). */
-import { storeRedirect } from "@/lib/site/config";
+/** /p/<id | slug | sku>: the old Aurum product page, now on the demo store (308; server/site/config.ts). */
+import { storeRedirect } from "@/server/site/config";
 
 type Ctx = { params: Promise<{ id: string }> };
 

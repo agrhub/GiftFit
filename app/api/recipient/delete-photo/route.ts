@@ -4,9 +4,9 @@
  * flow. Rendered try-ons and hearts stay; further metal swatch renders return `photo_deleted`.
  * Idempotent.
  */
-import { FlowError, deletePhotoFlow } from "@/lib/privacy/recipient-flow";
-import { getPrivacyDeps } from "@/lib/privacy/runtime";
-import { recipientError, recipientJson, resolveRecipientSession } from "@/lib/privacy/session";
+import { FlowError, deletePhotoFlow } from "@/server/privacy/recipient-flow";
+import { getPrivacyDeps } from "@/server/privacy/runtime";
+import { recipientError, recipientJson, resolveRecipientSession } from "@/server/privacy/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

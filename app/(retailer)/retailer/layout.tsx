@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
-import { SiteHeader, SkipLink } from "@/components/site/SiteHeader";
-import { demoStoreUrl } from "@/lib/site/config";
+import { SiteHeader, SkipLink } from "@/client/site/SiteHeader";
+import { demoStoreUrl } from "@/server/site/config";
 
 export const metadata: Metadata = {
   title: { default: "Retailer Console", template: "%s · Retailer Console" },

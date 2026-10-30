@@ -7,8 +7,8 @@
  */
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { adminPath, OWNER_COOKIE, verifyOwner } from "@/lib/widget/preview-admin";
-import { reingestPreview, removeProduct, restoreProducts, saveWidgetSettings, type AdminResult } from "@/lib/widget/preview-admin-ops";
+import { adminPath, OWNER_COOKIE, verifyOwner } from "@/server/widget/preview-admin";
+import { reingestPreview, removeProduct, restoreProducts, saveWidgetSettings, type AdminResult } from "@/server/widget/preview-admin-ops";
 
 async function owner(key: string) {
   const rec = await verifyOwner(key, (await cookies()).get(OWNER_COOKIE)?.value);

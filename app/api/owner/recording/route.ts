@@ -1,5 +1,5 @@
 /**
- * /api/owner/recording  (audience: internal, GiftFit operator only; A16, lib/youcam/recording.ts)
+ * /api/owner/recording  (audience: internal, GiftFit operator only; A16, server/youcam/recording.ts)
  *
  *   POST   { token }  → 200 { owner: true, expiresAt, youcamPaid } + Set-Cookie gf_rec (HttpOnly, ≤ 6 h)
  *                      409 { error: "recording_off" } while YOUCAM_RECORDING is off or no token is configured
@@ -18,7 +18,7 @@ import {
   recordingEnabled,
   recordingToken,
   recordingTokenMatches,
-} from "@/lib/youcam/recording";
+} from "@/server/youcam/recording";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

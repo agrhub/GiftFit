@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ConciergeDemo } from "@/components/gift/concierge/ConciergeDemo";
+import { ConciergeDemo } from "@/client/gift/concierge/ConciergeDemo";
 
 export const metadata: Metadata = {
   title: "Gift concierge",

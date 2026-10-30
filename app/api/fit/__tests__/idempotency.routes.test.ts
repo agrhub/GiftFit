@@ -5,15 +5,15 @@
  * missing keys behave as before; entries expire after the TTL and failures are never replayed later.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CreateFitRequestResponse } from "@/lib/contracts/api";
-import type { CatalogSku } from "@/lib/contracts/giftfit";
-import { handleCreateRequest } from "@/lib/fit/api";
-import { configureFit, getFitDeps, resetFitDeps } from "@/lib/fit/deps";
-import { IDEMPOTENCY_TTL_MS, IdempotencyStore, type StoredOutcome, parseIdempotencyKey } from "@/lib/fit/idempotency";
-import { PrivacyFitRepository, StaticCatalog } from "@/lib/fit/repository";
-import { fakeRules, makeCatalog, sku } from "@/lib/fit/__tests__/fixtures";
-import { MemoryPrivacyRepos } from "@/lib/privacy/repos/memory";
-import { setPrivacyDeps } from "@/lib/privacy/runtime";
+import type { CreateFitRequestResponse } from "@/server/contracts/api";
+import type { CatalogSku } from "@/server/contracts/giftfit";
+import { handleCreateRequest } from "@/server/fit/api";
+import { configureFit, getFitDeps, resetFitDeps } from "@/server/fit/deps";
+import { IDEMPOTENCY_TTL_MS, IdempotencyStore, type StoredOutcome, parseIdempotencyKey } from "@/server/fit/idempotency";
+import { PrivacyFitRepository, StaticCatalog } from "@/server/fit/repository";
+import { fakeRules, makeCatalog, sku } from "@/server/fit/__tests__/fixtures";
+import { MemoryPrivacyRepos } from "@/server/privacy/repos/memory";
+import { setPrivacyDeps } from "@/server/privacy/runtime";
 import { POST as requestsPOST } from "../requests/route";
 
 const T0 = new Date("2026-10-20T12:00:00Z");
