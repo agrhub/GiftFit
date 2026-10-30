@@ -44,8 +44,9 @@ export default function DemoPage() {
         >
           Halo Drop Earrings in the demo store
         </a>{" "}
-        and ask the gift assistant, or tap Gift it right. A real try-on with
-        your own selfie uses live YouCam calls.
+        and ask the gift assistant, or tap Gift it right. Live try-on with a
+        real selfie is switched off on this public demo; the demo video shows
+        a real run.
       </p>
     </div>
   );
