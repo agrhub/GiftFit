@@ -4,9 +4,9 @@
  * (one of the ten, else English), unclear ones ("ok", "$150") leave it, and the Concierge gets the
  * page/conversation language as a hint.
  */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LOCALES, t } from "@/lib/i18n";
+import { LOCALES, parseLangList, t } from "@/lib/i18n";
 import { WidgetApp } from "../WidgetApp";
 
 const REPLY = "…";
@@ -63,6 +63,18 @@ describe("widget language", () => {
     await screen.findByRole("button", { name: sendIn("en") });
     await say("ok", sendIn("en"));
     expect(bodies().at(-1)?.lang).toBe("pt");
+  });
+
+  it.each(["ja", "de"] as const)("with no data-langs, a store page in %s opens in that language, then follows the shopper", async (lang) => {
+    const PARENT = "https://shop.example";
+    // What /w gets from a tag without data-langs: no langs parameter, so all ten (jsdom's browser says en-US).
+    render(<WidgetApp store="aurum" parentOrigin={PARENT} allowedLangs={parseLangList(undefined)} baseUrl="https://giftfit.example" />);
+    const host = (data: object) => act(() => window.dispatchEvent(new MessageEvent("message", { data: { source: "giftfit-widget", v: 1, ...data }, origin: PARENT, source: window })));
+    host({ type: "context", product: null, page: { lang: lang === "ja" ? "ja" : "de-DE", url: `${PARENT}/` } });
+    host({ type: "open" });
+    await screen.findByRole("button", { name: sendIn(lang) });
+    await say("Busco un regalo para mi hermana", sendIn(lang));
+    await screen.findByRole("button", { name: sendIn("es") });
   });
 
   it("stays within the store's languages", async () => {

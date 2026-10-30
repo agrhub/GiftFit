@@ -5,9 +5,10 @@ const O = "https://giftfit.example";
 
 describe("snippets", () => {
   it("builds the embed tag with the documented attributes", () => {
-    expect(giftfitSnippet(O)).toBe(`<script src="${O}/giftfit.js" data-store="aurum" data-langs="en,vi" async></script>`);
+    // No language attribute by default: all ten languages, the page's own first.
+    expect(giftfitSnippet(O)).toBe(`<script src="${O}/giftfit.js" data-store="aurum" async></script>`);
     expect(giftfitSnippet(O, { langs: "vi", widget: false })).toBe(`<script src="${O}/giftfit.js" data-store="aurum" data-langs="vi" data-widget="off" async></script>`);
-    expect(shopifySnippet(O)).toBe(`<script src="${O}/giftfit.js" data-store="aurum" data-langs="en,vi" data-lang="{{ request.locale.iso_code }}" async></script>\n</body>`);
+    expect(shopifySnippet(O)).toBe(`<script src="${O}/giftfit.js" data-store="aurum" async></script>\n</body>`);
     expect(wordpressSnippet(O)).toContain("add_action( 'wp_footer', function () { ?>");
     expect(wordpressSnippet(O)).toContain(giftfitSnippet(O));
   });

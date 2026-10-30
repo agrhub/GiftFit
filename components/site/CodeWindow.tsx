@@ -1,14 +1,14 @@
 "use client";
 /**
- * Live code window (owner: A4, P8.4): the embed snippet with two options (data-langs, data-widget),
- * Copy, and Run, which mounts the real widget on this page (components/site/runWidget.ts).
+ * Live code window (owner: A4, P8.4): the embed snippet with one option (data-widget), a note that the
+ * language is automatic (no attribute needed: all ten languages, the page's first), Copy, and Run, which mounts the real widget on this page (components/site/runWidget.ts).
  */
 import { useEffect, useId, useRef, useState } from "react";
 import { scheduleLive2DWarmup } from "@/components/widget/character/live2d/load";
 import type { CodeLabels } from "./labels";
 import { CopyButton } from "./CodeBlock";
 import { openChat, runWidget, whenReady } from "./runWidget";
-import { giftfitSnippet, tokenizeTag, type SnippetLangs, type Token } from "./snippets";
+import { giftfitSnippet, tokenizeTag, type Token } from "./snippets";
 
 const TOKEN_CLASS: Record<Token["kind"], string> = {
   punct: "text-fog-400",
@@ -21,7 +21,6 @@ const TOKEN_CLASS: Record<Token["kind"], string> = {
 type RunState = "idle" | "loading" | "ready" | "opened" | "failed" | "off";
 
 export function CodeWindow({ origin, labels: l }: { origin: string; labels: CodeLabels }) {
-  const [langs, setLangs] = useState<SnippetLangs>("en,vi");
   const [widget, setWidget] = useState(true);
   const [run, setRun] = useState<RunState>("idle");
   const cancel = useRef<(() => void) | undefined>(undefined);
@@ -30,11 +29,11 @@ export function CodeWindow({ origin, labels: l }: { origin: string; labels: Code
   // Run shows Mark-kun: download Live2D once the landing has painted and gone idle (A20).
   useEffect(() => scheduleLive2DWarmup(), []);
 
-  const snippet = giftfitSnippet(origin, { langs, widget });
+  const snippet = giftfitSnippet(origin, { widget });
 
   const onRun = () => {
     cancel.current?.();
-    const result = runWidget({ origin, store: "aurum", langs, widget });
+    const result = runWidget({ origin, store: "aurum", widget });
     if (result === "off") return setRun("off");
     const reopen = result === "reopened";
     setRun(reopen ? "opened" : "loading");
@@ -46,11 +45,6 @@ export function CodeWindow({ origin, labels: l }: { origin: string; labels: Code
   };
 
   const status = { idle: "", loading: l["landing.runLoading"], ready: l["landing.runReady"], opened: l["landing.runOpened"], failed: l["landing.runFailed"], off: l["landing.runOff"] }[run];
-  const langOptions: Array<[SnippetLangs, string]> = [
-    ["en,vi", l["landing.codeLangsBoth"]],
-    ["en", l["landing.codeLangsEn"]],
-    ["vi", l["landing.codeLangsVi"]],
-  ];
 
   return (
     <div className="min-w-0 overflow-hidden rounded-3xl border border-night-700 bg-night-900/90 shadow-[0_30px_80px_-30px_rgb(170_156_255/0.35)] backdrop-blur" data-testid="code-window">
@@ -64,29 +58,10 @@ export function CodeWindow({ origin, labels: l }: { origin: string; labels: Code
       </div>
 
       <div className="flex flex-wrap items-end gap-x-6 gap-y-3 border-b border-night-700 px-4 py-4" role="group" aria-label={l["landing.codeOptions"]}>
-        <fieldset className="min-w-0">
-          <legend className="mb-1.5 text-xs text-fog-400">
-            {l["landing.codeLangs"]} <code className="font-mono text-glow-gold">data-langs</code>
-          </legend>
-          <div className="flex flex-wrap gap-1.5">
-            {langOptions.map(([value, label]) => (
-              <label key={value} className="cursor-pointer">
-                <input
-                  type="radio"
-                  name={`${statusId}-langs`}
-                  value={value}
-                  checked={langs === value}
-                  onChange={() => setLangs(value)}
-                  className="peer sr-only"
-                  data-testid={`code-langs-${value.replace(",", "-")}`}
-                />
-                <span className="inline-flex min-h-11 items-center rounded-full border border-night-600 px-3.5 text-sm text-fog-300 transition-colors peer-checked:border-glow-violet peer-checked:bg-glow-violet/15 peer-checked:text-fog-100 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-glow-gold hover:border-fog-400 hover:text-fog-100">
-                  {label}
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <div className="min-w-0 basis-full" data-testid="code-lang-auto">
+          <p className="mb-1.5 text-xs text-fog-400">{l["landing.codeLang"]}</p>
+          <p className="text-sm leading-6 text-fog-100">{l["landing.codeLangAuto"]}</p>
+        </div>
         <div>
           <p className="mb-1.5 text-xs text-fog-400" id={`${statusId}-widget`}>
             {l["landing.codeWidget"]} <code className="font-mono text-glow-gold">data-widget</code>

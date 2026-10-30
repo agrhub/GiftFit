@@ -22,8 +22,10 @@
  * No token, id or e-mail address ever reaches this page: it only learns `giftfit:sent` / `giftfit:close`.
  *
  * Attributes: data-store (store key, default "aurum"), data-widget ("off"), data-button ("off"),
- * data-lang (store default UI language, e.g. "vi"), data-langs (allowed UI languages, e.g. "en,vi"; codes
- * en vi ja ko zh th id es fr de — /w ignores anything else, and an empty or all-unknown list means all),
+ * data-lang and data-langs are optional: without them the widget offers all ten UI languages, opens in
+ * the page's <html lang> (then the browser's) and follows each shopper's message. data-lang (fallback UI
+ * language, e.g. "vi"), data-langs (limit to these UI languages, e.g. "en,vi"; codes en vi ja ko zh th
+ * id es fr de — /w ignores anything else, and an empty or all-unknown list means all),
  * data-mount (CSS selector for the button), data-variant ("solid" | "outline").
  * Window events: giftfit:sent, giftfit:close (no detail).
  * Public API: window.GiftFit.{ version, detectProduct(doc), detectContext(doc), open(), close(),

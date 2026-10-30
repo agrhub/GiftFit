@@ -3,29 +3,29 @@
  * The loader's attributes are documented in packages/plugin/giftfit.js.
  */
 
-export type SnippetLangs = "en,vi" | "en" | "vi";
-
 export interface SnippetOptions {
   store?: string;
-  langs?: SnippetLangs;
+  /**
+   * Optional restriction (data-langs, e.g. "en,vi"). Left out by default: the widget then offers all ten
+   * languages, opens in the page's <html lang> (then the browser's) and follows each shopper's message.
+   */
+  langs?: string;
   /** false adds data-widget="off". */
   widget?: boolean;
-  /** Extra attribute text inserted after data-langs (e.g. a Liquid data-lang), already escaped. */
-  extra?: string;
 }
 
-/** `<script src="<origin>/giftfit.js" data-store="aurum" data-langs="en,vi" async></script>` */
+/** `<script src="<origin>/giftfit.js" data-store="aurum" async></script>` */
 export function giftfitSnippet(origin: string, opts: SnippetOptions = {}): string {
-  const attrs = [`src="${origin}/giftfit.js"`, `data-store="${opts.store ?? "aurum"}"`, `data-langs="${opts.langs ?? "en,vi"}"`];
-  if (opts.extra) attrs.push(opts.extra);
+  const attrs = [`src="${origin}/giftfit.js"`, `data-store="${opts.store ?? "aurum"}"`];
+  if (opts.langs) attrs.push(`data-langs="${opts.langs}"`);
   if (opts.widget === false) attrs.push('data-widget="off"');
   attrs.push("async");
   return `<script ${attrs.join(" ")}></script>`;
 }
 
-/** Shopify layout/theme.liquid: the store's current language as the fallback UI language. */
+/** Shopify layout/theme.liquid (themes set <html lang> to the store's current language, which the widget reads). */
 export function shopifySnippet(origin: string): string {
-  return `${giftfitSnippet(origin, { extra: 'data-lang="{{ request.locale.iso_code }}"' })}\n</body>`;
+  return `${giftfitSnippet(origin)}\n</body>`;
 }
 
 /** WordPress / WooCommerce child theme functions.php. */

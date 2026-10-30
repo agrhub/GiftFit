@@ -7,10 +7,8 @@ import type { MessageKey } from "@/lib/i18n";
 
 export const CODE_KEYS = [
   "landing.codeOptions",
-  "landing.codeLangs",
-  "landing.codeLangsBoth",
-  "landing.codeLangsEn",
-  "landing.codeLangsVi",
+  "landing.codeLang",
+  "landing.codeLangAuto",
   "landing.codeWidget",
   "landing.codeOn",
   "landing.codeOff",

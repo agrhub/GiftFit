@@ -32,26 +32,25 @@ afterEach(() => {
 });
 
 describe("CodeWindow", () => {
-  it("shows the snippet and rewrites it from the options", () => {
+  it("shows the snippet with no language attribute, says the language is automatic, and rewrites it from the widget switch", () => {
     render(<CodeWindow origin={ORIGIN} labels={labels} />);
     const code = () => screen.getByTestId("code-snippet").textContent;
-    expect(code()).toBe(`<script src="${ORIGIN}/giftfit.js" data-store="aurum" data-langs="en,vi" async></script>`);
-    fireEvent.click(screen.getByTestId("code-langs-vi"));
-    expect(code()).toBe(`<script src="${ORIGIN}/giftfit.js" data-store="aurum" data-langs="vi" async></script>`);
+    expect(code()).toBe(`<script src="${ORIGIN}/giftfit.js" data-store="aurum" async></script>`);
+    expect(screen.getByTestId("code-lang-auto").textContent).toContain("Automatic: the store page's language, then each shopper's own (10 languages)");
+    expect(screen.queryByRole("radio")).toBeNull();
     fireEvent.click(screen.getByRole("switch"));
     expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("false");
-    expect(code()).toBe(`<script src="${ORIGIN}/giftfit.js" data-store="aurum" data-langs="vi" data-widget="off" async></script>`);
+    expect(code()).toBe(`<script src="${ORIGIN}/giftfit.js" data-store="aurum" data-widget="off" async></script>`);
   });
 
   it("Copy puts the current snippet on the clipboard", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
     render(<CodeWindow origin={ORIGIN} labels={labels} />);
-    fireEvent.click(screen.getByTestId("code-langs-en"));
     await act(async () => {
       fireEvent.click(screen.getByTestId("code-copy"));
     });
-    expect(writeText).toHaveBeenCalledWith(`<script src="${ORIGIN}/giftfit.js" data-store="aurum" data-langs="en" async></script>`);
+    expect(writeText).toHaveBeenCalledWith(`<script src="${ORIGIN}/giftfit.js" data-store="aurum" async></script>`);
     expect(screen.getByTestId("code-copy").textContent).toBe("Copied");
     await act(async () => {
       vi.advanceTimersByTime(3000);
@@ -68,7 +67,8 @@ describe("CodeWindow", () => {
     expect(s.src).toBe(`${ORIGIN}/giftfit.js`);
     expect(s.async).toBe(true);
     expect(s.getAttribute("data-store")).toBe("aurum");
-    expect(s.getAttribute("data-langs")).toBe("en,vi");
+    expect(s.hasAttribute("data-langs")).toBe(false);
+    expect(s.hasAttribute("data-lang")).toBe(false);
     expect(s.hasAttribute("data-widget")).toBe(false);
     expect(screen.getByTestId("code-run-status").textContent).toContain("Starting the assistant");
 
@@ -100,21 +100,21 @@ describe("CodeWindow", () => {
     expect(api.openWidget).toHaveBeenCalledTimes(1);
   });
 
-  it("new options remount with one fresh tag; widget off removes it", async () => {
+  it("widget off removes the tag; on again mounts one fresh tag", async () => {
     render(<CodeWindow origin={ORIGIN} labels={labels} />);
     fireEvent.click(screen.getByRole("button", { name: "Run" }));
     const api = fakeLoaderReady();
-    fireEvent.click(screen.getByTestId("code-langs-vi"));
+    fireEvent.click(screen.getByRole("switch"));
     fireEvent.click(screen.getByRole("button", { name: "Run" }));
     expect(api.destroy).toHaveBeenCalledTimes(1);
     expect((window as Win).GiftFit).toBeUndefined();
-    expect(scripts()).toHaveLength(1);
-    expect(scripts()[0].getAttribute("data-langs")).toBe("vi");
+    expect(scripts()).toHaveLength(0);
+    expect(screen.getByTestId("code-run-status").textContent).toContain('data-widget="off"');
 
     fireEvent.click(screen.getByRole("switch"));
     fireEvent.click(screen.getByRole("button", { name: "Run" }));
-    expect(scripts()).toHaveLength(0);
-    expect(screen.getByTestId("code-run-status").textContent).toContain('data-widget="off"');
+    expect(scripts()).toHaveLength(1);
+    expect(scripts()[0].getAttribute("data-store")).toBe("aurum");
   });
 
   it("says so when the widget never becomes ready", async () => {

@@ -27,7 +27,7 @@ describe("Landing", () => {
     expect(document.getElementById("try")).toBeTruthy();
     expect(document.getElementById("store-url")).toBeTruthy();
     expect(screen.getByTestId("cta-merchants").getAttribute("href")).toBe("/merchants");
-    expect(screen.getByTestId("code-snippet").textContent).toBe(`<script src="${ORIGIN}/giftfit.js" data-store="aurum" data-langs="en,vi" async></script>`);
+    expect(screen.getByTestId("code-snippet").textContent).toBe(`<script src="${ORIGIN}/giftfit.js" data-store="aurum" async></script>`);
     const features = within(screen.getByTestId("features")).getAllByRole("listitem");
     expect(features.map((li) => li.querySelector("h3")!.textContent)).toEqual(["Help me choose", "Private try-on", "Fit Report", "Voice, in the shopper's language"]);
     for (const li of features) expect(li.querySelector("svg")).toBeTruthy();
@@ -82,7 +82,8 @@ describe("Landing", () => {
     expect(panel("shopify").hidden).toBe(false);
     expect(panel("html").hidden).toBe(true);
     expect(screen.getByRole("tab", { name: "Shopify" }).getAttribute("aria-selected")).toBe("true");
-    expect(screen.getByTestId("docs-code-shopify").textContent).toContain('data-lang="{{ request.locale.iso_code }}"');
+    expect(screen.getByTestId("docs-code-shopify").textContent).not.toContain("data-lang");
+    expect(panel("shopify").textContent).toContain("Shopify themes already set the page's language");
     expect(panel("shopify").textContent).toContain("layout/theme.liquid");
 
     fireEvent.keyDown(screen.getByRole("tab", { name: "Shopify" }), { key: "ArrowRight" });
@@ -105,7 +106,7 @@ describe("Landing", () => {
     await act(async () => {
       fireEvent.click(screen.getByTestId("docs-code-html-copy"));
     });
-    expect(writeText).toHaveBeenCalledWith(`<script src="${ORIGIN}/giftfit.js" data-store="aurum" data-langs="en,vi" async></script>`);
+    expect(writeText).toHaveBeenCalledWith(`<script src="${ORIGIN}/giftfit.js" data-store="aurum" async></script>`);
     expect(screen.getByTestId("docs-code-html-copy").textContent).toBe("Copied");
   });
 

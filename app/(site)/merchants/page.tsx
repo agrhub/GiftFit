@@ -45,6 +45,9 @@ export default async function MerchantsPage({ searchParams }: { searchParams: Pr
 
         <div className="mt-8">
           <CodeBlock code={giftfitSnippet(origin)} label="HTML" copyLabel={tr("site.copy")} copiedLabel={tr("site.copied")} testId="site-snippet" />
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-fog-300" data-testid="merchants-langs">
+            {tr("landing.mLangs")}
+          </p>
         </div>
 
         <ol className="mt-10 grid gap-4 sm:grid-cols-3" data-testid="merchant-paths">

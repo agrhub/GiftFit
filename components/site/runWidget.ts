@@ -7,13 +7,10 @@
  *   Run with new opts    → GiftFit.destroy(), drop the old tag, inject a fresh one (still one tag)
  *   widget off           → remove what Run added; nothing to show on a page without a product
  */
-import type { SnippetLangs } from "./snippets";
-
 export interface RunOptions {
   /** Absolute origin serving /giftfit.js. */
   origin: string;
   store: string;
-  langs: SnippetLangs;
   widget: boolean;
 }
 
@@ -29,7 +26,7 @@ type Win = Window & { GiftFit?: GiftFitApi };
 const MARK = "data-giftfit-landing";
 
 export function runKey(o: RunOptions): string {
-  return `${o.origin}|${o.store}|${o.langs}`;
+  return `${o.origin}|${o.store}`;
 }
 
 function landingScript(doc: Document): HTMLScriptElement | null {
@@ -52,7 +49,6 @@ function inject(doc: Document, o: RunOptions): void {
   s.src = `${o.origin}/giftfit.js`;
   s.async = true;
   s.setAttribute("data-store", o.store);
-  s.setAttribute("data-langs", o.langs);
   // The landing has no product, so the v0.1 "Gift it right" button would never show here.
   s.setAttribute("data-button", "off");
   s.setAttribute(MARK, runKey(o));

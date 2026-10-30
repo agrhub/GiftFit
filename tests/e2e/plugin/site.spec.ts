@@ -33,7 +33,7 @@ test("/ is the GiftFit home: what it is, 3 steps, CTAs, snippet, judge demo, cre
   await expect(page.getByTestId("how-steps").locator("li")).toHaveCount(3);
   await expect(page.getByTestId("cta-demo-store")).toHaveAttribute("href", STORE);
   await expect(page.getByTestId("cta-merchants")).toHaveAttribute("href", "/merchants");
-  await expect(page.getByTestId("code-snippet")).toHaveText(`<script src="${appOrigin}/giftfit.js" data-store="aurum" data-langs="en,vi" async></script>`);
+  await expect(page.getByTestId("code-snippet")).toHaveText(`<script src="${appOrigin}/giftfit.js" data-store="aurum" async></script>`);
   await expect(page.getByTestId("link-judge-demo")).toHaveAttribute("href", "/demo");
   await expect(page.getByTestId("site-credits")).toContainText("Live2D Inc.");
   await expect(page.getByTestId("site-credits")).toContainText("Open RAIL-M");
