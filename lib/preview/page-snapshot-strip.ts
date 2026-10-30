@@ -4,8 +4,8 @@
  * Some store home pages build their product carousels with JavaScript, so the copied HTML has no link to
  * any product GiftFit ingested and a shopper in the preview can't reach our product pages. For such a
  * page (a captured page with zero links mapped to ingested products; never a product page) the snapshot
- * gets ONE clearly GiftFit-labelled strip, deliberately not styled like the store: a dashed box with a
- * "GiftFit" badge, listing up to MAX_STRIP_PRODUCTS ingested products (image, title, price as frozen at
+ * gets ONE clearly GiftFit-labelled strip, deliberately not styled like the store: a box in GiftFit's dark
+ * design (night background, gradient "GiftFit" badge; product photos on white), listing up to MAX_STRIP_PRODUCTS ingested products (image, title, price as frozen at
  * ingest), each linking to /s/<key>/snapshot/p/<id>, horizontally scrollable on phones.
  *
  *   Where   at the top of the page's first <main> (or [role=main]); without one, right after the first
@@ -74,18 +74,18 @@ const S = `#${PREVIEW_STRIP_ID}`;
 /** Scoped by id: the store's CSS can't reach in (all: revert), and nothing here reaches out. */
 export const STRIP_CSS = [
   `${S},${S} *{all:revert;box-sizing:border-box}`,
-  `${S}{display:block;position:relative;z-index:1;clear:both;float:none;width:calc(100% - 32px);max-width:1200px;margin:16px auto;padding:12px 16px 14px;border:1px dashed #a8a29e;border-radius:12px;background:#fafaf9;color:#1c1917;font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-align:start;overflow:hidden}`,
-  `${S} .gfpv-head{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:0;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#57534e}`,
-  `${S} .gfpv-brand{display:inline-block;padding:1px 8px;border-radius:999px;background:#1c1917;color:#fff;letter-spacing:.02em;text-transform:none}`,
-  `${S} .gfpv-note{margin:4px 0 10px;font-size:12px;color:#78716c}`,
+  `${S}{display:block;position:relative;z-index:1;clear:both;float:none;width:calc(100% - 32px);max-width:1200px;margin:16px auto;padding:12px 16px 14px;border:1px solid #36415a;border-radius:16px;background:#0e121b;color:#eef1f7;font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-align:start;overflow:hidden}`,
+  `${S} .gfpv-head{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:0;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#b8c0d0}`,
+  `${S} .gfpv-brand{display:inline-block;padding:1px 8px;border-radius:999px;background:linear-gradient(90deg,#f6cf86,#f29ab6,#aa9cff);color:#090b11;letter-spacing:.02em;text-transform:none}`,
+  `${S} .gfpv-note{margin:4px 0 10px;font-size:12px;color:#b8c0d0}`,
   `${S} .gfpv-row{display:flex;gap:12px;margin:0;padding:0 0 6px;overflow-x:auto;scroll-snap-type:x proximity}`,
   `${S} .gfpv-card{display:flex;flex:0 0 136px;flex-direction:column;gap:4px;width:136px;min-width:0;color:inherit;text-decoration:none;scroll-snap-align:start}`,
-  `${S} .gfpv-media{display:block;width:100%;aspect-ratio:1/1;border-radius:8px;overflow:hidden;background:#e7e5e4}`,
+  `${S} .gfpv-media{display:block;width:100%;aspect-ratio:1/1;border-radius:8px;overflow:hidden;background:#fff}`,
   `${S} .gfpv-img{display:block;width:100%;height:100%;max-width:none;margin:0;border:0;object-fit:cover}`,
   `${S} .gfpv-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;max-height:2.6em;overflow:hidden;overflow-wrap:anywhere;word-break:break-word;font-size:13px;line-height:1.3}`,
   `${S} .gfpv-price{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px;font-weight:600}`,
   `${S} .gfpv-card:hover .gfpv-title,${S} .gfpv-card:focus-visible .gfpv-title{text-decoration:underline}`,
-  `${S} .gfpv-card:focus-visible{outline:2px solid #1c1917;outline-offset:2px}`,
+  `${S} .gfpv-card:focus-visible{outline:2px solid #f6cf86;outline-offset:2px}`,
   `@media (min-width:720px){${S} .gfpv-card{flex-basis:160px;width:160px}}`,
 ].join("\n");
 

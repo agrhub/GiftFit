@@ -16,7 +16,7 @@ export function SnapshotFrame({ src, title, children }: { src: string; title: st
         // No allow-scripts / allow-same-origin / allow-forms: see SNAPSHOT_IFRAME_SANDBOX.
         sandbox={SNAPSHOT_IFRAME_SANDBOX}
         referrerPolicy="no-referrer"
-        className="block min-h-0 w-full flex-1 border-0 bg-white"
+        className="block min-h-0 w-full flex-1 border-0 bg-paper"
         data-testid="preview-snapshot-frame"
       />
     </div>

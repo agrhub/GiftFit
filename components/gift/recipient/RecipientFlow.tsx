@@ -102,7 +102,7 @@ export interface RecipientFlowProps {
 }
 
 const primary =
-  "flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-6 text-sm font-medium text-ivory transition-colors hover:bg-ink-soft disabled:cursor-wait disabled:opacity-70";
+  "flex min-h-12 w-full items-center justify-center gap-2 gf-cta rounded-full bg-ink px-6 text-sm font-medium text-ivory transition-colors hover:bg-ink-soft disabled:cursor-wait disabled:opacity-70";
 
 /** Thumb-reachable action bar pinned to the bottom of the screen. */
 function ActionBar({ children }: { children: React.ReactNode }) {

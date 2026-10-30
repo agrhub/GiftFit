@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { SiteHeader, SkipLink } from "@/components/site/SiteHeader";
 import { demoStoreUrl } from "@/lib/site/config";
 
 export const metadata: Metadata = {
@@ -7,42 +8,35 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+export const viewport: Viewport = { themeColor: "#090b11" };
+
 export default function RetailerLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
-      <a href="#console" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded focus:bg-ink focus:px-4 focus:py-2 focus:text-ivory">
-        Skip to content
-      </a>
-      <header className="border-b border-line bg-ivory">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="font-display text-2xl tracking-[0.12em] text-ink">
-              GiftFit
-            </Link>
-            <span aria-hidden="true" className="h-8 w-px bg-line-strong" />
-            <span className="text-sm text-ink-soft">
-              Retailer Console <span className="text-muted">· GiftFit</span>
-            </span>
-          </div>
+    <div className="gf-dark gf-glow min-h-dvh">
+      <SkipLink href="#console" />
+      <SiteHeader
+        wide
+        label={<span className="hidden text-sm text-fog-300 sm:inline">Retailer Console</span>}
+        right={
           <nav aria-label="Console">
-            <ul className="flex flex-wrap gap-5 text-sm text-ink-soft">
+            <ul className="flex flex-wrap gap-5 text-sm text-fog-300">
               <li>
-                <Link href="/" className="hover:text-ink">
+                <Link href="/" className="inline-flex min-h-11 items-center hover:text-fog-100">
                   GiftFit home
                 </Link>
               </li>
               <li>
-                <a href={`${demoStoreUrl()}/p/halo-drop-earrings`} className="hover:text-ink">
+                <a href={`${demoStoreUrl()}/p/halo-drop-earrings`} className="inline-flex min-h-11 items-center hover:text-fog-100">
                   Demo store
                 </a>
               </li>
             </ul>
           </nav>
-        </div>
-      </header>
+        }
+      />
       <main id="console" tabIndex={-1} className="focus:outline-none">
         {children}
       </main>
-    </>
+    </div>
   );
 }

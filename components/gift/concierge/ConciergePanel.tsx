@@ -157,7 +157,7 @@ export function ConciergePanel({ onBrief, endpoint, fetchImpl, examples = CONCIE
                       onBrief(t.final!.brief!);
                       setUsedBriefTurn(t.id);
                     }}
-                    className="mt-3 min-h-11 w-full rounded-full bg-ink px-5 text-sm font-medium text-ivory hover:bg-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:w-auto"
+                    className="mt-3 min-h-11 w-full gf-cta rounded-full bg-ink px-5 text-sm font-medium text-ivory hover:bg-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:w-auto"
                   >
                     Use this brief
                   </button>
@@ -230,7 +230,7 @@ export function ConciergePanel({ onBrief, endpoint, fetchImpl, examples = CONCIE
             Stop
           </button>
         ) : (
-          <button type="submit" disabled={!draft.trim()} className="min-h-11 rounded-full bg-ink px-6 text-sm font-medium text-ivory hover:bg-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50">
+          <button type="submit" disabled={!draft.trim()} className="min-h-11 gf-cta rounded-full bg-ink px-6 text-sm font-medium text-ivory hover:bg-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50">
             Send
           </button>
         )}

@@ -100,7 +100,7 @@ export function TryOnCard({
           <img
             src={item.productImage}
             alt={item.title}
-            className="h-full w-full bg-white object-contain p-[14%] mix-blend-multiply"
+            className="h-full w-full bg-paper object-contain p-[14%] mix-blend-multiply"
           />
         )}
         {showTryOn ? (

@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><title>Recording session · GiftFit</title>
-<style>body{font:16px/1.5 system-ui,sans-serif;margin:0;padding:48px 16px;background:#fbf8f3;color:#1f1a17}main{max-width:560px;margin:auto}code{background:#f1ebe1;padding:1px 4px;border-radius:4px}button{min-height:44px;padding:0 18px;border-radius:999px;border:1px solid #1f1a17;background:#fff;font:inherit;cursor:pointer}.on{color:#2f6b3f}.off{color:#8a2f3b}</style></head>
+<style>body{font:16px/1.5 system-ui,sans-serif;margin:0;padding:48px 16px;background:#090b11;color:#eef1f7;color-scheme:dark}main{max-width:560px;margin:auto}h1{background:linear-gradient(90deg,#f6cf86,#f29ab6,#aa9cff);-webkit-background-clip:text;background-clip:text;color:transparent}code{background:#151a26;padding:1px 4px;border-radius:4px}button{min-height:44px;padding:0 18px;border-radius:999px;border:1px solid #36415a;background:#0e121b;color:#eef1f7;font:inherit;cursor:pointer}button:hover{border-color:#b8c0d0}.on{color:#8fe0c2}.off{color:#f29ab6}</style></head>
 <body><main><h1>Owner recording session</h1>
 <p>Real YouCam try-on runs only for this browser, only while <code>YOUCAM_RECORDING=on</code>, and only within the unit caps. Everyone else gets the 0-unit flow.</p>
 <p id="recording-status" data-testid="recording-status" aria-live="polite">Checking…</p>

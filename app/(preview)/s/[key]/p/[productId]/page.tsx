@@ -96,7 +96,7 @@ export default async function PreviewProductPage({ params, searchParams }: { par
             <p className="mt-3 text-xl text-ink">{p.price !== null && p.currency ? formatMoney(locale, p.price, p.currency) : tr("pstore.noPrice", { domain: view.domain })}</p>
             {p.summary ? <p className="mt-4 text-sm leading-6 text-ink-soft">{p.summary}</p> : null}
             {p.categoryText ? <p className="mt-2 text-xs text-muted">{p.categoryText}</p> : null}
-            <a href={p.url} target="_blank" rel="noopener noreferrer nofollow" className="mt-6 inline-flex min-h-12 items-center rounded-full bg-ink px-7 text-sm font-medium text-ivory hover:bg-ink-soft" data-testid="view-on">
+            <a href={p.url} target="_blank" rel="noopener noreferrer nofollow" className="mt-6 inline-flex min-h-12 items-center gf-cta rounded-full bg-ink px-7 text-sm font-medium text-ivory hover:bg-ink-soft" data-testid="view-on">
               {tr("pstore.viewOn", { domain: view.domain })}
             </a>
             <p className="mt-4 text-xs text-muted">{tr("pstore.noCheckout", { domain: view.domain })}</p>

@@ -44,7 +44,7 @@ export function ReturnRiskCard({ scores, synthetic, realGifts }: { scores: numbe
           <dd className="mt-1 font-display text-3xl text-ink" data-testid="rr-after">{pct(r.after.rate, 1)}</dd>
           <dd className="text-xs text-muted">{r.after.expectedReturns.toFixed(1)} returns · {usd(r.after.expectedCost)}</dd>
         </div>
-        <div className="rounded-lg bg-[#eef4f0] px-2 py-3">
+        <div className="rounded-lg bg-sage/10 px-2 py-3">
           <dt className="text-xs text-sage">Avoided</dt>
           <dd className="mt-1 font-display text-3xl text-sage">{usd(r.avoidedCost)}</dd>
           <dd className="text-xs text-sage">≈ {usd(per1000)} per 1,000 gifts</dd>

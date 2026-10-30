@@ -71,7 +71,7 @@ export default async function PreviewStorePage({ params, searchParams }: { param
           <p className="mt-3 text-sm leading-6 text-ink-soft" data-testid="preview-reason">
             {tr(`pstore.reason.${rec.reason ?? "internal"}` as MessageKey)}
           </p>
-          <Link href="/" className="mt-6 inline-flex min-h-11 items-center rounded-full bg-ink px-6 text-sm font-medium text-ivory">
+          <Link href="/" className="mt-6 inline-flex min-h-11 items-center gf-cta rounded-full bg-ink px-6 text-sm font-medium text-ivory">
             {tr("pstore.tryAgain")}
           </Link>
         </main>

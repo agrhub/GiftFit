@@ -38,7 +38,7 @@ export function DataBadge({ synthetic, label }: { synthetic: boolean; label?: st
       {label ?? "Synthetic demo data"}
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-sage/40 bg-[#eef4f0] px-3 py-1 text-xs font-medium text-sage">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-sage/40 bg-sage/10 px-3 py-1 text-xs font-medium text-sage">
       <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-sage" />
       {label ?? "Real data"}
     </span>

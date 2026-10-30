@@ -117,7 +117,7 @@ export function JudgeDemo({ compact = false }: { compact?: boolean }) {
         onClick={seed}
         disabled={state.kind === "seeding"}
         data-testid="try-judge-demo"
-        className="inline-flex min-h-12 items-center justify-center rounded-full bg-ink px-7 text-sm font-medium text-ivory transition-colors hover:bg-ink-soft disabled:cursor-wait disabled:opacity-80"
+        className="inline-flex min-h-12 items-center justify-center gf-cta rounded-full bg-ink px-7 text-sm font-medium text-ivory transition-colors hover:bg-ink-soft disabled:cursor-wait disabled:opacity-80"
       >
         {state.kind === "seeding"
           ? "Preparing your demo…"
@@ -150,7 +150,7 @@ export function JudgeDemo({ compact = false }: { compact?: boolean }) {
                 <Link
                   href={ready.recipientPath}
                   data-testid="demo-recipient-link"
-                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-medium text-ivory hover:bg-ink-soft"
+                  className="inline-flex min-h-11 items-center justify-center gf-cta rounded-full bg-ink px-5 text-sm font-medium text-ivory hover:bg-ink-soft"
                 >
                   Open the recipient view
                 </Link>

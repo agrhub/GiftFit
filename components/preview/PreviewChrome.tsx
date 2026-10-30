@@ -8,7 +8,7 @@ import { translator, type Locale } from "@/lib/i18n";
 export function PreviewBanner({ locale, domain }: { locale: Locale; domain: string }) {
   const tr = translator(locale);
   return (
-    <p role="note" className="sticky top-0 z-40 bg-ink px-4 py-2 text-center text-xs leading-5 text-ivory" data-testid="preview-banner">
+    <p role="note" className="sticky top-0 z-40 border-b border-line bg-cream px-4 py-2 text-center text-xs leading-5 text-ink" data-testid="preview-banner">
       {tr("pstore.banner", { domain })}
     </p>
   );
@@ -34,7 +34,7 @@ export function PreviewHeader({ storeName, homeHref, locale, expiresInHours }: {
 export function MerchantImage({ src, alt, className = "" }: { src: string | undefined; alt: string; className?: string }) {
   if (!src) return <div aria-hidden="true" className={`bg-cream ${className}`} />;
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt={alt} loading="lazy" referrerPolicy="no-referrer" decoding="async" className={`bg-white object-cover ${className}`} />;
+  return <img src={src} alt={alt} loading="lazy" referrerPolicy="no-referrer" decoding="async" className={`bg-paper object-cover ${className}`} />;
 }
 
 export const expiresInHours = (expiresAt: Date, nowMs = Date.now()) => Math.max(1, Math.ceil((expiresAt.getTime() - nowMs) / 3_600_000));

@@ -158,7 +158,7 @@ export default async function PreviewAdminPage({ params, searchParams }: { param
             Greeting (plain text, up to {MAX_GREETING} characters)
             <input name="greeting" defaultValue={settings.greeting ?? ""} maxLength={MAX_GREETING} className="mt-1 block w-full rounded-lg border border-line-strong px-3 py-2 text-sm" data-testid="admin-greeting" />
           </label>
-          <button type="submit" className={`${btn} justify-self-start bg-ink text-ivory`} data-testid="admin-save">
+          <button type="submit" className={`${btn} justify-self-start gf-cta bg-ink text-ivory`} data-testid="admin-save">
             Save settings
           </button>
         </form>

@@ -391,7 +391,7 @@ export function CaptureStep({
       {phase === "live" ? (
         <div className="gf-fade-in flex flex-1 flex-col">
           <div
-            className="relative overflow-hidden rounded-2xl bg-ink"
+            className="relative overflow-hidden rounded-2xl bg-night-950"
             style={{ aspectRatio: "3 / 4" }}
           >
             <video
@@ -407,7 +407,7 @@ export function CaptureStep({
               }
             />
             <Guide mode={mode} good={liveGood} ears={isSelfie && needsEars} />
-            <p className="absolute inset-x-0 top-3 text-center text-xs font-medium text-white drop-shadow">
+            <p className="absolute inset-x-0 top-3 text-center text-xs font-medium text-paper drop-shadow">
               {isSelfie
                 ? needsEars
                   ? t("capture.overlayEars")
@@ -500,7 +500,7 @@ export function CaptureStep({
               type="button"
               onClick={() => onConfirm(still.blob)}
               data-testid={isSelfie ? "use-selfie" : "use-hand"}
-              className="min-h-12 rounded-full bg-ink text-sm font-medium text-ivory hover:bg-ink-soft"
+              className="min-h-12 gf-cta rounded-full bg-ink text-sm font-medium text-ivory hover:bg-ink-soft"
             >
               {t("capture.use")}
             </button>
@@ -549,7 +549,7 @@ export function CaptureStep({
                 onClick={startCamera}
                 disabled={busy}
                 data-testid={isSelfie ? "open-camera" : "open-hand-camera"}
-                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink text-sm font-medium text-ivory hover:bg-ink-soft"
+                className="flex min-h-12 w-full items-center justify-center gap-2 gf-cta rounded-full bg-ink text-sm font-medium text-ivory hover:bg-ink-soft"
               >
                 <CameraIcon />{" "}
                 {isSelfie

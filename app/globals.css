@@ -7,8 +7,9 @@
  *   rose #9b3d50 (6.2:1) · sage #2f5d4a (7.1:1). --color-gold is decorative only (rules, dots), never body text.
  */
 
-/* `dark:` is opt-in (class), so shared components keep the light boutique look on dark-mode phones. */
-@custom-variant dark (&:where(.dark, .dark *));
+/* `dark:` is opt-in (class): on inside `.gf-dark` (every GiftFit page), never from the phone's setting, so the
+   widget and /embed keep the light boutique look on dark-mode phones. */
+@custom-variant dark (&:where(.dark, .dark *, .gf-dark, .gf-dark *));
 
 @theme {
   --color-ivory: #fbf8f3;
@@ -24,6 +25,8 @@
   --color-blush: #f6ebe6;
   --color-rose: #9b3d50;
   --color-sage: #2f5d4a;
+  /* Always white, in every theme: product-photo backdrops and text over camera or photo. */
+  --color-paper: #ffffff;
 
   --font-display: var(--font-cormorant), "Cormorant Garamond", Georgia, "Times New Roman", serif;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -31,8 +34,9 @@
   --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
 
   /*
-   * GiftFit landing, dark (owner: A4, P8.4). Used only inside `.gf-dark` (the landing and /merchants);
-   * the rest of the app keeps the light Aurum palette above. AA contrast on night-950 / night-800:
+   * GiftFit site, dark (owner: A4, P8.4; every GiftFit page since the redesign). Used inside `.gf-dark`, which
+   * also remaps the Aurum tokens above to these (see .gf-dark below); the widget and /embed stay light.
+   * AA contrast on night-950 / night-800:
    *   fog-100 #eef1f7 (17.4:1 / 15.4:1) · fog-300 #b8c0d0 (10.8:1 / 9.5:1) · fog-400 #8d98ad (6.8:1 / 6.0:1)
    *   glow-gold #f6cf86 (13.3:1) · glow-violet #aa9cff (8.3:1) · glow-mint #8fe0c2 (12.7:1) · glow-sky #93b4ff (9.6:1)
    *   glow-rose #f29ab6 (9.4:1); night-950 text on the primary gradient (gold → rose → violet) ≥ 8.3:1.
@@ -166,15 +170,81 @@ dialog.gf-sheet[open] .gf-sheet-panel {
 }
 
 /* ------------------------------------------------------------------------------------------------
- * GiftFit landing (owner: A4, P8.4). Dark mode is scoped: only a `.gf-dark` subtree (the landing at /
- * and /merchants) is dark; widget, gift and retailer pages are untouched. System font stack (no font
- * download, full Vietnamese coverage).
+ * GiftFit design system, dark (owner: A4, P8.4; redesign R0). Every GiftFit page renders inside a
+ * `.gf-dark` subtree: the site, /demo, /merchants, the gift pages (/r, /g), store-URL previews' chrome and
+ * Admin, the retailer console, 404 and errors. The widget (/w) and the store overlay (/embed) live inside
+ * stores and keep the light Aurum palette. System font stack (no font download; Vietnamese, CJK and Thai
+ * from the device's own fonts).
+ *
+ * The Aurum tokens are remapped here, so a component drawn with them (bg-white, text-ink, border-line …)
+ * gets the landing's look from the same classes, with no per-page copies. AA on night-950 / night-900 /
+ * night-800 / night-700: ink → fog-100 ≥ 12.5:1 · ink-soft → fog-300 ≥ 7.7:1 · muted → fog-400 ≥ 4.8:1 ·
+ * gold-deep → glow-gold ≥ 9.5:1 · rose → glow-rose ≥ 6.8:1 (7.8:1 on blush) · sage → glow-mint ≥ 9.1:1.
+ * Light-on-colour pairs invert on their own: `bg-ink text-ivory` is fog-100 with night-950 text (17:1),
+ * `bg-gold-deep text-white` glow-gold with night-900 text (12.6:1).
  * ---------------------------------------------------------------------------------------------- */
 .gf-dark {
+  --color-ivory: var(--color-night-950);
+  --color-cream: var(--color-night-800);
+  --color-sand: var(--color-night-700);
+  --color-white: var(--color-night-900);
+  --color-ink: var(--color-fog-100);
+  --color-ink-soft: var(--color-fog-300);
+  --color-muted: var(--color-fog-400);
+  --color-line: var(--color-night-700);
+  --color-line-strong: var(--color-night-600);
+  --color-gold: var(--color-glow-gold);
+  --color-gold-deep: var(--color-glow-gold);
+  --color-blush: #2a1b26;
+  --color-rose: var(--color-glow-rose);
+  --color-sage: var(--color-glow-mint);
+  /* The trust components' dark: shades (stone) land on the night palette too. */
+  --color-stone-600: var(--color-night-600);
+  --color-stone-700: var(--color-night-700);
+  --color-stone-800: var(--color-night-800);
+  --color-stone-900: var(--color-night-900);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif;
+  --font-display: var(--font-sans);
   color-scheme: dark;
   background: var(--color-night-950);
   color: var(--color-fog-100);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif;
+  font-family: var(--font-sans);
+}
+/* Headings drawn in the Aurum display face become the landing's: bold sans, tight; page titles get the
+   gradient accent. */
+.gf-dark :is(h1, h2, h3).font-display {
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+/* The GiftFit wordmark keeps its serif in the dark header. */
+.gf-wordmark {
+  font-family: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
+  letter-spacing: 0.12em;
+}
+/* Primary action: dark ink pill on light pages, the landing's gradient pill on dark ones. */
+.gf-dark .gf-cta {
+  background-image: linear-gradient(90deg, var(--color-glow-gold), var(--color-glow-rose), var(--color-glow-violet));
+  color: var(--color-night-950);
+  box-shadow: 0 10px 40px -12px rgb(242 154 182 / 0.6);
+}
+.gf-dark .gf-cta:not(:disabled):hover {
+  filter: brightness(1.06);
+}
+/* Soft glow behind the top of a page (the landing's aura, fixed so it never widens the page). */
+.gf-dark .gf-glow {
+  position: relative;
+  isolation: isolate;
+}
+.gf-dark .gf-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 420px;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(45% 60% at 20% 0%, rgb(246 207 134 / 0.1), transparent 70%),
+    radial-gradient(40% 55% at 80% 10%, rgb(170 156 255 / 0.14), transparent 70%);
 }
 .gf-dark :focus-visible {
   outline: 2px solid var(--color-glow-gold);
@@ -192,19 +262,8 @@ body:has(.gf-dark) {
 :root:has(.gf-dark) {
   scrollbar-color: var(--color-night-600) var(--color-night-950);
 }
-header:has(~ #main .gf-dark) {
-  background: var(--color-night-950);
-  border-color: var(--color-night-700);
-}
-header:has(~ #main .gf-dark) a {
-  color: var(--color-fog-300);
-}
-header:has(~ #main .gf-dark) > div > a:first-child,
-header:has(~ #main .gf-dark) a:hover {
-  color: var(--color-fog-100);
-}
-
-.gf-gradient-text {
+.gf-gradient-text,
+.gf-dark h1.font-display {
   background: linear-gradient(100deg, var(--color-glow-gold) 0%, var(--color-glow-rose) 40%, var(--color-glow-violet) 75%, var(--color-glow-gold) 100%);
   background-size: 220% 100%;
   -webkit-background-clip: text;
@@ -221,7 +280,8 @@ header:has(~ #main .gf-dark) a:hover {
   }
 }
 @media (forced-colors: active) {
-  .gf-gradient-text {
+  .gf-gradient-text,
+  .gf-dark h1.font-display {
     background: none;
     color: CanvasText;
   }

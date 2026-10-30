@@ -45,7 +45,7 @@ export function DeleteEverythingButton({ endpoint = "/api/recipient/delete", ses
         type="button"
         onClick={run}
         disabled={state === "deleting" || state === "done"}
-        className="min-h-11 w-full rounded-xl bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800 focus:outline-2 focus:outline-offset-2 focus:outline-red-800 disabled:cursor-not-allowed disabled:bg-stone-500"
+        className="min-h-11 w-full rounded-xl bg-red-700 px-4 py-2 text-sm font-semibold text-paper hover:bg-red-800 focus:outline-2 focus:outline-offset-2 focus:outline-red-800 disabled:cursor-not-allowed disabled:bg-stone-500"
       >
         {state === "deleting" ? rt(locale, "deleteAll.deleting") : state === "done" ? rt(locale, "deleteAll.deleted") : rt(locale, "deleteAll.button")}
       </button>

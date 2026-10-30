@@ -105,7 +105,7 @@ export function IngestBox({ fixtureMode, defaultUrl }: { fixtureMode: boolean; d
               <input id={ids.token} type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} className="mt-1 block min-h-11 w-48 rounded-lg border border-line-strong bg-white px-3 text-sm text-ink" />
             </label>
           ) : null}
-          <button type="submit" disabled={busy} data-testid="ingest-start" className="min-h-11 rounded-full bg-ink px-6 text-sm font-medium text-ivory hover:bg-ink-soft disabled:opacity-60">
+          <button type="submit" disabled={busy} data-testid="ingest-start" className="min-h-11 gf-cta rounded-full bg-ink px-6 text-sm font-medium text-ivory hover:bg-ink-soft disabled:opacity-60">
             {busy ? "Ingesting…" : "Ingest store"}
           </button>
         </div>

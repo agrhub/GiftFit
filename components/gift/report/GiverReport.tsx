@@ -274,7 +274,7 @@ export function ReportItem({ result, product, hearted, wished = false, rank, loc
 
       {product ? (
         // The store's own product page (the demo store, via the /p/<slug> 308): buying happens there.
-        <a {...productLink(product)} data-testid="buy-button" className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-ink px-6 py-2 text-center text-sm font-medium text-ivory transition-colors hover:bg-ink-soft sm:w-auto">
+        <a {...productLink(product)} data-testid="buy-button" className="mt-5 inline-flex min-h-12 w-full items-center justify-center gf-cta rounded-full bg-ink px-6 py-2 text-center text-sm font-medium text-ivory transition-colors hover:bg-ink-soft sm:w-auto">
           {t("ui.item.buy", { details: [...(metalLabel ? [metalLabel] : []), price(locale, amount ?? product.price ?? 0, currency)].join(" · ") })}
         </a>
       ) : null}
@@ -457,7 +457,7 @@ export function GiverReport({ token, api: apiProp, products: productsProp, pollM
         <div className="mt-8 rounded-2xl border border-line bg-white p-6" data-testid="report-gone">
           <h2 className="font-display text-2xl text-ink">{view.expired ? t("ui.gone.expiredTitle") : t("ui.gone.missingTitle")}</h2>
           <p className="mt-2 text-sm leading-6 text-ink-soft">{view.expired ? t("ui.gone.expiredBody") : t("ui.gone.missingBody")}</p>
-          <Link href="/" className="mt-4 inline-flex min-h-11 items-center rounded-full bg-ink px-5 text-sm font-medium text-ivory">
+          <Link href="/" className="mt-4 inline-flex min-h-11 items-center gf-cta rounded-full bg-ink px-5 text-sm font-medium text-ivory">
             {t("ui.backHome")}
           </Link>
         </div>
@@ -536,7 +536,7 @@ export function GiverReport({ token, api: apiProp, products: productsProp, pollM
           {en ? (
             <Disclaimer className="mt-4" tryOn={tryOn} />
           ) : (
-            <p role="note" className="mt-4 text-xs leading-5 text-stone-600 dark:text-stone-300" data-testid="disclaimer">
+            <p role="note" className="mt-4 text-xs leading-5 text-muted" data-testid="disclaimer">
               {tryOn ? t("ui.disclaimer") : t("ui.disclaimerNoTryOn")}
             </p>
           )}
