@@ -56,13 +56,15 @@ test("/ is the GiftFit home: what it is, 3 steps, CTAs, snippet, judge demo, cre
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fine jewelry, gifted right");
 });
 
-test("Vietnamese by ?lang=vi or Accept-Language; merchants placeholder", async ({ page, browser, baseURL }) => {
+test("Vietnamese by Accept-Language (no switcher, ?lang ignored); merchants placeholder", async ({ page, browser, baseURL }) => {
   await page.goto("/?lang=vi");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Trợ lý quà tặng cho mọi cửa hàng");
-  await expect(page.getByTestId("cta-demo-store")).toHaveText("Mở cửa hàng demo");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("The gift assistant for any store");
+  await expect(page.getByTestId("lang-vi")).toHaveCount(0);
   const vi = await browser.newContext({ baseURL, locale: "vi-VN", extraHTTPHeaders: { "Accept-Language": "vi-VN,vi;q=0.9" } });
   const p2 = await vi.newPage();
   await p2.goto("/");
+  await expect(p2.getByRole("heading", { level: 1 })).toHaveText("Trợ lý quà tặng cho mọi cửa hàng");
+  await expect(p2.getByTestId("cta-demo-store")).toHaveText("Mở cửa hàng demo");
   await expect(p2.getByTestId("cta-merchants")).toHaveText("Dành cho cửa hàng");
   await vi.close();
 

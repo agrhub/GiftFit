@@ -34,36 +34,6 @@ const FEATURES: Array<{ title: MessageKey; text: MessageKey; Icon: () => React.J
   { title: "landing.f4Title", text: "landing.f4Text", Icon: IconVoice, tint: "text-glow-mint" },
 ];
 
-export function withLang(path: string, locale: Locale): string {
-  if (locale === "en") return path;
-  const [p, hash] = path.split("#");
-  return `${p}${p.includes("?") ? "&" : "?"}lang=${locale}${hash ? `#${hash}` : ""}`;
-}
-
-export function LangToggle({ locale, path }: { locale: Locale; path: string }) {
-  const tr = translator(locale);
-  const link = (l: Locale, label: string) => (
-    <Link
-      href={`${path}?lang=${l}`}
-      lang={l}
-      hrefLang={l}
-      aria-current={locale === l ? "true" : undefined}
-      className={`inline-flex min-h-11 items-center rounded-full px-3.5 text-xs transition-colors ${locale === l ? "bg-night-800 font-semibold text-fog-100" : "text-fog-300 hover:text-fog-100"}`}
-      data-testid={`lang-${l}`}
-    >
-      {label}
-    </Link>
-  );
-  return (
-    <nav aria-label={tr("landing.langNav")} className="flex justify-end">
-      <div className="flex rounded-full border border-night-700 p-0.5">
-        {link("en", "English")}
-        {link("vi", "Tiếng Việt")}
-      </div>
-    </nav>
-  );
-}
-
 export function SectionHeading({ id, eyebrow, title, text }: { id: string; eyebrow?: string; title: string; text?: string }) {
   return (
     <div className="max-w-2xl">
@@ -102,7 +72,6 @@ export function Landing({ locale, demoStoreUrl, origin, previewMock = false }: L
       <div className="relative isolate overflow-x-clip">
         <div aria-hidden="true" className="gf-aura -z-10" />
         <div className={`${wrap} pt-4`}>
-          <LangToggle locale={locale} path="/" />
           <div className="grid items-center gap-12 pt-10 pb-20 sm:pt-16 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:pb-28">
             <div className="min-w-0">
               <p className="gf-rise text-xs font-semibold tracking-[0.24em] text-fog-300 uppercase">
@@ -126,7 +95,7 @@ export function Landing({ locale, demoStoreUrl, origin, previewMock = false }: L
                 </a>
               </div>
               <p className="gf-rise mt-6 text-sm text-fog-400" style={{ ["--gf-delay" as string]: "320ms" }}>
-                <Link href={withLang("/merchants", locale)} className="inline-flex min-h-11 items-center underline decoration-night-600 underline-offset-4 hover:text-fog-100 hover:decoration-glow-gold" data-testid="cta-merchants">
+                <Link href={"/merchants"} className="inline-flex min-h-11 items-center underline decoration-night-600 underline-offset-4 hover:text-fog-100 hover:decoration-glow-gold" data-testid="cta-merchants">
                   {tr("site.forMerchants")}
                 </Link>
               </p>
@@ -213,7 +182,7 @@ export function Landing({ locale, demoStoreUrl, origin, previewMock = false }: L
             <a href={demoStoreUrl} className="inline-flex min-h-11 items-center hover:text-fog-100">
               {tr("site.openStore")}
             </a>
-            <Link href={withLang("/merchants", locale)} className="inline-flex min-h-11 items-center hover:text-fog-100">
+            <Link href={"/merchants"} className="inline-flex min-h-11 items-center hover:text-fog-100">
               {tr("site.forMerchants")}
             </Link>
             <a href="#docs" className="inline-flex min-h-11 items-center hover:text-fog-100">

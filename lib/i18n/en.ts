@@ -204,7 +204,6 @@ export const en = {
   "landing.eyebrow": "One script tag · any store",
   "landing.lead": "Shoppers buying for someone chat with Mark-kun, the person they're buying for tries pieces on privately, and the giver buys the one that fits. The surprise stays a surprise.",
   "landing.ctaTry": "Try it on your store",
-  "landing.langNav": "Language",
   "landing.codeTitle": "See it run, right here",
   "landing.codeText": "This one tag is the whole integration. Pick the options, then press Run: the same script loads on this page and Mark-kun appears in the bottom-right corner.",
   "landing.codeOptions": "Snippet options",

@@ -4,7 +4,7 @@
  *   - adds `gf-motion-reduce` when the visitor prefers reduced motion (CSS also honours the media query;
  *     the class covers motion started from script and keeps one switch for tests), and
  *   - sets <html lang> to the page language (the root layout says "en"), so screen readers and the
- *     widget's language detection see Vietnamese on /?lang=vi.
+ *     widget's language detection see Vietnamese for a Vietnamese browser.
  */
 import { useEffect, useState, type ReactNode } from "react";
 

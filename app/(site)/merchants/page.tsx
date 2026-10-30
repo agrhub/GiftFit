@@ -7,7 +7,7 @@ import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { CodeBlock } from "@/components/site/CodeBlock";
-import { btnPrimary, btnSecondary, Credits, LangToggle, withLang } from "@/components/site/Landing";
+import { btnPrimary, btnSecondary, Credits } from "@/components/site/Landing";
 import { LandingRoot } from "@/components/site/LandingRoot";
 import { giftfitSnippet } from "@/components/site/snippets";
 import { translator, type MessageKey } from "@/lib/i18n";
@@ -30,14 +30,13 @@ const ISSUES_URL = "https://github.com/agrhub/GiftFit/issues";
 const PREVIEW_BOT_UA = "GiftFitPreviewBot/1.0 (+https://giftfit-469920173665.us-central1.run.app/merchants)";
 const ROBOTS_OPT_OUT = ["User-agent: GiftFitPreviewBot", "Disallow: /"].join("\n");
 
-export default async function MerchantsPage({ searchParams }: { searchParams: Promise<{ lang?: string }> }) {
-  const locale = siteLocale((await searchParams).lang, (await headers()).get("accept-language"));
+export default async function MerchantsPage() {
+  const locale = siteLocale((await headers()).get("accept-language"));
   const tr = translator(locale);
   const origin = await siteOrigin();
   return (
     <LandingRoot lang={locale} testId="merchants">
       <div className="mx-auto max-w-4xl px-4 pt-4 pb-16 sm:px-6">
-        <LangToggle locale={locale} path="/merchants" />
         <h1 className="mt-10 text-4xl font-bold tracking-tight sm:text-5xl">
           <span className="gf-gradient-text">{tr("site.merchantsTitle")}</span>
         </h1>
@@ -60,7 +59,7 @@ export default async function MerchantsPage({ searchParams }: { searchParams: Pr
           ))}
         </ol>
         <p className="mt-6">
-          <Link href={withLang("/#docs", locale)} className="inline-flex min-h-11 items-center text-sm text-fog-100 underline decoration-glow-gold underline-offset-4" data-testid="merchants-guides">
+          <Link href={"/#docs"} className="inline-flex min-h-11 items-center text-sm text-fog-100 underline decoration-glow-gold underline-offset-4" data-testid="merchants-guides">
             {tr("landing.mGuides")}
           </Link>
         </p>
@@ -70,7 +69,7 @@ export default async function MerchantsPage({ searchParams }: { searchParams: Pr
             {tr("landing.mPreviewTitle")}
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-fog-300">{tr("landing.mPreviewText")}</p>
-          <Link href={withLang("/#try", locale)} className={`${btnPrimary} mt-6`} data-testid="merchants-preview">
+          <Link href={"/#try"} className={`${btnPrimary} mt-6`} data-testid="merchants-preview">
             {tr("landing.mPreviewLink")}
           </Link>
         </section>
@@ -106,7 +105,7 @@ export default async function MerchantsPage({ searchParams }: { searchParams: Pr
         </section>
 
         <p className="mt-8 text-sm">
-          <Link href={withLang("/", locale)} className="inline-flex min-h-11 items-center text-fog-300 underline underline-offset-4 hover:text-fog-100">
+          <Link href={"/"} className="inline-flex min-h-11 items-center text-fog-300 underline underline-offset-4 hover:text-fog-100">
             {tr("site.home")}
           </Link>
         </p>

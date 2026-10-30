@@ -40,13 +40,13 @@ describe("Landing", () => {
     // Voice is Google Cloud TTS only (ADR-059): no in-browser model, no third-party model licence.
     expect(credits).not.toMatch(/super\s*tonic|rail-m|onnx/i);
     expect(document.querySelector('a[href*="/voice/"]')).toBeNull();
-    // Landmarks and headings: one h1, a heading per section, the language switcher is a nav.
+    // Landmarks and headings: one h1, a heading per section; no language switcher (the browser decides).
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     for (const name of ["See it run, right here", "What the assistant does", "How it works", "Quick start", "Paste your store URL", "For judges", "About and credits"]) {
       expect(screen.getByRole("heading", { level: 2, name })).toBeTruthy();
     }
-    expect(screen.getByRole("navigation", { name: "Language" })).toBeTruthy();
-    expect(screen.getByTestId("lang-en").getAttribute("aria-current")).toBe("true");
+    expect(screen.queryByRole("navigation", { name: "Language" })).toBeNull();
+    expect(screen.queryByTestId("lang-en")).toBeNull();
   });
 
   it("does not load the widget before Run", () => {
@@ -55,16 +55,16 @@ describe("Landing", () => {
     expect(document.querySelector("giftfit-widget")).toBeNull();
   });
 
-  it("Vietnamese: copy, CTA labels, links keep the language, <html lang> follows", () => {
+  it("Vietnamese: copy, CTA labels, plain links, <html lang> follows", () => {
     renderLanding("vi");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Trợ lý quà tặng cho mọi cửa hàng");
     expect(screen.getByTestId("cta-demo-store").textContent).toBe("Mở cửa hàng demo");
     expect(screen.getByTestId("cta-try").textContent).toBe("Thử trên cửa hàng của bạn");
-    expect(screen.getByTestId("cta-merchants").getAttribute("href")).toBe("/merchants?lang=vi");
+    expect(screen.getByTestId("cta-merchants").getAttribute("href")).toBe("/merchants");
     expect(screen.getByRole("button", { name: "Chạy" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Tạo bản xem trước" })).toBeTruthy();
     expect(screen.getByRole("heading", { level: 2, name: "Bắt đầu nhanh" })).toBeTruthy();
-    expect(screen.getByTestId("lang-vi").getAttribute("aria-current")).toBe("true");
+    expect(screen.queryByTestId("lang-vi")).toBeNull();
     expect(screen.getByTestId("landing").getAttribute("lang")).toBe("vi");
     expect(document.documentElement.lang).toBe("vi");
   });

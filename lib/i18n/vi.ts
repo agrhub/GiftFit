@@ -201,7 +201,6 @@ export const vi: Record<MessageKey, string> = {
   "landing.eyebrow": "Một thẻ script · mọi cửa hàng",
   "landing.lead": "Người mua quà trò chuyện với Mark-kun, người nhận thử các món một cách riêng tư, và người tặng mua đúng món hợp. Món quà vẫn giữ được bất ngờ.",
   "landing.ctaTry": "Thử trên cửa hàng của bạn",
-  "landing.langNav": "Ngôn ngữ",
   "landing.codeTitle": "Chạy thử ngay tại đây",
   "landing.codeText": "Một thẻ này là toàn bộ phần tích hợp. Chọn tuỳ chọn rồi bấm Chạy: chính đoạn script đó tải trên trang này và Mark-kun xuất hiện ở góc dưới bên phải.",
   "landing.codeOptions": "Tuỳ chọn đoạn mã",

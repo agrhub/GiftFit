@@ -87,11 +87,12 @@ describe("demo store pages", () => {
 });
 
 describe("site locale", () => {
-  it("?lang wins, then Accept-Language by q, then English", () => {
+  it("Accept-Language by q (Vietnamese or English), else English; no switcher", () => {
     expect(parseAcceptLanguage("fr;q=0.5, vi-VN,en;q=0.8, *;q=0.1")).toEqual(["vi-VN", "en", "fr"]);
-    expect(siteLocale("vi", "en-US")).toBe("vi");
-    expect(siteLocale(undefined, "vi-VN,vi;q=0.9")).toBe("vi");
-    expect(siteLocale("de", "fr-FR,de")).toBe("en");
-    expect(siteLocale(undefined, null)).toBe("en");
+    expect(siteLocale("en-US")).toBe("en");
+    expect(siteLocale("vi-VN,vi;q=0.9")).toBe("vi");
+    expect(siteLocale("fr-FR,de")).toBe("en");
+    expect(siteLocale("ja-JP")).toBe("en");
+    expect(siteLocale(null)).toBe("en");
   });
 });

@@ -27,7 +27,7 @@ type Params = Promise<{ key: string; productId: string }>;
 /** JSON for a <script type="application/ld+json">: `<` escaped so no text can close the tag. */
 const ldJson = (v: unknown) => JSON.stringify(v).replace(/</g, "\\u003c");
 
-export default async function PreviewProductPage({ params, searchParams }: { params: Params; searchParams: Promise<{ lang?: string; view?: string }> }) {
+export default async function PreviewProductPage({ params, searchParams }: { params: Params; searchParams: Promise<{ view?: string }> }) {
   const { key, productId } = await params;
   if (!PREVIEW_KEY_RE.test(key)) notFound();
   const rec = await defaultPreviewRepo().get(key);
@@ -37,7 +37,7 @@ export default async function PreviewProductPage({ params, searchParams }: { par
   const p = view.products.find((x) => x.id === id);
   if (!p) notFound();
   const sp = await searchParams;
-  const locale = siteLocale(sp.lang, (await headers()).get("accept-language"));
+  const locale = siteLocale((await headers()).get("accept-language"));
   const tr = translator(locale);
   const home = `/s/${key}`;
   const ld = {

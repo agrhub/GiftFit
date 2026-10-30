@@ -19,10 +19,10 @@ export const metadata: Metadata = {
 // No `colorScheme: "dark"` meta: it would make the widget iframe (a light document) paint opaque.
 export const viewport: Viewport = { themeColor: "#090b11" };
 
-type Search = Promise<{ lang?: string; previewmock?: string }>;
+type Search = Promise<{ previewmock?: string }>;
 
 export default async function HomePage({ searchParams }: { searchParams: Search }) {
   const q = await searchParams;
-  const locale = siteLocale(q.lang, (await headers()).get("accept-language"));
+  const locale = siteLocale((await headers()).get("accept-language"));
   return <Landing locale={locale} demoStoreUrl={demoStoreUrl()} origin={await siteOrigin()} previewMock={q.previewmock === "1"} />;
 }

@@ -1,9 +1,9 @@
 /**
- * Site locale (owner: A6): `?lang=en|vi` wins, else the browser's Accept-Language, else English. Same
+ * Site locale (owner: A6): the browser's Accept-Language, else English; there is no switcher. Same
  * catalogs and rules as the widget (lib/i18n detectLocale), limited to SITE_LOCALES (en/vi): the
  * widget's other languages (ADR-057) don't apply to the site, landing or preview-store pages.
  */
-import { detectLocale, normalizeLocale, SITE_LOCALES, type SiteLocale } from "@/lib/i18n";
+import { detectLocale, SITE_LOCALES, type SiteLocale } from "@/lib/i18n";
 
 const isSiteLocale = (l: unknown): l is SiteLocale => (SITE_LOCALES as readonly unknown[]).includes(l);
 
@@ -23,9 +23,7 @@ export function parseAcceptLanguage(header: string | null | undefined): string[]
     .map((x) => x.tag);
 }
 
-export function siteLocale(langParam: unknown, acceptLanguage: string | null | undefined): SiteLocale {
-  const forced = normalizeLocale(typeof langParam === "string" ? langParam : undefined);
-  if (isSiteLocale(forced)) return forced;
+export function siteLocale(acceptLanguage: string | null | undefined): SiteLocale {
   const l = detectLocale({ navigatorLanguages: parseAcceptLanguage(acceptLanguage), allowed: SITE_LOCALES });
   return isSiteLocale(l) ? l : "en";
 }

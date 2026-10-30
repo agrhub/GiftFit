@@ -30,13 +30,13 @@ export const metadata: Metadata = { title: "Store preview" };
 
 type Params = Promise<{ key: string }>;
 
-export default async function PreviewStorePage({ params, searchParams }: { params: Params; searchParams: Promise<{ lang?: string; view?: string }> }) {
+export default async function PreviewStorePage({ params, searchParams }: { params: Params; searchParams: Promise<{ view?: string }> }) {
   const { key } = await params;
   if (!PREVIEW_KEY_RE.test(key)) notFound();
   const rec = await defaultPreviewRepo().get(key);
   if (!rec) notFound();
   const sp = await searchParams;
-  const locale = siteLocale(sp.lang, (await headers()).get("accept-language"));
+  const locale = siteLocale((await headers()).get("accept-language"));
   const tr = translator(locale);
 
   if (inSnapshotMode(rec) && sp.view !== "template") {

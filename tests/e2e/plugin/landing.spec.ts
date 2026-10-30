@@ -41,13 +41,16 @@ test("Run mounts giftfit.js once; the launcher appears (Mark-kun or the SVG masc
 });
 
 for (const width of [320, 375, 390]) {
-  test(`phone ${width} px: no horizontal overflow (en + vi), tap targets ≥ 44 px`, async ({ page }) => {
+  test(`phone ${width} px: no horizontal overflow (en + vi), tap targets ≥ 44 px`, async ({ page, browser, baseURL }) => {
     await page.setViewportSize({ width, height: 800 });
-    for (const path of ["/", "/?lang=vi", "/merchants", "/merchants?lang=vi"]) {
-      await page.goto(path);
-      const { scroll, inner } = await noSideScroll(page);
+    // The site's language comes from the browser (Accept-Language): English here, Vietnamese in `vi`.
+    const vi = await (await browser.newContext({ baseURL, viewport: { width, height: 800 }, extraHTTPHeaders: { "Accept-Language": "vi-VN,vi;q=0.9" } })).newPage();
+    for (const [p, path] of [[page, "/"], [vi, "/"], [page, "/merchants"], [vi, "/merchants"]] as const) {
+      await p.goto(path);
+      const { scroll, inner } = await noSideScroll(p);
       expect(scroll, path).toBeLessThanOrEqual(inner);
     }
+    await vi.context().close();
     await page.goto("/");
     // Every visible button and link in the landing is at least 44 px tall (inline text links excepted).
     const small = await page.getByTestId("landing").evaluate((root) =>
@@ -105,7 +108,7 @@ test("prefers-reduced-motion: the landing switches its motion off", async ({ bro
   await ctx.close();
 });
 
-test("/merchants: three paths, preview and console links, GiftFitPreviewBot facts and opt-out", async ({ page }) => {
+test("/merchants: three paths, preview and console links, GiftFitPreviewBot facts and opt-out", async ({ page, browser, baseURL }) => {
   await page.goto("/merchants");
   await expect(page.getByTestId("merchant-paths").locator("li")).toHaveCount(3);
   await expect(page.getByTestId("merchants-preview")).toHaveAttribute("href", "/#try");
@@ -116,7 +119,9 @@ test("/merchants: three paths, preview and console links, GiftFitPreviewBot fact
   await expect(bot).toContainText("deleted after 24 hours");
   await expect(page.getByTestId("bot-robots")).toHaveText(["User-agent: GiftFitPreviewBot", "Disallow: /"].join("\n"));
   await expect(page.getByTestId("bot-contact")).toHaveAttribute("href", "https://github.com/agrhub/GiftFit/issues");
-  await page.goto("/merchants?lang=vi");
-  await expect(page.getByTestId("merchants-bot")).toContainText("Để từ chối");
-  await expect(page.getByTestId("merchants-preview")).toHaveAttribute("href", "/?lang=vi#try");
+  const vi = await (await browser.newContext({ baseURL, extraHTTPHeaders: { "Accept-Language": "vi-VN,vi;q=0.9" } })).newPage();
+  await vi.goto("/merchants");
+  await expect(vi.getByTestId("merchants-bot")).toContainText("Để từ chối");
+  await expect(vi.getByTestId("merchants-preview")).toHaveAttribute("href", "/#try");
+  await vi.context().close();
 });
