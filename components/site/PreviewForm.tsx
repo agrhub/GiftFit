@@ -116,7 +116,7 @@ export function PreviewForm({ labels: l, mock = false, api, pollMs = POLL_MS }: 
         <button
           type="submit"
           disabled={working}
-          className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-full bg-fog-100 px-6 text-sm font-semibold text-night-950 transition-colors hover:bg-white disabled:cursor-progress disabled:opacity-70"
+          className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-full bg-fog-100 px-6 text-sm font-semibold text-night-950 transition-colors hover:bg-paper disabled:cursor-progress disabled:opacity-70"
           data-testid="preview-submit"
         >
           {working ? l["landing.tryBusy"] : l["landing.tryButton"]}
