@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Brook Pearl Huggies · Lumen &amp; Co.</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
     <meta property="og:type" content="product" />
     <meta property="og:title" content="Brook Pearl Huggies" />
@@ -36,24 +37,61 @@
     </script>
   </head>
   <body>
-    <header><a href="/">Lumen &amp; Co.</a><nav><a href="/c/earrings">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a><a href="/about">About</a></nav></header>
-    <p class="banner">Fictional demo shop on its own origin. It knows nothing about GiftFit except one script tag. Products and photos come from the GiftFit Aurum demo catalog.</p>
+    <p class="banner"><span class="banner-tag">Demo</span> Fictional demo shop on its own origin. It knows nothing about GiftFit except one script tag. Products and photos come from the GiftFit Aurum demo catalog.</p>
+    <header class="site-header">
+      <a class="brand" href="/"><span class="brand-name">Lumen <i>&amp;</i> Co.</span><span class="brand-sub">Fine jewelry</span></a>
+      <nav class="nav" aria-label="Shop"><a href="/c/earrings" aria-current="page">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a><a href="/about">About</a></nav>
+    </header>
     <main>
-      <p><a href="/c/earrings">← Earrings</a></p>
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a><a href="/c/earrings">Earrings</a><span aria-current="page">Brook Pearl Huggies</span></nav>
       <div class="pdp">
-        <img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-ear-017.png" alt="Brook Pearl Huggies" />
-        <div>
+        <div class="pdp-media media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-ear-017.png" alt="Brook Pearl Huggies" /></div>
+        <div class="pdp-info">
+          <p class="eyebrow">Earrings</p>
           <h1>Brook Pearl Huggies</h1>
           <p class="price">$95.00</p>
-          <p>A classic pair of pearl huggies in 18k yellow gold vermeil over sterling silver with freshwater pearl. Sold as a pair; shown as a single earring.</p>
+          <p class="pdp-desc">A classic pair of pearl huggies in 18k yellow gold vermeil over sterling silver with freshwater pearl. Sold as a pair; shown as a single earring.</p>
           <form action="/cart/add" method="post" onsubmit="return false">
             <button type="submit" name="add">Add to cart</button>
           </form>
+          <ul class="assurances">
+            <li>Arrives in our signature gift box</li>
+            <li>Free shipping and 30-day returns</li>
+          </ul>
+          <dl class="details">
+            <div><dt>Material</dt><dd>18k yellow gold vermeil over sterling silver</dd></div>
+            <div><dt>SKU</dt><dd>AUR-EAR-017</dd></div>
+          </dl>
           <p id="events" data-testid="host-events" aria-live="polite"></p>
         </div>
       </div>
+      <section class="section">
+        <div class="section-head"><h2>You may also like</h2><a class="link-arrow" href="/c/earrings">All earrings</a></div>
+        <div class="grid">
+          <a class="card" href="/p/arc-mini-hoops"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-ear-018.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Arc Mini Hoops</span><span class="card-meta"><span class="card-price">$189.00</span><span class="swatches" role="img" aria-label="Two-tone"><span class="swatch swatch-mixed_two_tone"></span></span></span></span></a>
+          <a class="card" href="/p/ellipse-oval-hoops"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-ear-019.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Ellipse Oval Hoops</span><span class="card-meta"><span class="card-price">$565.00</span><span class="swatches" role="img" aria-label="Two-tone"><span class="swatch swatch-mixed_two_tone"></span></span></span></span></a>
+          <a class="card" href="/p/current-curved-hoops"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-ear-020.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Current Curved Hoops</span><span class="card-meta"><span class="card-price">$895.00</span><span class="swatches" role="img" aria-label="Yellow gold"><span class="swatch swatch-yellow_gold"></span></span></span></span></a>
+          <a class="card" href="/p/vesper-pave-oval-hoops"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-ear-021.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Vesper Pavé Oval Hoops</span><span class="card-meta"><span class="card-price">$89.00</span><span class="swatches" role="img" aria-label="Yellow gold"><span class="swatch swatch-yellow_gold"></span></span></span></span></a>
+        </div>
+      </section>
     </main>
-    <footer>Lumen &amp; Co. is not a real store. No orders are taken.</footer>
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <p class="brand-name">Lumen <i>&amp;</i> Co.</p>
+          <p>Fine jewelry in gold, silver and lab-grown stones, chosen to be given.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer">
+          <p>Shop</p>
+          <a href="/c/earrings">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a>
+        </nav>
+        <nav class="footer-links" aria-label="About">
+          <p>The shop</p>
+          <a href="/about">About this demo</a>
+        </nav>
+      </div>
+      <p class="footer-note">Lumen &amp; Co. is not a real store. No orders are taken.</p>
+    </footer>
     <script>
       ["giftfit:sent", "giftfit:close"].forEach(function (type) {
         window.addEventListener(type, function () {

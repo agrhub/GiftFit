@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Bloom Cluster Studs · Lumen &amp; Co.</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
     <meta property="og:type" content="product" />
     <meta property="og:title" content="Bloom Cluster Studs" />
@@ -36,24 +37,61 @@
     </script>
   </head>
   <body>
-    <header><a href="/">Lumen &amp; Co.</a><nav><a href="/c/earrings">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a><a href="/about">About</a></nav></header>
-    <p class="banner">Fictional demo shop on its own origin. It knows nothing about GiftFit except one script tag. Products and photos come from the GiftFit Aurum demo catalog.</p>
+    <p class="banner"><span class="banner-tag">Demo</span> Fictional demo shop on its own origin. It knows nothing about GiftFit except one script tag. Products and photos come from the GiftFit Aurum demo catalog.</p>
+    <header class="site-header">
+      <a class="brand" href="/"><span class="brand-name">Lumen <i>&amp;</i> Co.</span><span class="brand-sub">Fine jewelry</span></a>
+      <nav class="nav" aria-label="Shop"><a href="/c/earrings" aria-current="page">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a><a href="/about">About</a></nav>
+    </header>
     <main>
-      <p><a href="/c/earrings">← Earrings</a></p>
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a><a href="/c/earrings">Earrings</a><span aria-current="page">Bloom Cluster Studs</span></nav>
       <div class="pdp">
-        <img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-ear-006.png" alt="Bloom Cluster Studs" />
-        <div>
+        <div class="pdp-media media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-ear-006.png" alt="Bloom Cluster Studs" /></div>
+        <div class="pdp-info">
+          <p class="eyebrow">Earrings</p>
           <h1>Bloom Cluster Studs</h1>
           <p class="price">$145.00</p>
-          <p>A statement pair of cluster studs in 10k rose gold with amethyst and white topaz accents. Sold as a pair; shown as a single earring.</p>
+          <p class="pdp-desc">A statement pair of cluster studs in 10k rose gold with amethyst and white topaz accents. Sold as a pair; shown as a single earring.</p>
           <form action="/cart/add" method="post" onsubmit="return false">
             <button type="submit" name="add">Add to cart</button>
           </form>
+          <ul class="assurances">
+            <li>Arrives in our signature gift box</li>
+            <li>Free shipping and 30-day returns</li>
+          </ul>
+          <dl class="details">
+            <div><dt>Material</dt><dd>10k rose gold</dd></div>
+            <div><dt>SKU</dt><dd>AUR-EAR-006</dd></div>
+          </dl>
           <p id="events" data-testid="host-events" aria-live="polite"></p>
         </div>
       </div>
+      <section class="section">
+        <div class="section-head"><h2>You may also like</h2><a class="link-arrow" href="/c/earrings">All earrings</a></div>
+        <div class="grid">
+          <a class="card" href="/p/sunburst-button-earrings"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-ear-007.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Sunburst Button Earrings</span><span class="card-meta"><span class="card-price">$645.00</span><span class="swatches" role="img" aria-label="White gold"><span class="swatch swatch-white_gold"></span></span></span></span></a>
+          <a class="card" href="/p/gala-halo-studs"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-ear-008.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Gala Halo Studs</span><span class="card-meta"><span class="card-price">$2,900.00</span><span class="swatches" role="img" aria-label="White gold"><span class="swatch swatch-white_gold"></span></span></span></span></a>
+          <a class="card" href="/p/horizon-bar-studs"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-ear-009.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Horizon Bar Studs</span><span class="card-meta"><span class="card-price">$79.00</span><span class="swatches" role="img" aria-label="Rose gold"><span class="swatch swatch-rose_gold"></span></span></span></span></a>
+          <a class="card" href="/p/orbit-large-hoops"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-ear-010.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Orbit Large Hoops</span><span class="card-meta"><span class="card-price">$119.00</span><span class="swatches" role="img" aria-label="Rose gold"><span class="swatch swatch-rose_gold"></span></span></span></span></a>
+        </div>
+      </section>
     </main>
-    <footer>Lumen &amp; Co. is not a real store. No orders are taken.</footer>
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <p class="brand-name">Lumen <i>&amp;</i> Co.</p>
+          <p>Fine jewelry in gold, silver and lab-grown stones, chosen to be given.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer">
+          <p>Shop</p>
+          <a href="/c/earrings">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a>
+        </nav>
+        <nav class="footer-links" aria-label="About">
+          <p>The shop</p>
+          <a href="/about">About this demo</a>
+        </nav>
+      </div>
+      <p class="footer-note">Lumen &amp; Co. is not a real store. No orders are taken.</p>
+    </footer>
     <script>
       ["giftfit:sent", "giftfit:close"].forEach(function (type) {
         window.addEventListener(type, function () {

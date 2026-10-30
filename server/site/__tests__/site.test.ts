@@ -84,6 +84,20 @@ describe("demo store pages", () => {
       expect(html).toContain('<script src="{{GIFTFIT_ORIGIN}}/giftfit.js"');
     }
   });
+
+  it("every page keeps the fictional-shop banner and loads GiftFit only through the one script tag", () => {
+    const pages = ["index.html", "about.html", ...STORE_CATEGORY_SLUGS.map((c) => `c/${c}.html`), ...catalog.map((s) => `p/${s.attributes.slug}.html`)];
+    for (const rel of pages) {
+      const html = readFileSync(path.join(PUBLIC, rel), "utf8");
+      expect(html, rel).toContain("Fictional demo shop on its own origin.");
+      expect(html, rel).toContain("Lumen &amp; Co. is not a real store. No orders are taken.");
+      expect(html.match(/<script[^>]*\ssrc=/g), rel).toEqual(['<script src=']);
+      expect(html.match(/<script src="[^"]*"/g), rel).toEqual(['<script src="{{GIFTFIT_ORIGIN}}/giftfit.js"']);
+      // Styles, fonts and the icon are the shop's own; only product images come from GiftFit's /catalog.
+      for (const [, url] of html.matchAll(/<link[^>]*\shref="([^"]*)"/g)) expect(url, rel).toMatch(/^\//);
+      for (const [, url] of html.matchAll(/<img[^>]*\ssrc="([^"]*)"/g)) expect(url, rel).toMatch(/^\{\{GIFTFIT_ORIGIN\}\}\/catalog\//);
+    }
+  });
 });
 
 describe("site locale", () => {

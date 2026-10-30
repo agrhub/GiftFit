@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tide Pearl Ring · Lumen &amp; Co.</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
     <meta property="og:type" content="product" />
     <meta property="og:title" content="Tide Pearl Ring" />
@@ -36,24 +37,61 @@
     </script>
   </head>
   <body>
-    <header><a href="/">Lumen &amp; Co.</a><nav><a href="/c/earrings">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a><a href="/about">About</a></nav></header>
-    <p class="banner">Fictional demo shop on its own origin. It knows nothing about GiftFit except one script tag. Products and photos come from the GiftFit Aurum demo catalog.</p>
+    <p class="banner"><span class="banner-tag">Demo</span> Fictional demo shop on its own origin. It knows nothing about GiftFit except one script tag. Products and photos come from the GiftFit Aurum demo catalog.</p>
+    <header class="site-header">
+      <a class="brand" href="/"><span class="brand-name">Lumen <i>&amp;</i> Co.</span><span class="brand-sub">Fine jewelry</span></a>
+      <nav class="nav" aria-label="Shop"><a href="/c/earrings">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings" aria-current="page">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a><a href="/about">About</a></nav>
+    </header>
     <main>
-      <p><a href="/c/rings">← Rings</a></p>
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a><a href="/c/rings">Rings</a><span aria-current="page">Tide Pearl Ring</span></nav>
       <div class="pdp">
-        <img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-rng-021.png" alt="Tide Pearl Ring" />
-        <div>
+        <div class="pdp-media media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-rng-021.png" alt="Tide Pearl Ring" /></div>
+        <div class="pdp-info">
+          <p class="eyebrow">Rings</p>
           <h1>Tide Pearl Ring</h1>
           <p class="price">$475.00</p>
-          <p>A classic pearl ring in 14k yellow gold with Tahitian pearl. Available in US sizes 4–12.</p>
+          <p class="pdp-desc">A classic pearl ring in 14k yellow gold with Tahitian pearl. Available in US sizes 4–12.</p>
           <form action="/cart/add" method="post" onsubmit="return false">
             <button type="submit" name="add">Add to cart</button>
           </form>
+          <ul class="assurances">
+            <li>Arrives in our signature gift box</li>
+            <li>Free shipping and 30-day returns</li>
+          </ul>
+          <dl class="details">
+            <div><dt>Material</dt><dd>14k yellow gold</dd></div>
+            <div><dt>SKU</dt><dd>AUR-RNG-021</dd></div>
+          </dl>
           <p id="events" data-testid="host-events" aria-live="polite"></p>
         </div>
       </div>
+      <section class="section">
+        <div class="section-head"><h2>You may also like</h2><a class="link-arrow" href="/c/rings">All rings</a></div>
+        <div class="grid">
+          <a class="card" href="/p/moonlit-pearl-solitaire-ring"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-rng-022.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Moonlit Pearl Solitaire Ring</span><span class="card-meta"><span class="card-price">$850.00</span><span class="swatches" role="img" aria-label="Yellow gold"><span class="swatch swatch-yellow_gold"></span></span></span></span></a>
+          <a class="card" href="/p/embrace-bypass-ring"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-rng-023.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Embrace Bypass Ring</span><span class="card-meta"><span class="card-price">$45.00</span><span class="swatches" role="img" aria-label="Silver"><span class="swatch swatch-silver"></span></span></span></span></a>
+          <a class="card" href="/p/open-sky-open-ring"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-rng-024.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Open Sky Open Ring</span><span class="card-meta"><span class="card-price">$129.00</span><span class="swatches" role="img" aria-label="Yellow gold"><span class="swatch swatch-yellow_gold"></span></span></span></span></a>
+          <a class="card" href="/p/whisper-stacking-ring"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-rng-025.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Whisper Stacking Ring</span><span class="card-meta"><span class="card-price">$365.00</span><span class="swatches" role="img" aria-label="White gold"><span class="swatch swatch-white_gold"></span></span></span></span></a>
+        </div>
+      </section>
     </main>
-    <footer>Lumen &amp; Co. is not a real store. No orders are taken.</footer>
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <p class="brand-name">Lumen <i>&amp;</i> Co.</p>
+          <p>Fine jewelry in gold, silver and lab-grown stones, chosen to be given.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer">
+          <p>Shop</p>
+          <a href="/c/earrings">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a>
+        </nav>
+        <nav class="footer-links" aria-label="About">
+          <p>The shop</p>
+          <a href="/about">About this demo</a>
+        </nav>
+      </div>
+      <p class="footer-note">Lumen &amp; Co. is not a real store. No orders are taken.</p>
+    </footer>
     <script>
       ["giftfit:sent", "giftfit:close"].forEach(function (type) {
         window.addEventListener(type, function () {
