@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Halo Drop Earrings · Lumen &amp; Co.</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
     <meta property="og:type" content="product" />
     <meta property="og:title" content="Halo Drop Earrings" />
@@ -35,25 +36,61 @@
     </script>
   </head>
   <body>
-    <header><a href="/">Lumen &amp; Co.</a><nav><a href="/">Jewelry</a><a href="/about">About</a></nav></header>
-    <p class="banner">Fictional demo shop on its own origin. It knows nothing about GiftFit except one script tag. Products and photos come from the GiftFit Aurum demo catalog.</p>
+    <p class="banner"><span class="banner-tag">Demo</span> Fictional demo shop on its own origin. It knows nothing about GiftFit except one script tag. Products and photos come from the GiftFit Aurum demo catalog.</p>
+    <header class="site-header">
+      <a class="brand" href="/"><span class="brand-name">Lumen <i>&amp;</i> Co.</span><span class="brand-sub">Fine jewelry</span></a>
+      <nav class="nav" aria-label="Shop"><a href="/c/earrings" aria-current="page">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a><a href="/about">About</a></nav>
+    </header>
     <main>
-      <p><a href="/">← All jewelry</a></p>
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a><a href="/c/earrings">Earrings</a><span aria-current="page">Halo Drop Earrings</span></nav>
       <div class="pdp">
-        <img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/photo/aur-ear-028.jpg" alt="Halo Drop Earrings" />
-        <div>
+        <div class="pdp-media media media-photo"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/photo/aur-ear-028.jpg" alt="Halo Drop Earrings" /></div>
+        <div class="pdp-info">
+          <p class="eyebrow">Earrings</p>
           <h1>Halo Drop Earrings</h1>
           <p class="price">$245.00</p>
-          <p>A classic pair of drop earrings in 10k yellow gold with a lab-grown diamond and white topaz halo. Sold as a pair.</p>
+          <p class="pdp-desc">A classic pair of drop earrings in 10k yellow gold with a lab-grown diamond and white topaz halo. Sold as a pair.</p>
           <form action="/cart/add" method="post" onsubmit="return false">
             <button type="submit" name="add">Add to cart</button>
           </form>
+          <ul class="assurances">
+            <li>Arrives in our signature gift box</li>
+            <li>Free shipping and 30-day returns</li>
+          </ul>
+          <dl class="details">
+            <div><dt>SKU</dt><dd>AUR-EAR-028</dd></div>
+          </dl>
           <p id="events" data-testid="host-events" aria-live="polite"></p>
         </div>
       </div>
       <p class="note">GiftFit snippet on this page: <code>&lt;script src=&quot;{{GIFTFIT_ORIGIN}}/giftfit.js&quot; data-store=&quot;aurum&quot; async&gt;&lt;/script&gt;</code></p>
+      <section class="section">
+        <div class="section-head"><h2>You may also like</h2><a class="link-arrow" href="/c/earrings">All earrings</a></div>
+        <div class="grid">
+          <a class="card" href="/p/dewdrop-bezel-earrings"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-ear-029.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Dewdrop Bezel Earrings</span><span class="card-meta"><span class="card-price">$49.00</span><span class="swatches" role="img" aria-label="Yellow gold"><span class="swatch swatch-yellow_gold"></span></span></span></span></a>
+          <a class="card" href="/p/opaline-teardrop-earrings"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-ear-030.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Opaline Teardrop Earrings</span><span class="card-meta"><span class="card-price">$129.00</span><span class="swatches" role="img" aria-label="Silver"><span class="swatch swatch-silver"></span></span></span></span></a>
+          <a class="card" href="/p/mira-pearl-teardrops"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-ear-031.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Mira Pearl Teardrops</span><span class="card-meta"><span class="card-price">$389.00</span><span class="swatches" role="img" aria-label="Rose gold"><span class="swatch swatch-rose_gold"></span></span></span></span></a>
+          <a class="card" href="/p/marlowe-pear-drop-earrings"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-ear-032.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Marlowe Pear Drop Earrings</span><span class="card-meta"><span class="card-price">$3,400.00</span><span class="swatches" role="img" aria-label="Yellow gold"><span class="swatch swatch-yellow_gold"></span></span></span></span></a>
+        </div>
+      </section>
     </main>
-    <footer>Lumen &amp; Co. is not a real store. No orders are taken.</footer>
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <p class="brand-name">Lumen <i>&amp;</i> Co.</p>
+          <p>Fine jewelry in gold, silver and lab-grown stones, chosen to be given.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer">
+          <p>Shop</p>
+          <a href="/c/earrings">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a>
+        </nav>
+        <nav class="footer-links" aria-label="About">
+          <p>The shop</p>
+          <a href="/about">About this demo</a>
+        </nav>
+      </div>
+      <p class="footer-note">Lumen &amp; Co. is not a real store. No orders are taken.</p>
+    </footer>
     <script>
       ["giftfit:sent", "giftfit:close"].forEach(function (type) {
         window.addEventListener(type, function () {

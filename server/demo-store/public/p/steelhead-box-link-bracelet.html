@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Steelhead Box Link Bracelet · Lumen &amp; Co.</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
     <meta property="og:type" content="product" />
     <meta property="og:title" content="Steelhead Box Link Bracelet" />
@@ -36,24 +37,61 @@
     </script>
   </head>
   <body>
-    <header><a href="/">Lumen &amp; Co.</a><nav><a href="/c/earrings">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a><a href="/about">About</a></nav></header>
-    <p class="banner">Fictional demo shop on its own origin. It knows nothing about GiftFit except one script tag. Products and photos come from the GiftFit Aurum demo catalog.</p>
+    <p class="banner"><span class="banner-tag">Demo</span> Fictional demo shop on its own origin. It knows nothing about GiftFit except one script tag. Products and photos come from the GiftFit Aurum demo catalog.</p>
+    <header class="site-header">
+      <a class="brand" href="/"><span class="brand-name">Lumen <i>&amp;</i> Co.</span><span class="brand-sub">Fine jewelry</span></a>
+      <nav class="nav" aria-label="Shop"><a href="/c/earrings">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets" aria-current="page">Bracelets</a><a href="/c/watches">Watches</a><a href="/about">About</a></nav>
+    </header>
     <main>
-      <p><a href="/c/bracelets">← Bracelets</a></p>
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a><a href="/c/bracelets">Bracelets</a><span aria-current="page">Steelhead Box Link Bracelet</span></nav>
       <div class="pdp">
-        <img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-brc-022.png" alt="Steelhead Box Link Bracelet" />
-        <div>
+        <div class="pdp-media media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-brc-022.png" alt="Steelhead Box Link Bracelet" /></div>
+        <div class="pdp-info">
+          <p class="eyebrow">Bracelets</p>
           <h1>Steelhead Box Link Bracelet</h1>
           <p class="price">$49.00</p>
-          <p>A modern box link bracelet in 18k yellow gold vermeil over sterling silver, 7 in long.</p>
+          <p class="pdp-desc">A modern box link bracelet in 18k yellow gold vermeil over sterling silver, 7 in long.</p>
           <form action="/cart/add" method="post" onsubmit="return false">
             <button type="submit" name="add">Add to cart</button>
           </form>
+          <ul class="assurances">
+            <li>Arrives in our signature gift box</li>
+            <li>Free shipping and 30-day returns</li>
+          </ul>
+          <dl class="details">
+            <div><dt>Material</dt><dd>18k yellow gold vermeil over sterling silver</dd></div>
+            <div><dt>SKU</dt><dd>AUR-BRC-022</dd></div>
+          </dl>
           <p id="events" data-testid="host-events" aria-live="polite"></p>
         </div>
       </div>
+      <section class="section">
+        <div class="section-head"><h2>You may also like</h2><a class="link-arrow" href="/c/bracelets">All bracelets</a></div>
+        <div class="grid">
+          <a class="card" href="/p/riviera-tennis-bracelet"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-brc-001.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Riviera Tennis Bracelet</span><span class="card-meta"><span class="card-price">$2,900.00</span><span class="swatches" role="img" aria-label="Platinum"><span class="swatch swatch-platinum"></span></span></span></span></a>
+          <a class="card" href="/p/starlight-tennis-bracelet"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-brc-002.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Starlight Tennis Bracelet</span><span class="card-meta"><span class="card-price">$59.00</span><span class="swatches" role="img" aria-label="Silver"><span class="swatch swatch-silver"></span></span></span></span></a>
+          <a class="card" href="/p/prism-line-gemstone-tennis-bracelet"><span class="media media-photo"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/photo/aur-brc-003.jpg" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Prism Line Gemstone Tennis Bracelet</span><span class="card-meta"><span class="card-price">$129.00</span><span class="swatches" role="img" aria-label="Silver"><span class="swatch swatch-silver"></span></span></span></span></a>
+          <a class="card" href="/p/halcyon-polished-bangle"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-brc-004.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Halcyon Polished Bangle</span><span class="card-meta"><span class="card-price">$695.00</span><span class="swatches" role="img" aria-label="Yellow gold"><span class="swatch swatch-yellow_gold"></span></span></span></span></a>
+        </div>
+      </section>
     </main>
-    <footer>Lumen &amp; Co. is not a real store. No orders are taken.</footer>
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <p class="brand-name">Lumen <i>&amp;</i> Co.</p>
+          <p>Fine jewelry in gold, silver and lab-grown stones, chosen to be given.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer">
+          <p>Shop</p>
+          <a href="/c/earrings">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a>
+        </nav>
+        <nav class="footer-links" aria-label="About">
+          <p>The shop</p>
+          <a href="/about">About this demo</a>
+        </nav>
+      </div>
+      <p class="footer-note">Lumen &amp; Co. is not a real store. No orders are taken.</p>
+    </footer>
     <script>
       ["giftfit:sent", "giftfit:close"].forEach(function (type) {
         window.addEventListener(type, function () {

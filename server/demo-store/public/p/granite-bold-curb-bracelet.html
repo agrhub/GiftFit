@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Granite Bold Curb Bracelet · Lumen &amp; Co.</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
     <meta property="og:type" content="product" />
     <meta property="og:title" content="Granite Bold Curb Bracelet" />
@@ -36,24 +37,61 @@
     </script>
   </head>
   <body>
-    <header><a href="/">Lumen &amp; Co.</a><nav><a href="/c/earrings">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a><a href="/about">About</a></nav></header>
-    <p class="banner">Fictional demo shop on its own origin. It knows nothing about GiftFit except one script tag. Products and photos come from the GiftFit Aurum demo catalog.</p>
+    <p class="banner"><span class="banner-tag">Demo</span> Fictional demo shop on its own origin. It knows nothing about GiftFit except one script tag. Products and photos come from the GiftFit Aurum demo catalog.</p>
+    <header class="site-header">
+      <a class="brand" href="/"><span class="brand-name">Lumen <i>&amp;</i> Co.</span><span class="brand-sub">Fine jewelry</span></a>
+      <nav class="nav" aria-label="Shop"><a href="/c/earrings">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets" aria-current="page">Bracelets</a><a href="/c/watches">Watches</a><a href="/about">About</a></nav>
+    </header>
     <main>
-      <p><a href="/c/bracelets">← Bracelets</a></p>
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a><a href="/c/bracelets">Bracelets</a><span aria-current="page">Granite Bold Curb Bracelet</span></nav>
       <div class="pdp">
-        <img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-brc-013.png" alt="Granite Bold Curb Bracelet" />
-        <div>
+        <div class="pdp-media media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-brc-013.png" alt="Granite Bold Curb Bracelet" /></div>
+        <div class="pdp-info">
+          <p class="eyebrow">Bracelets</p>
           <h1>Granite Bold Curb Bracelet</h1>
-          <p class="price">$2450.00</p>
-          <p>A modern bold curb bracelet in 18k rose gold, 7 in long.</p>
+          <p class="price">$2,450.00</p>
+          <p class="pdp-desc">A modern bold curb bracelet in 18k rose gold, 7 in long.</p>
           <form action="/cart/add" method="post" onsubmit="return false">
             <button type="submit" name="add">Add to cart</button>
           </form>
+          <ul class="assurances">
+            <li>Arrives in our signature gift box</li>
+            <li>Free shipping and 30-day returns</li>
+          </ul>
+          <dl class="details">
+            <div><dt>Material</dt><dd>18k rose gold</dd></div>
+            <div><dt>SKU</dt><dd>AUR-BRC-013</dd></div>
+          </dl>
           <p id="events" data-testid="host-events" aria-live="polite"></p>
         </div>
       </div>
+      <section class="section">
+        <div class="section-head"><h2>You may also like</h2><a class="link-arrow" href="/c/bracelets">All bracelets</a></div>
+        <div class="grid">
+          <a class="card" href="/p/linkline-paperclip-bracelet"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-brc-014.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Linkline Paperclip Bracelet</span><span class="card-meta"><span class="card-price">$55.00</span><span class="swatches" role="img" aria-label="Two-tone"><span class="swatch swatch-mixed_two_tone"></span></span></span></span></a>
+          <a class="card" href="/p/office-hours-paperclip-chain-bracelet"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-brc-015.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Office Hours Paperclip Chain Bracelet</span><span class="card-meta"><span class="card-price">$275.00</span><span class="swatches" role="img" aria-label="White gold"><span class="swatch swatch-white_gold"></span></span></span></span></a>
+          <a class="card" href="/p/mantra-beaded-bracelet"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-brc-016.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Mantra Beaded Bracelet</span><span class="card-meta"><span class="card-price">$345.00</span><span class="swatches" role="img" aria-label="Silver"><span class="swatch swatch-silver"></span></span></span></span></a>
+          <a class="card" href="/p/pebble-path-bead-bracelet"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-brc-017.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Pebble Path Bead Bracelet</span><span class="card-meta"><span class="card-price">$950.00</span><span class="swatches" role="img" aria-label="Two-tone"><span class="swatch swatch-mixed_two_tone"></span></span></span></span></a>
+        </div>
+      </section>
     </main>
-    <footer>Lumen &amp; Co. is not a real store. No orders are taken.</footer>
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <p class="brand-name">Lumen <i>&amp;</i> Co.</p>
+          <p>Fine jewelry in gold, silver and lab-grown stones, chosen to be given.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer">
+          <p>Shop</p>
+          <a href="/c/earrings">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a>
+        </nav>
+        <nav class="footer-links" aria-label="About">
+          <p>The shop</p>
+          <a href="/about">About this demo</a>
+        </nav>
+      </div>
+      <p class="footer-note">Lumen &amp; Co. is not a real store. No orders are taken.</p>
+    </footer>
     <script>
       ["giftfit:sent", "giftfit:close"].forEach(function (type) {
         window.addEventListener(type, function () {

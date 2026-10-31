@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Whisper Fine Cable Chain · Lumen &amp; Co.</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
     <meta property="og:type" content="product" />
     <meta property="og:title" content="Whisper Fine Cable Chain" />
@@ -36,24 +37,61 @@
     </script>
   </head>
   <body>
-    <header><a href="/">Lumen &amp; Co.</a><nav><a href="/c/earrings">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a><a href="/about">About</a></nav></header>
-    <p class="banner">Fictional demo shop on its own origin. It knows nothing about GiftFit except one script tag. Products and photos come from the GiftFit Aurum demo catalog.</p>
+    <p class="banner"><span class="banner-tag">Demo</span> Fictional demo shop on its own origin. It knows nothing about GiftFit except one script tag. Products and photos come from the GiftFit Aurum demo catalog.</p>
+    <header class="site-header">
+      <a class="brand" href="/"><span class="brand-name">Lumen <i>&amp;</i> Co.</span><span class="brand-sub">Fine jewelry</span></a>
+      <nav class="nav" aria-label="Shop"><a href="/c/earrings">Earrings</a><a href="/c/necklaces" aria-current="page">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a><a href="/about">About</a></nav>
+    </header>
     <main>
-      <p><a href="/c/necklaces">← Necklaces</a></p>
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a><a href="/c/necklaces">Necklaces</a><span aria-current="page">Whisper Fine Cable Chain</span></nav>
       <div class="pdp">
-        <img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-nec-028.png" alt="Whisper Fine Cable Chain" />
-        <div>
+        <div class="pdp-media media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-nec-028.png" alt="Whisper Fine Cable Chain" /></div>
+        <div class="pdp-info">
+          <p class="eyebrow">Necklaces</p>
           <h1>Whisper Fine Cable Chain</h1>
           <p class="price">$95.00</p>
-          <p>A minimal fine cable chain in 18k yellow gold vermeil over sterling silver, 16 in long.</p>
+          <p class="pdp-desc">A minimal fine cable chain in 18k yellow gold vermeil over sterling silver, 16 in long.</p>
           <form action="/cart/add" method="post" onsubmit="return false">
             <button type="submit" name="add">Add to cart</button>
           </form>
+          <ul class="assurances">
+            <li>Arrives in our signature gift box</li>
+            <li>Free shipping and 30-day returns</li>
+          </ul>
+          <dl class="details">
+            <div><dt>Material</dt><dd>18k yellow gold vermeil over sterling silver</dd></div>
+            <div><dt>SKU</dt><dd>AUR-NEC-028</dd></div>
+          </dl>
           <p id="events" data-testid="host-events" aria-live="polite"></p>
         </div>
       </div>
+      <section class="section">
+        <div class="section-head"><h2>You may also like</h2><a class="link-arrow" href="/c/necklaces">All necklaces</a></div>
+        <div class="grid">
+          <a class="card" href="/p/solo-bead-chain"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-nec-029.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Solo Bead Chain</span><span class="card-meta"><span class="card-price">$175.00</span><span class="swatches" role="img" aria-label="Yellow gold"><span class="swatch swatch-yellow_gold"></span></span></span></span></a>
+          <a class="card" href="/p/glimmer-station-necklace"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-nec-030.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Glimmer Station Necklace</span><span class="card-meta"><span class="card-price">$365.00</span><span class="swatches" role="img" aria-label="White gold"><span class="swatch swatch-white_gold"></span></span></span></span></a>
+          <a class="card" href="/p/twine-rope-chain"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-nec-031.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Twine Rope Chain</span><span class="card-meta"><span class="card-price">$1,290.00</span><span class="swatches" role="img" aria-label="White gold"><span class="swatch swatch-white_gold"></span></span></span></span></a>
+          <a class="card" href="/p/everyday-curb-chain"><span class="media media-render"><img src="{{GIFTFIT_ORIGIN}}/catalog/aurum/aur-nec-032.png" alt="" loading="lazy" /></span><span class="card-body"><span class="card-title">Everyday Curb Chain</span><span class="card-meta"><span class="card-price">$59.00</span><span class="swatches" role="img" aria-label="Yellow gold"><span class="swatch swatch-yellow_gold"></span></span></span></span></a>
+        </div>
+      </section>
     </main>
-    <footer>Lumen &amp; Co. is not a real store. No orders are taken.</footer>
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <p class="brand-name">Lumen <i>&amp;</i> Co.</p>
+          <p>Fine jewelry in gold, silver and lab-grown stones, chosen to be given.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer">
+          <p>Shop</p>
+          <a href="/c/earrings">Earrings</a><a href="/c/necklaces">Necklaces</a><a href="/c/rings">Rings</a><a href="/c/bracelets">Bracelets</a><a href="/c/watches">Watches</a>
+        </nav>
+        <nav class="footer-links" aria-label="About">
+          <p>The shop</p>
+          <a href="/about">About this demo</a>
+        </nav>
+      </div>
+      <p class="footer-note">Lumen &amp; Co. is not a real store. No orders are taken.</p>
+    </footer>
     <script>
       ["giftfit:sent", "giftfit:close"].forEach(function (type) {
         window.addEventListener(type, function () {
