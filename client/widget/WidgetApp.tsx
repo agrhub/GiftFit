@@ -292,6 +292,9 @@ function Widget({ store, preview, tryOn, parentOrigin, preferredLang, allowedLan
             reducedMotion={reducedMotion}
             label={tr("panel.title")}
             onActivate={() => setView("chat")}
+            state={charState}
+            mouth={charMouth}
+            analyser={voice.analyser}
             fallback={
               <div className="origin-top-left scale-[0.7]">
                 <SpeakingCharacter compact analyser={voice.analyser} state={charState} mouth={charMouth} onActivate={() => setView("chat")} reducedMotion={reducedMotion} label={tr("panel.title")} />

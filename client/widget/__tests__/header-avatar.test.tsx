@@ -88,6 +88,29 @@ describe("MarkAvatar", () => {
     expect(screen.getByTestId("fallback")).toBeTruthy();
   });
 
+  it("follows the voice: a ring while listening, a mouth only while talking", () => {
+    const { rerender } = render(<MarkAvatar reducedMotion={false} onActivate={() => {}} fallback={fallback} />);
+    const avatar = screen.getByTestId("widget-avatar-mark");
+    expect(avatar.getAttribute("data-state")).toBe("idle");
+    expect(screen.queryByTestId("widget-avatar-mouth")).toBeNull();
+
+    rerender(<MarkAvatar reducedMotion={false} state="listening" onActivate={() => {}} fallback={fallback} />);
+    expect(avatar.getAttribute("data-state")).toBe("listening");
+    expect((avatar.querySelector("img")!.parentElement as HTMLElement).style.animation).toContain("gf-avatar-listen");
+    expect(screen.queryByTestId("widget-avatar-mouth")).toBeNull();
+
+    rerender(<MarkAvatar reducedMotion={false} state="talking" mouth={0.6} onActivate={() => {}} fallback={fallback} />);
+    expect(avatar.getAttribute("data-state")).toBe("talking");
+    expect(screen.getByTestId("widget-avatar-mouth").style.transform).toContain("scaleY(0.6)");
+
+    // No level to follow (e.g. speech the browser can't analyse): a steady rhythm instead.
+    rerender(<MarkAvatar reducedMotion={false} state="talking" onActivate={() => {}} fallback={fallback} />);
+    expect(screen.getByTestId("widget-avatar-mouth").style.animation).toContain("gf-avatar-talk");
+
+    rerender(<MarkAvatar reducedMotion={false} state="idle" onActivate={() => {}} fallback={fallback} />);
+    expect(screen.queryByTestId("widget-avatar-mouth")).toBeNull();
+  });
+
   it("is a named button that activates", () => {
     const onActivate = vi.fn();
     render(<MarkAvatar reducedMotion={false} label="Gift assistant" onActivate={onActivate} fallback={fallback} />);

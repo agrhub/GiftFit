@@ -53,11 +53,6 @@ test("voice: mic → transcript → spoken reply (mouth talking) → mute stops 
     if (r.url() === `${appOrigin}/api/voice/stt`) stt.push(r.status());
   });
 
-  // With Live2D the panel header shows a still of Mark-kun (4469eb5), so the voice states are checked
-  // on the SVG mascot, which the widget uses wherever WebGL 2 is missing.
-  await page.addInitScript(() => {
-    delete (window as { WebGL2RenderingContext?: unknown }).WebGL2RenderingContext;
-  });
   await page.goto(`${STORE}/p/halo-drop-earrings`);
   const host = page.locator("giftfit-widget");
   await expect(host).toHaveAttribute("data-ready", "", { timeout: 60_000 });
