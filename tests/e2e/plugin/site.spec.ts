@@ -36,7 +36,9 @@ test("/ is the GiftFit home: what it is, 3 steps, CTAs, snippet, judge demo, cre
   await expect(page.getByTestId("code-snippet")).toHaveText(`<script src="${appOrigin}/giftfit.js" data-store="aurum" async></script>`);
   await expect(page.getByTestId("link-judge-demo")).toHaveAttribute("href", "/demo");
   await expect(page.getByTestId("site-credits")).toContainText("Live2D Inc.");
-  await expect(page.getByTestId("site-credits")).toContainText("Open RAIL-M");
+  await expect(page.getByTestId("site-credits")).toContainText("YouCam");
+  // Voice is Google Cloud TTS only (ADR-059): no in-browser model licence is credited any more.
+  await expect(page.getByTestId("site-credits")).not.toContainText(/rail-m/i);
   await expect(page.getByTestId("ai-note")).toContainText("AI-generated");
   // Nothing of the old storefront is left on the home page.
   expect(await page.content()).not.toMatch(/Add to bag|Shop the Halo Drop|href="\/p\/|href="\/c\//);

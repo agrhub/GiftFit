@@ -69,7 +69,10 @@ test("Quick start tabs switch panels; the code scrolls inside its own box", asyn
   await page.getByRole("tab", { name: "Shopify" }).click();
   await expect(page.getByTestId("docs-panel-shopify")).toBeVisible();
   await expect(page.getByTestId("docs-panel-html")).toBeHidden();
-  await expect(page.getByTestId("docs-code-shopify")).toContainText("request.locale.iso_code");
+  // Shopify themes set <html lang> to the store's language, which the widget reads: no data-lang needed.
+  await expect(page.getByTestId("docs-code-shopify")).toContainText('data-store="aurum"');
+  await expect(page.getByTestId("docs-code-shopify")).toContainText("</body>");
+  await expect(page.getByTestId("docs-code-shopify")).not.toContainText("data-lang");
   await page.keyboard.press("ArrowRight");
   await expect(page.getByTestId("docs-panel-woo")).toBeVisible();
   const pre = await page.getByTestId("docs-code-woo").evaluate((el) => ({ sw: el.scrollWidth, cw: el.clientWidth, ox: getComputedStyle(el).overflowX }));
@@ -95,7 +98,8 @@ test("store-URL preview (?previewmock=1): validation, progress, ready with Open 
 
   await page.getByTestId("preview-url").fill("https://few.example");
   await page.getByTestId("preview-submit").click();
-  await expect(page.getByTestId("preview-refused")).toContainText("at least 3");
+  // The refusal arrives through the same polling as "ready", so it gets the same time.
+  await expect(page.getByTestId("preview-refused")).toContainText("at least 3", { timeout: 15_000 });
 });
 
 test("prefers-reduced-motion: the landing switches its motion off", async ({ browser, baseURL }) => {
@@ -119,7 +123,8 @@ test("/merchants: three paths, preview and console links, GiftFitPreviewBot fact
   await expect(bot).toContainText("deleted after 24 hours");
   await expect(page.getByTestId("bot-robots")).toHaveText(["User-agent: GiftFitPreviewBot", "Disallow: /"].join("\n"));
   await expect(page.getByTestId("bot-contact")).toHaveAttribute("href", "https://github.com/agrhub/GiftFit/issues");
-  const vi = await (await browser.newContext({ baseURL, extraHTTPHeaders: { "Accept-Language": "vi-VN,vi;q=0.9" } })).newPage();
+  // A Vietnamese browser: the page follows navigator.language too, not only the Accept-Language header.
+  const vi = await (await browser.newContext({ baseURL, locale: "vi-VN", extraHTTPHeaders: { "Accept-Language": "vi-VN,vi;q=0.9" } })).newPage();
   await vi.goto("/merchants");
   await expect(vi.getByTestId("merchants-bot")).toContainText("Để từ chối");
   await expect(vi.getByTestId("merchants-preview")).toHaveAttribute("href", "/#try");
