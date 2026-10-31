@@ -57,7 +57,8 @@ for (const width of [320, 375, 390]) {
       [...root.querySelectorAll<HTMLElement>("button, a.inline-flex, [role=tab]")]
         .filter((el) => el.offsetParent !== null)
         .map((el) => ({ h: el.getBoundingClientRect().height, t: el.textContent?.trim().slice(0, 30) }))
-        .filter((x) => x.h < 44),
+        // Rounded: sub-pixel layout can report 43.9999 for a 44 px control.
+        .filter((x) => Math.round(x.h) < 44),
     );
     expect(small).toEqual([]);
   });
